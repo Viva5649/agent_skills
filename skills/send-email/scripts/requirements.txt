@@ -1,0 +1,7 @@
+# Python 邮件发送脚本依赖
+
+# Markdown 解析和转换
+markdown==3.5.1
+
+# 代码高亮支持
+Pygments==2.17.2

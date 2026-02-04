@@ -1,0 +1,59 @@
+{
+  "_comment": "邮件发送配置文件示例 - 使用时请复制为 config.json 并填入真实信息",
+  "_注意": "所有字段都可以留空，通过环境变量或命令行参数提供",
+  
+  "smtp_server": "smtp.gmail.com",
+  "smtp_port": 465,
+  "use_ssl": true,
+  "use_tls": false,
+  
+  "sender_email": "your-email@gmail.com",
+  "sender_password": "your-app-password",
+  
+  "_环境变量说明": {
+    "SMTP_SERVER": "SMTP 服务器地址",
+    "SMTP_PORT": "SMTP 端口",
+    "SMTP_USE_SSL": "是否使用 SSL (true/false)",
+    "SMTP_USE_TLS": "是否使用 TLS (true/false)",
+    "SMTP_SENDER_EMAIL": "发件人邮箱",
+    "SMTP_SENDER_PASSWORD": "发件人密码"
+  },
+  
+  "_常见邮箱配置": {
+    "Gmail": {
+      "smtp_server": "smtp.gmail.com",
+      "smtp_port": 465,
+      "use_ssl": true,
+      "note": "需要开启两步验证并使用应用专用密码"
+    },
+    "QQ邮箱": {
+      "smtp_server": "smtp.qq.com",
+      "smtp_port": 465,
+      "use_ssl": true,
+      "note": "需要在邮箱设置中开启SMTP服务并获取授权码"
+    },
+    "163邮箱": {
+      "smtp_server": "smtp.163.com",
+      "smtp_port": 465,
+      "use_ssl": true,
+      "note": "需要在邮箱设置中开启SMTP服务并获取授权码"
+    },
+    "Outlook": {
+      "smtp_server": "smtp-mail.outlook.com",
+      "smtp_port": 587,
+      "use_ssl": false,
+      "use_tls": true
+    },
+    "企业邮箱": {
+      "smtp_server": "smtp.exmail.qq.com",
+      "smtp_port": 465,
+      "use_ssl": true
+    },
+    "自建邮箱": {
+      "smtp_server": "mail.yourdomain.com",
+      "smtp_port": 465,
+      "use_ssl": true,
+      "note": "根据你的邮件服务器配置填写"
+    }
+  }
+}
