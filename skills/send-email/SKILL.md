@@ -1,6 +1,8 @@
 ---
 name: send-email
 description: "Send emails with Markdown content, attachments, and multi-recipient support via SMTP. Use when Claude needs to send emails programmatically, including scenarios like: (1) Sending notifications or reports via email, (2) Sending Markdown-formatted content as HTML emails, (3) Sending emails with attachments, (4) Sending to multiple recipients with CC/BCC, (5) Configuring SMTP for different email providers (Gmail, QQ, 163, Outlook, etc.)"
+author: Viva5649
+license: MIT
 ---
 
 # Email Sender
@@ -196,3 +198,11 @@ See [references/examples.md](references/examples.md).
 - Never commit config.json with credentials to version control
 - Use app-specific passwords instead of account passwords
 - Limit config file permissions: `chmod 600 config.json`
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Author
+
+**Viva5649**
