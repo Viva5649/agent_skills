@@ -14,13 +14,13 @@ Send professional HTML emails with Markdown content, attachments, and flexible S
 ### Install dependencies
 
 ```bash
-pip install -r scripts/requirements.txt
+pip3 install -r scripts/requirements.txt
 ```
 
 ### Send a basic email
 
 ```bash
-python scripts/send_email.py \
+python3 scripts/send_email.py \
   --smtp-server smtp.gmail.com \
   --smtp-port 465 \
   --use-ssl \
@@ -65,7 +65,7 @@ For common email provider configurations, see [references/smtp_configs.md](refer
 ### Send to Multiple Recipients
 
 ```bash
-python scripts/send_email.py \
+python3 scripts/send_email.py \
   --to user1@gmail.com user2@qq.com user3@163.com \
   --subject "Team Update" \
   --markdown "# Important Notice\n\nPlease review."
@@ -74,7 +74,7 @@ python scripts/send_email.py \
 ### Send with Attachments
 
 ```bash
-python scripts/send_email.py \
+python3 scripts/send_email.py \
   --to recipient@example.com \
   --subject "Monthly Report" \
   --markdown "# Report\n\nSee attached." \
@@ -84,7 +84,7 @@ python scripts/send_email.py \
 ### Send with CC and BCC
 
 ```bash
-python scripts/send_email.py \
+python3 scripts/send_email.py \
   --to recipient@example.com \
   --cc manager@company.com \
   --bcc archive@company.com \
@@ -95,7 +95,7 @@ python scripts/send_email.py \
 ### Use Markdown File
 
 ```bash
-python scripts/send_email.py \
+python3 scripts/send_email.py \
   --to recipient@example.com \
   --subject "Newsletter" \
   --file newsletter.md

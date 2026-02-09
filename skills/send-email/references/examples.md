@@ -5,7 +5,7 @@
 ### Send to single recipient with Markdown content
 
 ```bash
-python scripts/send_email.py \
+python3 scripts/send_email.py \
   --to recipient@example.com \
   --subject "Test Email" \
   --markdown "# Hello\n\nThis is a test email."
@@ -14,7 +14,7 @@ python scripts/send_email.py \
 ### Send to multiple recipients
 
 ```bash
-python scripts/send_email.py \
+python3 scripts/send_email.py \
   --to user1@gmail.com user2@qq.com user3@163.com \
   --subject "Important Notice" \
   --markdown "# Team Update\n\nPlease review the attached document."
@@ -23,7 +23,7 @@ python scripts/send_email.py \
 ### Send with attachments
 
 ```bash
-python scripts/send_email.py \
+python3 scripts/send_email.py \
   --to recipient@example.com \
   --subject "Monthly Report" \
   --markdown "# Report\n\nPlease find the report attached." \
@@ -33,7 +33,7 @@ python scripts/send_email.py \
 ### Send with CC and BCC
 
 ```bash
-python scripts/send_email.py \
+python3 scripts/send_email.py \
   --to recipient@example.com \
   --cc manager@company.com \
   --bcc archive@company.com \
@@ -52,7 +52,7 @@ export SMTP_USE_SSL=true
 export SMTP_SENDER_EMAIL="your-email@gmail.com"
 export SMTP_SENDER_AUTH_CODE="your-app-password"
 
-python scripts/send_email.py \
+python3 scripts/send_email.py \
   --to recipient@example.com \
   --subject "Test" \
   --markdown "# Hello"
@@ -61,7 +61,7 @@ python scripts/send_email.py \
 ### Method 2: Command-line Arguments
 
 ```bash
-python scripts/send_email.py \
+python3 scripts/send_email.py \
   --smtp-server smtp.gmail.com \
   --smtp-port 465 \
   --use-ssl \
@@ -89,7 +89,7 @@ Create `config.json`:
 Then run:
 
 ```bash
-python scripts/send_email.py \
+python3 scripts/send_email.py \
   --config config.json \
   --to recipient@example.com \
   --subject "Test" \
@@ -159,7 +159,7 @@ sender.send_email(
 ### Daily Report Email
 
 ```bash
-python scripts/send_email.py \
+python3 scripts/send_email.py \
   --to team@company.com \
   --subject "Daily Report - $(date +%Y-%m-%d)" \
   --markdown "# Daily Report\n\n## Metrics\n- Users: 1,234\n- Revenue: $5,678" \
@@ -187,7 +187,7 @@ System Team
 EOF
 
 # Send notification
-python scripts/send_email.py \
+python3 scripts/send_email.py \
   --to user@example.com \
   --subject "Request Completed" \
   --file notification.md
@@ -199,7 +199,7 @@ python scripts/send_email.py \
 # Read recipients from file
 RECIPIENTS=$(cat recipients.txt | tr '\n' ' ')
 
-python scripts/send_email.py \
+python3 scripts/send_email.py \
   --to $RECIPIENTS \
   --subject "Newsletter - February 2026" \
   --file newsletter.md \
