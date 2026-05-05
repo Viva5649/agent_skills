@@ -33,11 +33,12 @@ python3 scripts/send_email.py \
 
 ## Configuration
 
-Three methods to configure SMTP (in priority order):
+Four methods to configure SMTP (in priority order):
 
 1. **Command-line arguments** - Highest priority, most flexible
-2. **Environment variables** - Recommended for security
-3. **Configuration file** - Traditional approach
+2. **Current process environment variables** - Recommended for security
+3. **Interactive zsh environment fallback** - Automatically reads missing `SMTP_*` variables via `zsh -ic`, useful when credentials live in `~/.zshrc`
+4. **Configuration file** - Traditional approach
 
 ### Environment Variables (Recommended)
 
@@ -48,6 +49,8 @@ export SMTP_USE_SSL=true
 export SMTP_SENDER_EMAIL="your-email@gmail.com"
 export SMTP_SENDER_AUTH_CODE="your-app-password"
 ```
+
+If the script runs from a non-interactive shell and the current process cannot see these variables, it now automatically falls back to `zsh -ic 'env'` and loads missing `SMTP_*` values from your interactive zsh setup, such as `~/.zshrc`.
 
 ### Configuration File
 
@@ -186,7 +189,7 @@ See [references/examples.md](references/examples.md).
 
 ## Troubleshooting
 
-**Authentication failed**: Verify credentials and use app-specific passwords (Gmail) or authorization codes (QQ/163)
+**Authentication failed**: Verify credentials and use app-specific passwords (Gmail) or authorization codes (QQ/163). If your credentials are only defined in `~/.zshrc`, the script now automatically falls back to interactive zsh when the current shell does not expose them.
 
 **Connection timeout**: Check SMTP server address, port, and SSL/TLS settings
 

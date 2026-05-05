@@ -8,6 +8,7 @@
 import smtplib
 import json
 import os
+import subprocess
 import sys
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -28,10 +29,56 @@ class EmailSender:
         Args:
             config_path: 配置文件路径
         """
+        self._interactive_smtp_env = None
         self.config = self._load_config(config_path)
+
+    def _load_interactive_smtp_env(self) -> dict:
+        """从交互式 zsh 环境读取 SMTP 变量，兼容 ~/.zshrc 中的配置"""
+        if self._interactive_smtp_env is not None:
+            return self._interactive_smtp_env
+
+        try:
+            result = subprocess.run(
+                ['zsh', '-ic', 'env'],
+                capture_output=True,
+                text=True,
+                check=True
+            )
+        except (FileNotFoundError, subprocess.CalledProcessError):
+            self._interactive_smtp_env = {}
+            return self._interactive_smtp_env
+
+        smtp_env = {}
+        for line in result.stdout.splitlines():
+            if '=' not in line:
+                continue
+
+            key, value = line.split('=', 1)
+            if key.startswith('SMTP_') and value:
+                smtp_env[key] = value
+
+        self._interactive_smtp_env = smtp_env
+        return self._interactive_smtp_env
+
+    def _get_smtp_env(self, env_name: str) -> Optional[str]:
+        """优先读取当前环境，缺失时回退到交互式 zsh 环境"""
+        current_value = os.getenv(env_name)
+        if current_value:
+            return current_value
+
+        fallback_value = self._load_interactive_smtp_env().get(env_name)
+        if fallback_value:
+            print(f"提示: 当前环境缺少 {env_name}，已从交互式 zsh 环境回退加载")
+
+        return fallback_value
+
+    @staticmethod
+    def _parse_env_bool(value: str) -> bool:
+        """解析环境变量中的布尔值"""
+        return value.strip().lower() in {'1', 'true', 'yes', 'on'}
         
     def _load_config(self, config_path: str) -> dict:
-        """加载配置文件，支持从环境变量覆盖配置"""
+        """加载配置文件，支持环境变量覆盖，并在缺失时回退到交互式 zsh 环境"""
         # 如果配置文件不存在，返回空配置（允许完全通过环境变量/命令行参数配置）
         if not os.path.exists(config_path):
             print(f"提示: 配置文件不存在: {config_path}，将使用环境变量或命令行参数")
@@ -39,22 +86,27 @@ class EmailSender:
         else:
             with open(config_path, 'r', encoding='utf-8') as f:
                 config = json.load(f)
-        
-        # 从环境变量读取 SMTP 配置（优先级高于配置文件）
-        if os.getenv('SMTP_SERVER'):
-            config['smtp_server'] = os.getenv('SMTP_SERVER')
-        if os.getenv('SMTP_PORT'):
-            config['smtp_port'] = int(os.getenv('SMTP_PORT'))
-        if os.getenv('SMTP_USE_SSL'):
-            config['use_ssl'] = os.getenv('SMTP_USE_SSL').lower() == 'true'
-        if os.getenv('SMTP_USE_TLS'):
-            config['use_tls'] = os.getenv('SMTP_USE_TLS').lower() == 'true'
-        
-        # 从环境变量读取认证信息（优先级高于配置文件）
-        if os.getenv('SMTP_SENDER_EMAIL'):
-            config['sender_email'] = os.getenv('SMTP_SENDER_EMAIL')
-        if os.getenv('SMTP_SENDER_AUTH_CODE'):
-            config['sender_password'] = os.getenv('SMTP_SENDER_AUTH_CODE')
+
+        # 从环境变量读取 SMTP 配置（优先级高于配置文件，缺失时回退 zsh -ic）
+        smtp_server = self._get_smtp_env('SMTP_SERVER')
+        smtp_port = self._get_smtp_env('SMTP_PORT')
+        smtp_use_ssl = self._get_smtp_env('SMTP_USE_SSL')
+        smtp_use_tls = self._get_smtp_env('SMTP_USE_TLS')
+        sender_email = self._get_smtp_env('SMTP_SENDER_EMAIL')
+        sender_auth_code = self._get_smtp_env('SMTP_SENDER_AUTH_CODE')
+
+        if smtp_server:
+            config['smtp_server'] = smtp_server
+        if smtp_port:
+            config['smtp_port'] = int(smtp_port)
+        if smtp_use_ssl:
+            config['use_ssl'] = self._parse_env_bool(smtp_use_ssl)
+        if smtp_use_tls:
+            config['use_tls'] = self._parse_env_bool(smtp_use_tls)
+        if sender_email:
+            config['sender_email'] = sender_email
+        if sender_auth_code:
+            config['sender_password'] = sender_auth_code
         
         # 验证必需的配置项
         required_fields = ['smtp_server', 'smtp_port', 'sender_email', 'sender_password']
@@ -64,9 +116,10 @@ class EmailSender:
             raise ValueError(
                 f"缺少必需的配置: {', '.join(missing_fields)}\n"
                 f"请通过以下方式之一提供:\n"
-                f"  1. 配置文件 (config.json)\n"
-                f"  2. 环境变量 (SMTP_SERVER, SMTP_PORT, SMTP_SENDER_EMAIL, SMTP_SENDER_AUTH_CODE)\n"
-                f"  3. 命令行参数 (--smtp-server, --smtp-port, --sender-email, --sender-password)"
+                f"  1. 当前 shell 环境变量\n"
+                f"  2. ~/.zshrc 等交互式 zsh 环境变量\n"
+                f"  3. 配置文件 (config.json)\n"
+                f"  4. 命令行参数 (--smtp-server, --smtp-port, --sender-email, --sender-password)"
             )
         
         return config
