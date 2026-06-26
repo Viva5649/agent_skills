@@ -1,0 +1,33 @@
+{
+  "kw": [
+    "tool", "workflow", "method", "tutorial", "prompt",
+    "template", "framework", "automation", "agent",
+    "model", "platform", "trend", "capability", "release",
+    "frontier", "ecosystem", "research", "paper", "benchmark"
+  ],
+  "exclude_hints": [
+    "gpu", "tpu", "datacenter", "data center",
+    "cybersecurity", "security vulnerability", "tokenomics"
+  ],
+  "weak_negative_hints": [
+    "benchmark", "funding", "raised", "valuation", "acquisition"
+  ],
+  "signal_hints": {
+    "practical": [
+      "tool", "workflow", "tutorial", "prompt", "template",
+      "guide", "how to", "step", "automation", "agent"
+    ],
+    "opportunity": [
+      "startup", "business", "monetize", "revenue", "pricing",
+      "customer", "distribution", "positioning", "market", "side project"
+    ],
+    "cognition": [
+      "framework", "principle", "mindset", "lesson", "mistake",
+      "insight", "strategy", "taste", "judgment"
+    ],
+    "trend": [
+      "trend", "model", "platform", "release", "ecosystem",
+      "capability", "adoption", "frontier", "research", "paper"
+    ]
+  }
+}

@@ -12,11 +12,12 @@
 
 - Account:
 - Signal Type:
-- Core Methods:
+- Core Methods/Techniques:
   1. 
   2. 
   3. 
 - What to try now:
+- Why useful for creators:
 - Link:
 
 ## B. 副业思路
@@ -60,4 +61,3 @@
 1. 
 2. 
 3. 
-
