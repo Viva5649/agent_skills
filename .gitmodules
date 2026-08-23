@@ -1,0 +1,21 @@
+[submodule "external/mattpocock-skills"]
+	path = external/mattpocock-skills
+	url = https://github.com/mattpocock/skills
+[submodule "external/superpowers"]
+	path = external/superpowers
+	url = https://github.com/obra/superpowers
+[submodule "external/gstack"]
+	path = external/gstack
+	url = https://github.com/garrytan/gstack
+[submodule "external/compound-engineering"]
+	path = external/compound-engineering
+	url = https://github.com/EveryInc/compound-engineering-plugin
+[submodule "external/khazix-skills"]
+	path = external/khazix-skills
+	url = https://github.com/KKKKhazix/khazix-skills
+[submodule "external/baoyu-skills"]
+	path = external/baoyu-skills
+	url = https://github.com/JimLiu/baoyu-skills
+[submodule "external/anthropics-skills"]
+	path = external/anthropics-skills
+	url = https://github.com/anthropics/skills
