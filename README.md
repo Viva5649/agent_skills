@@ -5,8 +5,8 @@
 本文档记录本机（macOS）当前的 skill 全貌，分三层：仓库自建、全局安装、项目级。来源仓库取自各 skill 目录下的 `.openskills.json`。
 
 - 自建 skill：8 个（`skills/`）
-- 全局安装：33 个（`~/.claude/skills/`）
-- 项目级：10 个（`personal_ai_infrastructure/.claude/skills/`）
+- 全局安装：39 个（`~/.claude/skills/`）
+- 项目级：6 个（`personal_ai_infrastructure/.claude/skills/`）
 - 外部聚合：7 个仓库，共 191 个 skill（`external/`）
 
 ---
@@ -19,7 +19,7 @@
 | `clarify-thought` | 命题分解与决策澄清。维特根斯坦 + 苏格拉底 + 波兰尼三层架构，把模糊想法拆成精准指令或清晰决策 | [Viva5649/clarify-skill](https://github.com/Viva5649/clarify-skill)（原作者 riiiku） | ✅ |
 | `create-blueprint` | 生成工程蓝图风格技术图表，支持箭头、连线、关系标注，用于架构图与流程图 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
 | `creator-signal-digest` | 创作者信号雷达周报。扫描中文圈/英语圈 AI 创作者账号，筛选 AI 实操与副业信号 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ❌ |
-| `explain-concept` | 概念通俗讲解与可视化。输出生活化例子、记忆方法，适合时生成 SVG 图示 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ❌ |
+| `explain-concept` | 概念通俗讲解与可视化。输出生活化例子、记忆方法，适合时按概念结构选 mermaid / SVG / HTML 出图 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ❌ |
 | `optimize-prompt` | 提示词优化。基于 57 个提示词框架选择合适结构，先澄清目标、受众、上下文再改写 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
 | `publish-site` | 管理个人 Vantage 站点，把已准备好的内容转成双主题编辑风格 HTML 报告并发布 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
 | `send-email` | 通过 SMTP 发送邮件，支持 Markdown 转 HTML、附件、多收件人与 CC/BCC | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
@@ -57,6 +57,10 @@
 | `writing-plans` | 有 spec 或需求的多步任务，先写计划再碰代码 | [obra/superpowers](https://github.com/obra/superpowers) | ✅ |
 | `agent-browser` | 浏览器自动化 CLI，导航、填表、截图、抓数据、测试 Web 与 Electron 应用 | [vercel-labs/agent-browser](https://github.com/vercel-labs/agent-browser) | ❌ |
 | `qiaomu-goal-meta-skill` | 把模糊任务转成结构化 Codex `/goal` 指令，含验收标准与边界条件 | [joeseesun/qiaomu-goal-meta-skill](https://github.com/joeseesun/qiaomu-goal-meta-skill) | ❌ |
+| `neat-freak` | 知识收尾。把项目文档、CLAUDE.md/AGENTS.md、agent 记忆和当前代码实际行为对齐 | [KKKKhazix/khazix-skills](https://github.com/KKKKhazix/khazix-skills) | ✅ |
+| `codebase-documenter` | 代码库文档撰写。README、架构说明、API 文档、上手指南 | [ailabs-393/ai-labs-claude-skills](https://github.com/ailabs-393/ai-labs-claude-skills) | ❌ |
+| `spec-miner` | 逆向工程。从无文档的遗留代码库里反推规格、依赖图与业务逻辑 | [jeffallan/claude-skills](https://github.com/jeffallan/claude-skills) | ❌ |
+| `smell` | 架构坏味道与复杂度热点检测，输出反模式违规的 markdown 报告 | [smallnest/goal-workflow](https://github.com/smallnest/goal-workflow) | ❌ |
 
 ### 信息获取 / 研究
 
@@ -76,6 +80,8 @@
 | `humanizer` | 改写 AI 腔文本，去除套话、虚高措辞、重复结构，保持原意不变 | [blader/humanizer](https://github.com/blader/humanizer) | ❌ |
 | `guizang-ppt-skill` | 横向翻页网页 PPT（单 HTML），含 WebGL 背景与演讲者视图，两种风格 | [op7418/guizang-ppt-skill](https://github.com/op7418/guizang-ppt-skill) | ❌ |
 | `huashu-design` | HTML 高保真原型、幻灯片、动画、可视化，新设计强制先出三稿供选 | [alchaincyf/huashu-design](https://github.com/alchaincyf/huashu-design) | ❌ |
+| `baoyu-article-illustrator` | 文章配图。分析结构定位需要插图的位置，按类型 × 风格 × 配色三维生成 | [JimLiu/baoyu-skills](https://github.com/JimLiu/baoyu-skills) | ✅ |
+| `baoyu-cover-image` | 文章封面图。类型、配色、渲染、文字、情绪五维组合，支持 2.35:1 / 16:9 / 1:1 | [JimLiu/baoyu-skills](https://github.com/JimLiu/baoyu-skills) | ✅ |
 | `create-blueprint` | 工程蓝图风格技术图表 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | 本仓库 |
 | `publish-site` | Vantage 站点报告发布 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | 本仓库 |
 
@@ -117,20 +123,20 @@
 
 ## 三、项目级 skill（`personal_ai_infrastructure/.claude/skills/`）
 
-仅在 personal_ai_infrastructure 仓库内生效，同时镜像在 `.agents/skills/`。
+仅在 personal_ai_infrastructure 仓库内生效。目前只保留自建 skill，外部来源的已全部下放到全局安装或移除。
 
-| Skill | 用途 | 源仓库 |
-|---|---|---|
-| `analyze-article` | 文章深度分析。核心观点、论证审视、可复用框架提取、写作技巧与说服机制拆解 | 自建 |
-| `analyze-side-hustle` | 副业思路个性化分析。结合本体画像与已有结论，判断外部赚钱机会与自身的匹配度 | 自建 |
-| `prepare-lesson` | 异步学习备课。把剪藏网页或长文加工成适配水平的教学材料，归档供碎片时间阅读 | 自建 |
-| `research-purchase` | 购物决策调研。200 元以上不熟悉品类，B 站横评加图文源交叉验证，输出候选对比与推荐 | 自建 |
-| `transcribe-video` | 视频音频转文字。优先取现有字幕，回落 yt-dlp 抽音频加 mlx-whisper 转写 | 自建 |
-| `run-maintenance` | 仓库定时维护。每日简报、任务归档、每周内容数据、每月投资纪律检查 | 自建 |
-| `md2wechat` | Markdown 转公众号 HTML，含预览、草稿上传、配图、封面与标题建议 | [geekjourneyx/md2wechat-skill](https://github.com/geekjourneyx/md2wechat-skill) |
-| `baoyu-article-illustrator` | 文章配图。分析结构定位需要插图的位置，按类型 × 风格 × 配色三维生成 | [JimLiu/baoyu-skills](https://github.com/JimLiu/baoyu-skills) |
-| `baoyu-cover-image` | 文章封面生成。五维组合，支持 2.35:1 / 16:9 / 1:1 | [JimLiu/baoyu-skills](https://github.com/JimLiu/baoyu-skills) |
-| `update-compound-engineering` | 同步本地 compound-engineering skill 库与上游仓库，含依赖关系重扫 | [EveryInc/compound-engineering-plugin](https://github.com/EveryInc/compound-engineering-plugin) |
+这一层同时镜像在同仓库的 `.agents/skills/`，两份内容必须逐字节一致（该仓库的 FATAL-008）。镜像靠人工维护，改一份忘了改另一份不会有任何提示，所以 `run-maintenance` 每天会跑一次 `diff` 校验，发现漂移只报告不自动修复，同步方向由本人决定。
+
+| Skill | 用途 |
+|---|---|
+| `analyze-article` | 文章深度分析。核心观点、论证审视、可复用框架提取、写作技巧与说服机制拆解 |
+| `analyze-side-hustle` | 副业思路个性化分析。结合本体画像与已有结论，判断外部赚钱机会与自身的匹配度 |
+| `prepare-lesson` | 异步学习备课。把剪藏网页或长文加工成适配水平的教学材料，归档供碎片时间阅读 |
+| `research-purchase` | 购物决策调研。200 元以上不熟悉品类，B 站横评加图文源交叉验证，输出候选对比与推荐 |
+| `transcribe-video` | 视频音频转文字。优先取现有字幕，回落 yt-dlp 抽音频加 mlx-whisper 转写 |
+| `run-maintenance` | 仓库定时维护。每日简报、任务归档、每周内容数据、每月投资纪律检查、双份同步校验 |
+
+全部为自建，源仓库均为 [Viva5649/personal_ai_infrastructure](https://github.com/Viva5649/personal_ai_infrastructure)，不在本仓库聚合范围内。
 
 ---
 
@@ -161,7 +167,9 @@
 | [op7418/guizang-ppt-skill](https://github.com/op7418/guizang-ppt-skill) | `guizang-ppt-skill` |
 | [alchaincyf/huashu-design](https://github.com/alchaincyf/huashu-design) | `huashu-design` |
 | [joeseesun/qiaomu-goal-meta-skill](https://github.com/joeseesun/qiaomu-goal-meta-skill) | `qiaomu-goal-meta-skill` |
-| [geekjourneyx/md2wechat-skill](https://github.com/geekjourneyx/md2wechat-skill) | `md2wechat` |
+| [ailabs-393/ai-labs-claude-skills](https://github.com/ailabs-393/ai-labs-claude-skills) | `codebase-documenter` |
+| [jeffallan/claude-skills](https://github.com/jeffallan/claude-skills) | `spec-miner` |
+| [smallnest/goal-workflow](https://github.com/smallnest/goal-workflow) | `smell` |
 
 > 注：`KKKKhazix/Khazix-Skills` 与 `KKKKhazix/khazix-skills` 是同一仓库的不同大小写写法，`skill-manager`、`skill-evolution-manager`、`github-to-skills` 三个 skill 位于该仓库但不在其 `skills/` 目录下。
 
