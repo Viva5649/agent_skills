@@ -5,7 +5,7 @@
 本文档记录本机（macOS）当前的 skill 全貌，分三层：仓库自建、全局安装、项目级。来源仓库取自各 skill 目录下的 `.openskills.json`。
 
 - 自建 skill：8 个（`skills/`）
-- 全局安装：39 个（`~/.claude/skills/`）
+- 全局安装：40 个（`~/.claude/skills/`）
 - 项目级：6 个（`personal_ai_infrastructure/.claude/skills/`）
 - 外部聚合：7 个仓库，共 200 个 skill（`third_party/`）
 
@@ -82,6 +82,7 @@
 | `huashu-design` | HTML 高保真原型、幻灯片、动画、可视化，新设计强制先出三稿供选 | [alchaincyf/huashu-design](https://github.com/alchaincyf/huashu-design) | ❌ |
 | `baoyu-article-illustrator` | 文章配图。分析结构定位需要插图的位置，按类型 × 风格 × 配色三维生成 | [JimLiu/baoyu-skills](https://github.com/JimLiu/baoyu-skills) | ✅ |
 | `baoyu-cover-image` | 文章封面图。类型、配色、渲染、文字、情绪五维组合，支持 2.35:1 / 16:9 / 1:1 | [JimLiu/baoyu-skills](https://github.com/JimLiu/baoyu-skills) | ✅ |
+| `show-me` | 把当前话题讲成图。按内容挑最小够用的形式，伪代码、diff 草图、mermaid 或单页 HTML | [humanlayer/skills](https://github.com/humanlayer/skills) | ❌ |
 | `create-blueprint` | 工程蓝图风格技术图表 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | 本仓库 |
 | `publish-site` | Vantage 站点报告发布 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | 本仓库 |
 
@@ -170,6 +171,7 @@
 | [ailabs-393/ai-labs-claude-skills](https://github.com/ailabs-393/ai-labs-claude-skills) | `codebase-documenter` |
 | [jeffallan/claude-skills](https://github.com/jeffallan/claude-skills) | `spec-miner` |
 | [smallnest/goal-workflow](https://github.com/smallnest/goal-workflow) | `smell` |
+| [humanlayer/skills](https://github.com/humanlayer/skills) | `show-me` |
 
 > 注：`KKKKhazix/Khazix-Skills` 与 `KKKKhazix/khazix-skills` 是同一仓库的不同大小写写法，`skill-manager`、`skill-evolution-manager`、`github-to-skills` 三个 skill 位于该仓库但不在其 `skills/` 目录下。
 
