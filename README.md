@@ -196,6 +196,20 @@ git submodule update --remote --merge
 | `creator-signal-digest`、`explain-concept` | 有意只留在仓库内，不做全局安装 |
 | 全局与 `third_party/` 内容重复 | 预期行为，非问题。`third_party/` 的定位是集中管理与查阅上游仓库，全局 skill 由 [openskills](https://github.com/vercel-labs/skills) 工具独立安装，两者各司其职 |
 
+### README 同步校验
+
+本文档记录的是三个位置的实际状态，其中 `~/.claude/skills/` 在仓库之外，改动不会体现在 git 里，靠人工核对必然会漏。[`scripts/check-readme-sync.py`](scripts/check-readme-sync.py) 负责把可机械推导的部分对齐。
+
+```bash
+./scripts/check-readme-sync.py
+```
+
+校验六项：三层的 skill 名单、头部计数、`third_party/` 各仓库的 skill 数、全局 skill 的源仓库（比对 `.openskills.json` 的 `repoUrl`）、自建层的「全局已装」列、全局层的「`third_party/` 收录」列与「尚未聚合的上游仓库」表。
+
+不校验也不生成用途描述和分类分组，这两项是人工撰写的。脚本只读，发现漂移时逐条打印并以退出码 1 结束，需要补的那一行会被精确指出，例如「本机有 README 没有：show-me，源 humanlayer/skills」。
+
+默认读 `~/.claude/skills/` 和 `~/Desktop/personal_ai_infrastructure`，可用 `GLOBAL_SKILLS_DIR` 和 `PAI_ROOT` 覆盖；目录不存在时跳过对应层并打印提示，不报错。personal_ai_infrastructure 仓库的 `run-maintenance` 每天会调一次。
+
 ### gstack 安装（选择性安装，不走官方 setup）
 
 gstack 既不走 openskills，也没有用它自带的 `./setup`。官方脚本会一次性安装全部 61 个 skill，且要求 gstack 位于 `~/.claude/skills/gstack`（脚本把 skill 装到 gstack 目录的**父目录**下）。这里只需要其中几个，所以改用仓库自带的 [`scripts/link-gstack-skills.sh`](scripts/link-gstack-skills.sh) 从 `third_party/gstack` 选择性链接。
