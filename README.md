@@ -5,7 +5,7 @@
 本文档记录本机（macOS）当前的 skill 全貌，分三层：仓库自建、全局安装、项目级。来源仓库取自各 skill 目录下的 `.openskills.json`。
 
 - 自建 skill：8 个（`skills/`）
-- 全局安装：40 个（`~/.claude/skills/`）
+- 全局安装：38 个（`~/.claude/skills/`）
 - 项目级：6 个（`personal_ai_infrastructure/.claude/skills/`）
 - 外部聚合：7 个仓库，共 200 个 skill（`third_party/`）
 
@@ -56,6 +56,7 @@
 | `brainstorming` | 任何创作性工作前的强制前置，先探清意图、需求与设计再动手 | [obra/superpowers](https://github.com/obra/superpowers) | ✅ |
 | `writing-plans` | 有 spec 或需求的多步任务，先写计划再碰代码 | [obra/superpowers](https://github.com/obra/superpowers) | ✅ |
 | `agent-browser` | 浏览器自动化 CLI，导航、填表、截图、抓数据、测试 Web 与 Electron 应用 | [vercel-labs/agent-browser](https://github.com/vercel-labs/agent-browser) | ❌ |
+| `ego-browser` | ego lite 浏览器自动化，可复用用户已登录的网站与上下文，做网页操作、表单填写、截图、Web 应用测试 | [ego lite](https://lite.ego.app/)（随应用安装，非 GitHub） | ❌ |
 | `qiaomu-goal-meta-skill` | 把模糊任务转成结构化 Codex `/goal` 指令，含验收标准与边界条件 | [joeseesun/qiaomu-goal-meta-skill](https://github.com/joeseesun/qiaomu-goal-meta-skill) | ❌ |
 | `neat-freak` | 知识收尾。把项目文档、CLAUDE.md/AGENTS.md、agent 记忆和当前代码实际行为对齐 | [KKKKhazix/khazix-skills](https://github.com/KKKKhazix/khazix-skills) | ✅ |
 | `codebase-documenter` | 代码库文档撰写。README、架构说明、API 文档、上手指南 | [ailabs-393/ai-labs-claude-skills](https://github.com/ailabs-393/ai-labs-claude-skills) | ❌ |
@@ -98,9 +99,6 @@
 
 | Skill | 用途 | 源仓库 | `third_party/` 收录 |
 |---|---|---|:---:|
-| `skill-manager` | GitHub 来源 skill 的生命周期管理，批量扫描、检查更新、引导升级 | [KKKKhazix/Khazix-Skills](https://github.com/KKKKhazix/Khazix-Skills) | ✅ |
-| `skill-evolution-manager` | 会话结束时根据反馈迭代已有 skill，把对话精华固化回 skill 库 | [KKKKhazix/Khazix-Skills](https://github.com/KKKKhazix/Khazix-Skills) | ✅ |
-| `github-to-skills` | 把 GitHub 仓库自动打包成 skill，抓取仓库信息与最新 commit 生成标准结构 | [KKKKhazix/Khazix-Skills](https://github.com/KKKKhazix/Khazix-Skills) | ✅ |
 | `find-skills` | 发现与安装 skill，响应「有没有能做 X 的 skill」类提问 | [vercel-labs/skills](https://github.com/vercel-labs/skills) | ❌ |
 
 ### 其他
@@ -160,6 +158,7 @@
 | 源仓库 | 涉及 skill |
 |---|---|
 | [vercel-labs/agent-browser](https://github.com/vercel-labs/agent-browser) | `agent-browser` |
+| [ego lite](https://lite.ego.app/)（应用内置，无公开仓库） | `ego-browser` |
 | [vercel-labs/skills](https://github.com/vercel-labs/skills) | `find-skills` |
 | [Panniantong/Agent-Reach](https://github.com/Panniantong/Agent-Reach) | `agent-reach` |
 | [icebear0828/notebooklm-client](https://github.com/icebear0828/notebooklm-client) | `notecraft` |
@@ -172,8 +171,6 @@
 | [jeffallan/claude-skills](https://github.com/jeffallan/claude-skills) | `spec-miner` |
 | [smallnest/goal-workflow](https://github.com/smallnest/goal-workflow) | `smell` |
 | [humanlayer/skills](https://github.com/humanlayer/skills) | `show-me` |
-
-> 注：`KKKKhazix/Khazix-Skills` 与 `KKKKhazix/khazix-skills` 是同一仓库的不同大小写写法，`skill-manager`、`skill-evolution-manager`、`github-to-skills` 三个 skill 位于该仓库但不在其 `skills/` 目录下。
 
 ### 拉取与更新
 
@@ -194,6 +191,7 @@ git submodule update --remote --merge
 | 项 | 状态 |
 |---|---|
 | `creator-signal-digest`、`explain-concept` | 有意只留在仓库内，不做全局安装 |
+| `ego-browser` | 由 ego lite 应用安装，`~/.claude/skills/ego-browser` 软链到 `~/.local/share/ego/ego-skills`，实体在应用包内，随应用升级，没有 `.openskills.json`，也无法收进 `third_party/` |
 | 全局与 `third_party/` 内容重复 | 预期行为，非问题。`third_party/` 的定位是集中管理与查阅上游仓库，全局 skill 由 [openskills](https://github.com/vercel-labs/skills) 工具独立安装，两者各司其职 |
 
 ### README 同步校验
