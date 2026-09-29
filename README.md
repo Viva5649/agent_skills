@@ -212,14 +212,16 @@ git submodule update --remote --merge
 
 [`scripts/skillctl.py`](scripts/skillctl.py) 从 GitHub 拉取 skill，装到 `~/.agents/skills/<安装名>/`（Codex 读取），并在 `~/.claude/skills/<安装名>` 建软链接（Claude Code 读取）。只依赖 git 和系统自带的 Python 3.9 以上版本。第一次运行时会自动创建 `~/.local/bin/skillctl`，之后直接用命令名。
 
-装哪些 skill、叫什么名字，记在仓库根目录的 `skills.json` 里。它只通过命令修改，不要手工编辑。
+装哪些 skill、叫什么名字、每个上游仓库用哪个提交，都记在仓库根目录的 `skills.json` 里。它只通过命令修改，不要手工编辑。
 
 | 位置 | 内容 |
 |---|---|
 | `skills.json` | 清单，随本仓库分发 |
-| `~/.local/share/agent-skills/repos/<owner>/<repo>/` | 上游仓库的本机副本 |
+| `~/.local/share/agent-skills/repos/<owner>/<repo>/` | 上游仓库的本机副本，浅 clone，只含清单记录的那个提交 |
 | `~/.agents/skills/<安装名>/` | skill 实体，内含标记文件 `.skillctl.json` |
 | `~/.claude/skills/<安装名>` | 指向上一行目录的软链接 |
+
+本仓库 `third_party/` 下的子仓库只用来阅读上游源码，不参与安装。
 
 ### 常用命令
 
@@ -228,31 +230,38 @@ git submodule update --remote --merge
 | `skillctl add owner/repo` | 列出仓库里的 skill，输入编号挑选安装 |
 | `skillctl add owner/repo --skill a,b [--as 名字 \| --prefix 前缀] [--link]` | 非交互安装，按 name 或仓库内路径指定。对已装的 skill 带 `--as` 就是改名 |
 | `skillctl remove 安装名` | 卸载，并在清单里标记为已删除 |
-| `skillctl sync` | 拉取本仓库、合并清单，让本机安装与清单一致 |
+| `skillctl sync` | 拉取本仓库、合并清单，让本机安装与清单一致，最后列出未托管的 skill |
 | `skillctl merge 文件 [--yes]` | 把另一台电脑的 `skills.json` 合并进来，先列出改动，确认后再执行 |
-| `skillctl update [owner/repo]` | 拉取上游，列出有变化的文件，重装有变化的 skill |
+| `skillctl update [owner/repo]` | 拉取上游最新版本，列出有变化的文件，重装有变化的 skill，并把新版本记进清单 |
 | `skillctl list` | 列出托管的 skill，以及两个全局目录里未托管的 skill；能查到来源的会给出纳入管理的 add 命令 |
 | `skillctl check` | 只读检查：清单与安装是否一致、重名、手改、失效软链接、上游更新 |
 
 `add`、`remove`、`update`、`merge` 执行前都会先做一次 `sync`。
 
+### 版本
+
+每个上游仓库用哪个提交，记在 `skills.json` 的 `repos` 里。sync 按记录的提交安装，所以两台电脑装的是同一个版本；只有 update 会改这条记录。
+
+add 一个清单里还没有的仓库时，取默认分支的最新提交并记下来。同一仓库已经有 skill 在用时，沿用记录的提交，免得顺带升级已装的那些；想装最新的，先运行 `skillctl update owner/repo`。
+
 ### 命名规则
 
-- 默认沿用上游的 name。安装时会拦截三种情况：和本机已有目录重名；命中保留名（常见泛名、Claude Code 和 Codex 自带的 skill 名）；不符合 Agent Skills 命名规范。遇到时用 `--as` 起别名，或用 `--prefix` 加前缀，前缀优先用项目名。
+- 默认沿用上游的 name。安装时会拦截四种情况：和清单里的 skill 重名；和本机已有目录重名，`~/.agents/skills`、`~/.claude/skills`、`~/.codex/skills` 和当前项目的 skill 目录都算，清单之外的也算；命中保留名（常见泛名、Claude Code 和 Codex 自带的 skill 名）；不符合 Agent Skills 命名规范。
+- 遇到重名时用 `--as` 起别名，或用 `--prefix` 加前缀，前缀优先用项目名。交互安装一次选了多个时，先问要不要统一加前缀，加完仍冲突的逐个提示输入别名，直接回车跳过这一个；非交互安装跳过冲突的那个，其余照装。
 - 已经装上的 skill 不会因为后来者改名；安装名写进 SKILL.md 的 `name:`，所以两个工具里看到的名字一致。
 - 手改过的 skill 不会被 sync、update、remove 覆盖或删除，只会被报告。
+- sync 装清单里的 skill 时，`~/.agents/skills` 和 `~/.claude/skills` 任何一处被未托管的同名 skill 占着，两处都不装，只报告冲突，你自己的 skill 保持原样。
 
 ### 在新电脑上安装
 
 1. `git clone https://github.com/Viva5649/agent_skills.git`，放在哪里都可以。
 2. 本机已有同名 skill 目录的，先移到备份目录。
-3. `python3 <仓库路径>/scripts/skillctl.py sync`，按 `skills.json` 装齐。sync 不会把本机已有、清单里没有的 skill 写进清单。
+3. `python3 <仓库路径>/scripts/skillctl.py sync`，按 `skills.json` 装齐。本机已有、清单里没有的 skill 不会被改动，也不会写进清单，sync 结束时会列出来，能查到来源的附带纳入管理的命令。
 4. `skillctl check`。
-5. `skillctl list`，看还有哪些未托管的 skill，按提示决定要不要纳入管理。
 
 ### 两台电脑之间同步
 
-- **主力机**：增删之后，提交并推送 `skills.json`。其他电脑下次运行任意 skillctl 命令时就会拿到。
+- **主力机**：增删或 update 之后，提交并推送 `skills.json`。其他电脑下次运行任意 skillctl 命令时就会拿到，并切到同一版本。
 - **不能推送的副机**：增删只改它本地的 `skills.json`，不要在副机的 clone 里提交，更新仓库用 `skillctl sync`。把副机的 `skills.json` 拷到主力机任意位置，运行 `skillctl merge <文件>`，再提交推送。副机下次 sync 后，`git diff skills.json` 变空，说明改动已经送达。
 
 合并按条目比较时间，取较晚的记录，删除以标记的形式保留在清单里，所以两边各自的增删都不会丢。
@@ -284,15 +293,16 @@ skillctl merge ~/Downloads/skills.json
 skillctl 先列出这次会带来的改动，等你确认：
 
 ```text
-将合并以下 2 处改动：
-  新增 web-design-guidelines（vercel-labs/agent-skills:skills/web-design-guidelines）
-  删除 smell（smallnest/goal-workflow:skills/smell）
-确认合并并按清单安装、卸载？[y/N] y
-已安装 web-design-guidelines（vercel-labs/agent-skills:skills/web-design-guidelines）
-已卸载 smell
-提示：README 和清单不一致，需要在主力机上补 README（用途和分类要人工写）：
-  [全局层] 实际有 README 没有：web-design-guidelines，源 vercel-labs/agent-skills
-  [全局层] README 有实际没有：smell
+The merge brings 3 change(s):
+  remove smell (smallnest/goal-workflow:skills/smell)
+  vercel-labs/agent-skills pinned at 64bee5b
+  add web-design-guidelines (vercel-labs/agent-skills:skills/web-design-guidelines)
+Merge, then install and uninstall to match? [y/N] y
+Installed web-design-guidelines (vercel-labs/agent-skills:skills/web-design-guidelines)
+Uninstalled smell
+Note: README is out of sync with the manifest; update it on the main Mac (purpose and category are written by hand):
+  [global] exists but missing from README: web-design-guidelines, source vercel-labs/agent-skills
+  [global] in README but does not exist: smell
 ```
 
 回答 `y` 之外的任何内容都会取消，清单和本机安装都不变。在脚本里运行时，加 `--yes` 跳过确认。传进来的文件原样保留，确认没问题后可以自己删掉。
@@ -315,7 +325,7 @@ git diff -- skills.json
 
 第二条命令没有输出，说明副机的改动已经全部进了主力机。
 
-同一个文件 merge 两次，第二次会显示「没有需要合并的改动」；拷来的文件比主力机旧也没关系，较新的记录不会被覆盖。
+同一个文件 merge 两次，第二次会显示 `Nothing to merge`；拷来的文件比主力机旧也没关系，较新的记录不会被覆盖。
 
 ### gstack 安装
 
@@ -337,7 +347,7 @@ skillctl add garrytan/gstack --skill office-hours,plan-ceo-review,plan-eng-revie
 | `gstack-plan-eng-review` | `plan-eng-review/` |
 
 - 升级用 `skillctl update garrytan/gstack`，不用 gstack 自带的 `/gstack-upgrade`。
-- 链接安装的入口没有手改保护，update 会把仓库副本里改过的已跟踪文件还原。
+- 链接安装的入口直接指向仓库副本，没有标记文件。仓库副本里已跟踪的文件被改过时，sync 和 update 都不切换版本，只报告，要升级得先还原这些改动。
 - `office-hours` 会用到 `browse/dist/browse` 二进制（需 `bun run build`），未编译时代码内有存在性判断和 fallback，只影响网页浏览部分。
 - 不要在仓库副本里执行官方 `./setup`，它会一次装上全部 61 个 skill。
 

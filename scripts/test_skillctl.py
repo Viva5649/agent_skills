@@ -55,6 +55,9 @@ class Env:
         self.bare.parent.mkdir(parents=True)
         git(["clone", "-q", "--bare", str(seed), str(self.bare)], self.root)
 
+    def tip(self, repo):
+        return git(["rev-parse", "HEAD"], self.remotes / repo).strip()
+
     def upstream(self, repo, files, message="update", delete=()):
         d = self.remotes / repo
         if not d.exists():
@@ -89,7 +92,8 @@ class Machine:
         self.claude = self.home / ".claude" / "skills"
 
     def run(self, *args, stdin=None, tty=False):
-        env = dict(GIT_ENV, HOME=str(self.home), SKILLCTL_GIT_BASE=str(self.env.remotes) + "/")
+        # 用 file:// 地址，git 才会真的浅 clone（本地路径会忽略 --depth）
+        env = dict(GIT_ENV, HOME=str(self.home), SKILLCTL_GIT_BASE=self.env.remotes.as_uri() + "/")
         env.pop("SKILLCTL_FORCE_TTY", None)
         if tty:
             env["SKILLCTL_FORCE_TTY"] = "1"
@@ -109,6 +113,12 @@ class Machine:
 
     def skill_name(self, name):
         return sk.read_frontmatter(self.agents / name / "SKILL.md")[0]
+
+    def pin(self, repo):
+        return self.manifest()["repos"][repo]["commit"]
+
+    def repo_copy(self, repo):
+        return self.home / ".local" / "share" / "agent-skills" / "repos" / repo
 
 
 class Base(unittest.TestCase):
@@ -134,7 +144,7 @@ class Base(unittest.TestCase):
         """check 只允许报"清单有未提交修改"这一项。"""
         rc, out = machine.run("check")
         issues = [l for l in out.splitlines() if l.strip().startswith("!")]
-        self.assertTrue(all("skills.json 有未提交的修改" in l for l in issues), out)
+        self.assertTrue(all("skills.json has uncommitted changes" in l for l in issues), out)
 
 
 # 1. 清单合并
@@ -159,6 +169,46 @@ class MergeTest(unittest.TestCase):
         self.assertEqual(s["a/b:z"]["name"], "z")          # 只有一边有的保留
         self.assertEqual(s["a/b:t"]["name"], "t")          # 时间相同保留本机
         self.assertEqual(sorted(changed), ["a/b:x", "a/b:z"])
+
+    def test_repo_versions_merge_and_describe(self):
+        local = {"version": 1, "skills": {}, "repos": {
+            "a/b": {"commit": "1" * 40, "updated_at": "2026-01-02T08:00:00+08:00"},
+            "a/c": {"commit": "2" * 40, "updated_at": "2026-01-02T08:00:00+08:00"},
+        }}
+        other = {"version": 1, "skills": {}, "repos": {
+            "a/b": {"commit": "3" * 40, "updated_at": "2026-01-01T08:00:00+08:00"},
+            "a/c": {"commit": "4" * 40, "updated_at": "2026-01-03T08:00:00+08:00"},
+        }}
+        merged, changed = sk.merge_manifests(local, other)
+        self.assertEqual(merged["repos"]["a/b"]["commit"], "1" * 40)
+        self.assertEqual(merged["repos"]["a/c"]["commit"], "4" * 40)
+        self.assertEqual(changed, ["a/c"])
+        self.assertEqual(sk.describe_change("a/c", local["repos"]["a/c"], merged["repos"]["a/c"]),
+                         "a/c version 2222222 -> 4444444")
+        # 旧格式清单没有 repos，读入时补空
+        self.assertEqual(sk.parse_manifest('{"version": 1, "skills": {}}', "x")["repos"], {})
+
+    def test_git_timeout_and_parallel(self):
+        orig = sk.subprocess.run
+
+        def hang(cmd, **kw):
+            raise subprocess.TimeoutExpired(cmd, kw.get("timeout"))
+        sk.subprocess.run = hang
+        try:
+            proc = sk.git(["ls-remote", "x", "HEAD"], check=False, timeout=5)
+        finally:
+            sk.subprocess.run = orig
+        self.assertEqual(proc.returncode, 124)
+        self.assertIn("timed out", proc.stderr)
+
+        def work(n):
+            if n == 2:
+                raise sk.SkillctlError("boom")
+            return n * 10
+        out = sk.run_parallel(work, [1, 2, 3])
+        self.assertEqual(out[1], (10, None))
+        self.assertEqual(out[3], (30, None))
+        self.assertEqual(str(out[2][1]), "boom")
 
     def test_timezone_aware_comparison(self):
         self.assertTrue(sk.now().endswith("+08:00"))
@@ -191,12 +241,12 @@ class InstallTest(Base):
         self.assertEqual(os.readlink(str(l)), str(t))
         link = self.m.home / ".local" / "bin" / "skillctl"
         self.assertEqual(os.readlink(str(link)), str((self.m.work / "scripts" / "skillctl.py").resolve()))
-        self.assertIn("已创建命令链接", out)
+        self.assertIn("Created command link", out)
 
         before = (t / ".skillctl.json").stat().st_mtime_ns
         out = self.ok(self.m, "sync")
-        self.assertNotIn("已安装", out)
-        self.assertNotIn("已重装", out)
+        self.assertNotIn("Installed", out)
+        self.assertNotIn("Reinstalled", out)
         self.assertEqual((t / ".skillctl.json").stat().st_mtime_ns, before)
 
         self.ok(self.m, "add", "acme/tools", "--skill", "alpha", "--as", "acme-alpha")
@@ -216,10 +266,10 @@ class InstallTest(Base):
         stray.mkdir(parents=True)
         (stray / "SKILL.md").write_text(skill_md("stray"))
         out = self.ok(self.m, "list")
-        unmanaged = out.split("未托管的 skill", 1)[1]
+        unmanaged = out.split("Unmanaged skills", 1)[1]
         self.assertIn("skillctl add acme/tools --skill skills/legacy", unmanaged)
         self.assertIn("stray", unmanaged)
-        self.assertIn("来源未知", unmanaged)
+        self.assertIn("source unknown", unmanaged)
         self.assertNotIn("alpha", unmanaged)
 
     def test_bin_link_not_overwritten(self):
@@ -228,7 +278,7 @@ class InstallTest(Base):
         link.write_text("mine")
         rc, out = self.m.run("list")
         self.assertEqual(link.read_text(), "mine")
-        self.assertIn("已被占用", out)
+        self.assertIn("is taken", out)
 
 
 # 3. 手改保护
@@ -239,13 +289,13 @@ class ProtectTest(Base):
         f = self.m.agents / "alpha" / "ref.md"
         f.write_text("my edit\n")
         rc, out = self.m.run("sync")
-        self.assertIn("本地手改", out)
+        self.assertIn("modified locally", out)
         self.env.upstream("acme/tools", {"skills/alpha/ref.md": "upstream v2\n"})
         self.m.run("update")
         self.assertEqual(f.read_text(), "my edit\n")
         rc, out = self.m.run("remove", "alpha")
         self.assertTrue(f.exists())
-        self.assertIn("没有删除", out)
+        self.assertIn("not removed", out)
         self.assertEqual(self.m.manifest()["skills"]["acme/tools:skills/alpha"]["state"], "removed")
 
 
@@ -261,6 +311,19 @@ class ConflictTest(Base):
         self.assertIn("mine", (d / "SKILL.md").read_text())
         self.ok(self.m, "add", "acme/tools", "--skill", "alpha", "--as", "acme-alpha")
 
+    def test_claude_slot_taken_blocks_both_on_sync(self):
+        self.ok(self.m, "add", "acme/tools", "--skill", "alpha")
+        self.m.publish("add alpha")
+        second = self.env.machine("second")
+        own = second.claude / "alpha"
+        own.mkdir(parents=True)
+        (own / "SKILL.md").write_text(skill_md("alpha", "mine"))
+        rc, out = second.run("sync")
+        self.assertEqual(rc, 1, out)
+        self.assertIn("installed in neither place", out)
+        self.assertFalse((second.agents / "alpha").exists())
+        self.assertIn("mine", (own / "SKILL.md").read_text())
+
     def test_reserved_names(self):
         self.env.upstream("acme/tools", {"skills/review/SKILL.md": skill_md("review"),
                                          "skills/imagegen/SKILL.md": skill_md("imagegen")})
@@ -270,7 +333,7 @@ class ConflictTest(Base):
         for name in ("review", "imagegen"):
             rc, out = self.m.run("add", "acme/tools", "--skill", name)
             self.assertEqual(rc, 1, out)
-            self.assertIn("保留名", out)
+            self.assertIn("reserved name", out)
             self.assertFalse((self.m.agents / name).exists())
 
 
@@ -279,20 +342,23 @@ class ConflictTest(Base):
 class UpdateTest(Base):
     def test_only_changed_reinstalled_and_deleted_kept(self):
         self.ok(self.m, "add", "acme/tools", "--skill", "alpha,beta")
+        self.assertTrue((self.m.repo_copy("acme/tools") / ".git" / "shallow").is_file())
         self.assertFalse((self.m.agents / "beta" / "node_modules").exists())
         (self.m.agents / "beta" / "node_modules").mkdir()   # 本机装依赖不算手改
         beta_ino = (self.m.agents / "beta" / "SKILL.md").stat().st_ino
         self.env.upstream("acme/tools", {"skills/alpha/ref.md": "v2\n"})
         out = self.ok(self.m, "update")
-        self.assertIn("alpha：1 个文件有变化", out)
+        self.assertIn("alpha: 1 file(s) changed", out)
         self.assertNotIn("beta：", out)
         self.assertEqual((self.m.agents / "alpha" / "ref.md").read_text(), "v2\n")
         self.assertEqual((self.m.agents / "beta" / "SKILL.md").stat().st_ino, beta_ino)
+        self.assertEqual(self.m.pin("acme/tools"), self.env.tip("acme/tools"))
+        self.assertIn("Pinned new versions of 1 repo(s)", out)
         self.check_clean(self.m)
 
         self.env.upstream("acme/tools", {}, delete=["skills/beta"])
         rc, out = self.m.run("update")
-        self.assertIn("上游已删除", out)
+        self.assertIn("deleted upstream", out)
         self.assertTrue((self.m.agents / "beta" / "SKILL.md").exists())
 
 
@@ -331,7 +397,7 @@ class InteractiveTest(Base):
         self.assertEqual(self.m.skill_name("gx-review"), "gx-review")
 
         out = self.ok(self.m, "add", "acme/suite", "--skill", "review", "--prefix", "zz")
-        self.assertIn("已装为 gx-review", out)
+        self.assertIn("already installed as gx-review", out)
         self.assertEqual(self.m.manifest()["skills"]["acme/suite:review"]["name"], "gx-review")
 
 
@@ -354,9 +420,9 @@ class TwoMachineTest(Base):
         before = (self.m.work / "skills.json").read_text()
         rc, out = self.m.run("merge", theirs)                      # 非终端且没加 --yes：只列出
         self.assertEqual(rc, 2, out)
-        self.assertIn("新增 beta", out)
+        self.assertIn("add beta", out)
         out = self.ok(self.m, "merge", theirs, tty=True, stdin="n\n")  # 终端里拒绝：不改动
-        self.assertIn("已取消", out)
+        self.assertIn("Cancelled", out)
         self.assertEqual((self.m.work / "skills.json").read_text(), before)
         self.assertFalse((self.m.agents / "beta").exists())
         self.ok(self.m, "merge", theirs, tty=True, stdin="y\n")
@@ -389,6 +455,68 @@ class TwoMachineTest(Base):
         self.assertFalse(pending.exists())
         self.assertEqual(second.manifest()["skills"]["acme/tools:skills/beta"]["state"], "removed")
         self.assertFalse((second.agents / "beta").exists())
+
+
+class PinTest(Base):
+    def test_versions_follow_manifest_across_machines(self):
+        self.ok(self.m, "add", "acme/tools", "--skill", "alpha")
+        c1 = self.env.tip("acme/tools")
+        self.assertEqual(self.m.pin("acme/tools"), c1)
+        self.env.upstream("acme/tools", {"skills/alpha/ref.md": "v2\n", "skills/beta/extra.md": "b2\n"})
+
+        # 同仓库再装一个：沿用记录的版本，不顺带升级 alpha
+        out = self.ok(self.m, "add", "acme/tools", "--skill", "beta")
+        self.assertIn("installing from the pinned version", out)
+        self.assertFalse((self.m.agents / "beta" / "extra.md").exists())
+        self.assertEqual((self.m.agents / "alpha" / "ref.md").read_text(), "ref\n")
+        self.assertEqual(self.m.pin("acme/tools"), c1)
+        self.m.publish("add")
+
+        # 副机新 clone 拿到的是上游最新，但要装清单记录的版本
+        second = self.env.machine("second")
+        self.ok(second, "sync")
+        self.assertEqual((second.agents / "alpha" / "ref.md").read_text(), "ref\n")
+        self.assertEqual(git(["rev-parse", "HEAD"], second.repo_copy("acme/tools")).strip(), c1)
+
+        # 主力机升级并推送，副机跟上
+        self.ok(self.m, "update")
+        self.m.publish("update")
+        self.ok(second, "sync")
+        self.assertEqual((second.agents / "alpha" / "ref.md").read_text(), "v2\n")
+        self.assertTrue((second.agents / "beta" / "extra.md").is_file())
+        self.check_clean(second)
+
+    def test_new_repo_uses_latest(self):
+        self.ok(self.m, "add", "acme/tools", "--skill", "alpha")
+        self.ok(self.m, "remove", "alpha")
+        self.env.upstream("acme/tools", {"skills/alpha/ref.md": "v2\n"})
+        # 仓库里已没有在用的 skill，再装时按新仓库处理，取最新
+        self.ok(self.m, "add", "acme/tools", "--skill", "alpha")
+        self.assertEqual((self.m.agents / "alpha" / "ref.md").read_text(), "v2\n")
+        self.assertEqual(self.m.pin("acme/tools"), self.env.tip("acme/tools"))
+
+    def test_missing_versions_backfilled_from_repo_copy(self):
+        self.ok(self.m, "add", "acme/tools", "--skill", "alpha")
+        c1 = self.env.tip("acme/tools")
+        data = self.m.manifest()
+        del data["repos"]
+        (self.m.work / "skills.json").write_text(json.dumps(data))
+        self.env.upstream("acme/tools", {"skills/alpha/ref.md": "v2\n"})
+        out = self.ok(self.m, "sync")
+        self.assertNotIn("Reinstalled", out)
+        self.assertEqual(self.m.pin("acme/tools"), c1)
+
+
+class UnmanagedTest(Base):
+    def test_sync_leaves_and_lists_unmanaged(self):
+        mine = self.m.agents / "my-own"
+        mine.mkdir(parents=True)
+        (mine / "SKILL.md").write_text(skill_md("my-own"))
+        self.ok(self.m, "add", "acme/tools", "--skill", "alpha")
+        out = self.ok(self.m, "sync")
+        self.assertIn("my-own", out.split("Unmanaged skills", 1)[1])
+        self.assertTrue((mine / "SKILL.md").is_file())
+        self.assertNotIn("my-own", json.dumps(self.m.manifest()))
 
 
 class LinkTest(Base):

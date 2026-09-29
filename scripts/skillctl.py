@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """skillctl：跨 Agent、跨机器管理从 GitHub 拉取的 skill。
 
-清单是工作 clone 根目录的 skills.json，记录装哪些 skill、叫什么名字。
+清单是工作 clone 根目录的 skills.json，记录装哪些 skill、叫什么名字，
+以及每个上游仓库用哪个提交（两台机器因此装同一版本）。
 skill 实体装在 ~/.agents/skills/<安装名>/（Codex 读取），
 ~/.claude/skills/<安装名> 是指向它的软链接（Claude Code 读取）。
-上游仓库 clone 在 ~/.local/share/agent-skills/repos/<owner>/<repo>/。
+上游仓库浅 clone 在 ~/.local/share/agent-skills/repos/<owner>/<repo>/。
 
 只依赖 git 和 Python 3.9 标准库。
 
@@ -22,6 +23,7 @@ import re
 import shutil
 import subprocess
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 VERSION = 1
@@ -59,7 +61,13 @@ BIN_LINK = HOME / ".local" / "bin" / "skillctl"
 
 GIT_BASE = os.environ.get("SKILLCTL_GIT_BASE", "https://github.com/")
 GIT_ENV = dict(os.environ, GIT_TERMINAL_PROMPT="0")
-GIT_ENV.setdefault("GIT_SSH_COMMAND", "ssh -o BatchMode=yes")
+# 网络卡住时尽快失败：SSH 连接和保活各给 15 秒；HTTPS 传输连续 30 秒低于 1KB/s 就放弃。
+# 不设总时长上限，慢但仍在传的大仓库照样能 clone 完。
+GIT_ENV.setdefault("GIT_SSH_COMMAND",
+                   "ssh -o BatchMode=yes -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=2")
+GIT_OPTS = ["-c", "http.lowSpeedLimit=1000", "-c", "http.lowSpeedTime=30"]
+LS_REMOTE_TIMEOUT = 30
+NET_WORKERS = 16
 
 
 class SkillctlError(Exception):
@@ -95,14 +103,33 @@ def stamp_of(entry):
     return t if t.tzinfo else t.replace(tzinfo=TZ)
 
 
-def git(args, cwd=None, check=True):
-    proc = subprocess.run(
-        ["git"] + args, cwd=cwd, env=GIT_ENV,
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True,
-    )
+def git(args, cwd=None, check=True, timeout=None):
+    try:
+        proc = subprocess.run(
+            ["git"] + GIT_OPTS + args, cwd=cwd, env=GIT_ENV, timeout=timeout,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True,
+        )
+    except subprocess.TimeoutExpired:
+        proc = subprocess.CompletedProcess(args, 124, "", f"timed out after {timeout}s")
     if check and proc.returncode != 0:
-        raise SkillctlError(f"git {' '.join(args)} 失败：{proc.stderr.strip()}")
+        raise SkillctlError(f"git {' '.join(args)} failed: {proc.stderr.strip()}")
     return proc
+
+
+def run_parallel(fn, items):
+    """对每个 item 并发执行 fn，返回 {item: (结果, SkillctlError 或 None)}。用于互不相干的网络操作。"""
+    items = list(items)
+    if not items:
+        return {}
+    with ThreadPoolExecutor(max_workers=min(NET_WORKERS, len(items))) as pool:
+        futures = {item: pool.submit(fn, item) for item in items}
+    out = {}
+    for item, f in futures.items():
+        try:
+            out[item] = (f.result(), None)
+        except SkillctlError as e:
+            out[item] = (None, e)
+    return out
 
 
 def write_atomic(path, text):
@@ -120,14 +147,14 @@ def ask(prompt):
     sys.stdout.flush()
     line = sys.stdin.readline()
     if not line:
-        raise SkillctlError("输入已结束，操作取消")
+        raise SkillctlError("input ended, cancelled")
     return line.strip()
 
 
 # ---------- 清单 ----------
 
 def empty_manifest():
-    return {"version": VERSION, "skills": {}}
+    return {"version": VERSION, "skills": {}, "repos": {}}
 
 
 def dump_manifest(data):
@@ -138,9 +165,11 @@ def parse_manifest(text, source):
     try:
         data = json.loads(text)
     except json.JSONDecodeError as e:
-        raise SkillctlError(f"{source} 不是合法的 JSON：{e}")
+        raise SkillctlError(f"{source} is not valid JSON: {e}")
     if not isinstance(data, dict) or "version" not in data or not isinstance(data.get("skills"), dict):
-        raise SkillctlError(f"{source} 不是 skillctl 清单：顶层缺少 version 或 skills")
+        raise SkillctlError(f"{source} is not a skillctl manifest: missing top-level version or skills")
+    if not isinstance(data.setdefault("repos", {}), dict):
+        raise SkillctlError(f"{source}: repos is not an object")
     return data
 
 
@@ -155,25 +184,26 @@ def save_manifest(data, path=MANIFEST):
 
 
 def merge_manifests(local, other):
-    """按 skill 标识逐条合并，取 updated_at 较晚的整条；时间相同保留本机。
+    """skill 条目和仓库版本都逐条合并，取 updated_at 较晚的整条；时间相同保留本机。
 
-    返回合并结果和被另一份覆盖的标识列表。
+    返回合并结果和被另一份覆盖的键列表：skill 标识带冒号，仓库名 owner/repo 不带。
     """
-    merged = {"version": VERSION, "skills": dict(local["skills"])}
+    merged = {"version": VERSION, "skills": dict(local["skills"]), "repos": dict(local.get("repos", {}))}
     changed = []
-    for sid, entry in other["skills"].items():
-        mine = merged["skills"].get(sid)
-        if mine is None or stamp_of(entry) > stamp_of(mine):
-            if mine != entry:
-                changed.append(sid)
-            merged["skills"][sid] = entry
+    for section in ("skills", "repos"):
+        for key, entry in other.get(section, {}).items():
+            mine = merged[section].get(key)
+            if mine is None or stamp_of(entry) > stamp_of(mine):
+                if mine != entry:
+                    changed.append(key)
+                merged[section][key] = entry
     return merged, changed
 
 
 def split_id(sid):
     repo, _, path = sid.partition(":")
     if not REPO_RE.match(repo) or not path:
-        raise SkillctlError(f"无效的 skill 标识：{sid}")
+        raise SkillctlError(f"invalid skill id: {sid}")
     return repo, path
 
 
@@ -181,15 +211,31 @@ def present(manifest):
     return {sid: e for sid, e in manifest["skills"].items() if e.get("state") == "present"}
 
 
+def repos_in_use(manifest):
+    return {split_id(sid)[0] for sid in present(manifest)}
+
+
+def pin_of(manifest, repo):
+    return manifest.get("repos", {}).get(repo, {}).get("commit")
+
+
+def set_pin(manifest, repo, commit, stamp=None):
+    manifest.setdefault("repos", {})[repo] = {"commit": commit, "updated_at": stamp or now()}
+
+
 def describe_change(sid, old, new):
+    if ":" not in sid:
+        if old and old.get("commit"):
+            return f"{sid} version {old['commit'][:7]} -> {new['commit'][:7]}"
+        return f"{sid} pinned at {new['commit'][:7]}"
     name = new.get("name")
     if new.get("state") == "removed":
-        return f"删除 {old.get('name', name) if old else name}（{sid}）"
+        return f"remove {old.get('name', name) if old else name} ({sid})"
     if not old or old.get("state") != "present":
-        return f"新增 {name}（{sid}）"
+        return f"add {name} ({sid})"
     if old.get("name") != name:
-        return f"改名 {old.get('name')} → {name}（{sid}）"
-    return f"更新 {name}（{sid}）"
+        return f"rename {old.get('name')} -> {name} ({sid})"
+    return f"update {name} ({sid})"
 
 
 # ---------- 工作 clone ----------
@@ -215,7 +261,7 @@ def recover_pending():
     merged, _ = merge_manifests(load_manifest(), other)
     save_manifest(merged)
     pending.unlink()
-    say("已合并上次中断遗留的清单临时文件")
+    say("Merged the pending manifest left by an interrupted run")
 
 
 def upstream_ref():
@@ -226,16 +272,16 @@ def upstream_ref():
 def pull_work():
     """拉取工作 clone：合并远端清单与本地未提交修改，再快进。"""
     if git_dir() is None:
-        warn(f"提示：{WORK} 不是 git 仓库，跳过拉取")
+        warn(f"Note: {WORK} is not a git repository, skipping pull")
         return
     recover_pending()
     fetch = git(["fetch", "--quiet"], cwd=WORK, check=False)
     if fetch.returncode != 0:
-        warn(f"提示：工作 clone 拉取失败，继续使用本地清单（{fetch.stderr.strip()}）")
+        warn(f"Note: failed to fetch the work clone, using the local manifest ({fetch.stderr.strip()})")
         return
     up = upstream_ref()
     if not up:
-        warn("提示：工作 clone 当前分支没有上游分支，跳过拉取")
+        warn("Note: the work clone's current branch has no upstream, skipping pull")
         return
     behind = int(git(["rev-list", "--count", f"HEAD..{up}"], cwd=WORK).stdout.strip() or 0)
     if behind == 0:
@@ -255,9 +301,9 @@ def pull_work():
     ff = git(["merge", "--ff-only", "--quiet", up], cwd=WORK, check=False)
     os.replace(pending, MANIFEST)
     if ff.returncode != 0:
-        warn(f"工作 clone 无法快进，仓库保持不动，清单已合并远端内容：{ff.stderr.strip()}")
+        warn(f"Cannot fast-forward the work clone, left it as is; the remote manifest was merged: {ff.stderr.strip()}")
     else:
-        say(f"工作 clone 已快进 {behind} 个提交")
+        say(f"Fast-forwarded the work clone by {behind} commit(s)")
 
 
 # ---------- skill 文件 ----------
@@ -297,7 +343,7 @@ def rewrite_name(skill_md, new_name):
     else:
         end = next((i for i in range(1, len(lines)) if lines[i].strip() == "---"), None)
         if end is None:
-            raise SkillctlError(f"{skill_md} 的 frontmatter 没有结束标记")
+            raise SkillctlError(f"{skill_md}: frontmatter has no closing ---")
         for i in range(1, end):
             if re.match(r"^name:", lines[i]):
                 lines[i] = f"name: {new_name}"
@@ -370,17 +416,58 @@ def repo_dir(repo):
 
 
 def ensure_repo(repo):
+    """仓库副本不存在就浅 clone 默认分支的最新提交。"""
     d = repo_dir(repo)
     if (d / ".git").exists():
         return d
     d.parent.mkdir(parents=True, exist_ok=True)
     say(f"clone {repo} …")
-    git(["clone", "--quiet", f"{GIT_BASE}{repo}", str(d)])
+    git(["clone", "--quiet", "--depth", "1", f"{GIT_BASE}{repo}", str(d)])
     return d
 
 
 def head(d):
     return git(["rev-parse", "HEAD"], cwd=d).stdout.strip()
+
+
+def has_commit(d, commit):
+    return git(["cat-file", "-e", f"{commit}^{{commit}}"], cwd=d, check=False).returncode == 0
+
+
+def checkout(d, commit):
+    """把仓库副本切到指定提交，本地缺这个提交就只拉它一个。"""
+    if head(d) == commit:
+        return
+    if git(["status", "--porcelain", "--untracked-files=no"], cwd=d).stdout.strip():
+        raise SkillctlError(f"repo copy {d} has local changes, not switching to {commit[:7]}")
+    if not has_commit(d, commit):
+        git(["fetch", "--quiet", "--depth", "1", "origin", commit], cwd=d, check=False)
+    if not has_commit(d, commit):
+        raise SkillctlError(f"cannot fetch commit {commit[:7]}: network down or upstream history rewritten")
+    git(["reset", "--hard", "--quiet", commit], cwd=d)
+
+
+def fetch_latest(d):
+    """拉取默认分支的最新提交，返回它的哈希，不切换。"""
+    fetch = git(["fetch", "--quiet", "--depth", "1", "origin"], cwd=d, check=False)
+    if fetch.returncode != 0:
+        raise SkillctlError(f"fetch failed: {fetch.stderr.strip()}")
+    return git(["rev-parse", "origin/HEAD"], cwd=d).stdout.strip()
+
+
+def prepare_repo(manifest, repo, report):
+    """让仓库副本停在清单记录的提交；清单没记录时记下副本当前的提交。"""
+    try:
+        d = ensure_repo(repo)
+        pin = pin_of(manifest, repo)
+        if pin:
+            checkout(d, pin)
+        else:
+            set_pin(manifest, repo, head(d))
+        return True
+    except SkillctlError as e:
+        report.problem(f"{repo}: {e}")
+        return False
 
 
 # ---------- 名字 ----------
@@ -433,17 +520,17 @@ def apply_prefix(prefix, base):
 
 def name_problem(name, manifest, sid, taken=()):
     if not valid_name(name):
-        return "不符合命名规范（1 到 64 个小写字母、数字或单个连字符）"
+        return "breaks the naming rules (1-64 lowercase letters, digits, or single hyphens)"
     if name in reserved_names():
-        return "是保留名"
+        return "is a reserved name"
     for other_id, e in present(manifest).items():
         if other_id != sid and e["name"] == name:
-            return f"已被清单里的 {other_id} 使用"
+            return f"is already used by {other_id} in the manifest"
     if name in taken:
-        return "和本次选中的其他 skill 重名"
+        return "clashes with another skill selected in this run"
     where = occupied(name, ignore_id=sid)
     if where:
-        return f"已有同名目录 {where}"
+        return f"clashes with existing directory {where}"
     return None
 
 
@@ -462,10 +549,10 @@ def parse_selection(text, count):
         elif part.isdigit():
             nums = [int(part)]
         else:
-            raise SkillctlError(f"无法识别：{part}")
+            raise SkillctlError(f"cannot parse: {part}")
         for n in nums:
             if not 1 <= n <= count:
-                raise SkillctlError(f"编号超出范围：{n}")
+                raise SkillctlError(f"number out of range: {n}")
             if n not in picked:
                 picked.append(n)
     return picked
@@ -510,10 +597,20 @@ def ensure_claude_link(name, report):
     if points_to(l, t):
         return
     if l.exists() or l.is_symlink():
-        report.problem(f"{name}：{l} 已被占用，没有建立指向 {t} 的软链接")
+        report.problem(f"{name}: {l} is taken, did not link it to {t}")
         return
     CLAUDE_DIR.mkdir(parents=True, exist_ok=True)
     l.symlink_to(t)
+
+
+def claude_slot_taken(name, report):
+    """新装之前检查 L：被别的东西占着就两处都不装，免得两个工具里同名却是不同的 skill。"""
+    t, l = AGENTS_DIR / name, CLAUDE_DIR / name
+    if (l.exists() or l.is_symlink()) and not points_to(l, t):
+        report.problem(f"{name}: {l} is taken by a skill skillctl does not manage, name conflict; "
+                       f"installed in neither place")
+        return True
+    return False
 
 
 def install_entry(sid, entry, report):
@@ -524,46 +621,50 @@ def install_entry(sid, entry, report):
     try:
         rdir = ensure_repo(repo)
     except SkillctlError as e:
-        report.problem(f"{name}：{e}")
+        report.problem(f"{name}: {e}")
         return False
     src = rdir if path == "." else rdir / path
     if not (src / "SKILL.md").is_file():
-        report.problem(f"{name}：仓库副本当前提交里已没有 {path}/SKILL.md，保留已安装的版本")
+        report.problem(f"{name}: {path}/SKILL.md is gone at the repo copy's current commit, keeping the installed version")
         return False
     changed = False
 
     if entry.get("link"):
         if t.is_symlink():
             if not points_to(t, rdir):
-                report.problem(f"{name}：{t} 指向别处，名字冲突")
+                report.problem(f"{name}: {t} points elsewhere, name conflict")
                 return False
         elif t.exists():
-            report.problem(f"{name}：{t} 已存在且不是 skillctl 安装的，名字冲突")
+            report.problem(f"{name}: {t} exists and was not installed by skillctl, name conflict")
             return False
         else:
+            if claude_slot_taken(name, report):
+                return False
             AGENTS_DIR.mkdir(parents=True, exist_ok=True)
             t.symlink_to(rdir)
-            report.info(f"已链接 {name} → {rdir}")
+            report.info(f"Linked {name} -> {rdir}")
             changed = True
     else:
         commit = head(rdir)
         if t.is_symlink() or (t.exists() and not t.is_dir()):
-            report.problem(f"{name}：{t} 已被占用，名字冲突")
+            report.problem(f"{name}: {t} is taken, name conflict")
             return False
         if not t.exists():
+            if claude_slot_taken(name, report):
+                return False
             copy_skill(src, sid, name, commit)
-            report.info(f"已安装 {name}（{sid}）")
+            report.info(f"Installed {name} ({sid})")
             changed = True
         else:
             mk = read_marker(t)
             if not mk or mk.get("id") != sid:
-                report.problem(f"{name}：{t} 不是这个条目安装的，名字冲突")
+                report.problem(f"{name}: {t} was not installed by this entry, name conflict")
                 return False
             if content_hash(t) != mk.get("hash"):
-                report.problem(f"{name}：本地手改过，没有覆盖")
+                report.problem(f"{name}: modified locally, not overwritten")
             elif mk.get("commit") != commit:
                 copy_skill(src, sid, name, commit)
-                report.info(f"已重装 {name} 到 {commit[:7]}")
+                report.info(f"Reinstalled {name} at {commit[:7]}")
                 changed = True
     ensure_claude_link(name, report)
     return changed
@@ -574,17 +675,17 @@ def uninstall_dir(t, sid, name, report, reason):
     if t.is_symlink():
         t.unlink()
         remove_link_to(CLAUDE_DIR / t.name, t)
-        report.info(f"已{reason} {name}")
+        report.info(f"{reason} {name}")
         return
     mk = read_marker(t)
     if not mk or mk.get("id") != sid:
         return
     if content_hash(t) != mk.get("hash"):
-        report.problem(f"{t.name}：本地手改过，没有删除")
+        report.problem(f"{t.name}: modified locally, not removed")
         return
     shutil.rmtree(t)
     remove_link_to(CLAUDE_DIR / t.name, t)
-    report.info(f"已{reason} {t.name}")
+    report.info(f"{reason} {t.name}")
 
 
 def managed_dirs():
@@ -619,7 +720,7 @@ def name_winners(manifest, report):
         items.sort()
         winners[items[0][1]] = manifest["skills"][items[0][1]]
         for _, sid in items[1:]:
-            report.problem(f"清单里 {sid} 和 {items[0][1]} 都叫 {name}，跳过较晚的 {sid}，请用 add --as 改名")
+            report.problem(f"{sid} and {items[0][1]} are both named {name} in the manifest, skipping the later {sid}; rename it with add --as")
     return winners
 
 
@@ -630,14 +731,27 @@ def reconcile(manifest, report):
     for p, sid in managed_dirs().items():
         e = skills.get(sid)
         if e is None:
-            report.problem(f"{p.name}：清单里没有对应条目（{sid}），只报告不删除")
+            report.problem(f"{p.name}: no entry for {sid} in the manifest, reported only, not removed")
         elif e.get("state") == "removed":
-            uninstall_dir(p, sid, p.name, report, "卸载")
+            uninstall_dir(p, sid, p.name, report, "Uninstalled")
         elif e.get("name") != p.name:
-            uninstall_dir(p, sid, p.name, report, "清理改名前的旧目录")
-    # 2. present 条目
-    for sid, e in sorted(name_winners(manifest, report).items()):
-        install_entry(sid, e, report)
+            uninstall_dir(p, sid, p.name, report, "Removed the pre-rename directory")
+    # 2. 仓库副本切到清单记录的提交，再装 present 条目
+    winners = name_winners(manifest, report)
+    repos = sorted({split_id(sid)[0] for sid in winners})
+    failed = set()
+    missing = [r for r in repos if not (repo_dir(r) / ".git").exists()]
+    for repo, (_, err) in run_parallel(ensure_repo, missing).items():
+        if err:
+            report.problem(f"{repo}: {err}")
+            failed.add(repo)
+    before = dump_manifest(manifest)
+    ready = {repo for repo in repos if repo not in failed and prepare_repo(manifest, repo, report)}
+    if dump_manifest(manifest) != before:
+        save_manifest(manifest)
+    for sid, e in sorted(winners.items()):
+        if split_id(sid)[0] in ready:
+            install_entry(sid, e, report)
 
 
 # ---------- 命令 ----------
@@ -652,7 +766,7 @@ def remind_readme():
     if proc.returncode == 0:
         return
     drift = [l.strip() for l in proc.stdout.splitlines() if l.strip().startswith("[")]
-    say("提示：README 和清单不一致，需要在主力机上补 README（用途和分类要人工写）：")
+    say("Note: README is out of sync with the manifest; update it on the main Mac (purpose and category are written by hand):")
     for line in drift or proc.stdout.strip().splitlines():
         say(f"  {line}")
 
@@ -661,13 +775,13 @@ def ensure_bin_link():
     target = SCRIPT
     if BIN_LINK.is_symlink() or BIN_LINK.exists():
         if not points_to(BIN_LINK, target):
-            warn(f"提示：{BIN_LINK} 已被占用，没有改成指向 {target}")
+            warn(f"Note: {BIN_LINK} is taken, did not point it to {target}")
         return
     BIN_LINK.parent.mkdir(parents=True, exist_ok=True)
     BIN_LINK.symlink_to(target)
-    say(f"已创建命令链接 {BIN_LINK} → {target}")
+    say(f"Created command link {BIN_LINK} -> {target}")
     if str(BIN_LINK.parent) not in os.environ.get("PATH", "").split(os.pathsep):
-        warn(f"提示：{BIN_LINK.parent} 不在 PATH 里，把它加进 PATH 后才能直接运行 skillctl")
+        warn(f"Note: {BIN_LINK.parent} is not on PATH; add it to run skillctl by name")
 
 
 def cmd_sync(args=None):
@@ -675,27 +789,25 @@ def cmd_sync(args=None):
     manifest = load_manifest()
     report = Report()
     reconcile(manifest, report)
+    print_unmanaged()
     if report.problems:
-        say(f"sync 完成，{report.problems} 个问题需要处理")
+        say(f"sync finished with {report.problems} problem(s) to resolve")
     return 1 if report.problems else 0
 
 
-def print_list(repo, skills, manifest, rdir, fresh):
-    if not fresh:
-        commit = git(["log", "-1", "--format=%h %cd", "--date=short"], cwd=rdir).stdout.strip()
-        say(f"仓库副本停在 {commit}，要看上游最新内容先运行 skillctl update {repo}")
+def print_list(repo, skills, manifest):
     installed = {split_id(sid)[1]: e["name"] for sid, e in present(manifest).items() if split_id(sid)[0] == repo}
     reserved = reserved_names()
     for i, (path, name, desc) in enumerate(skills, start=1):
         if path in installed:
-            state = f"已装为 {installed[path]}"
+            state = f"installed as {installed[path]}"
         elif name in reserved:
-            state = "保留名"
+            state = "reserved"
         elif occupied(name) or any(e["name"] == name for e in present(manifest).values()):
-            state = "重名"
+            state = "name taken"
         else:
             state = ""
-        say(f"{i:>3}. {name or '(无 name)'}  [{path}]  {state}")
+        say(f"{i:>3}. {name or '(no name)'}  [{path}]  {state}")
         if desc:
             say(f"     {desc[:100]}")
 
@@ -703,19 +815,30 @@ def print_list(repo, skills, manifest, rdir, fresh):
 def cmd_add(args):
     repo = args.repo
     if not REPO_RE.match(repo):
-        raise SkillctlError("仓库要写成 owner/repo")
+        raise SkillctlError("repository must be owner/repo")
     if args.as_name and args.prefix:
-        raise SkillctlError("--as 和 --prefix 不能同时使用")
+        raise SkillctlError("--as and --prefix cannot be used together")
     pull_work()
     manifest = load_manifest()
     report = Report()
     reconcile(manifest, report)
 
+    # 已有 skill 在用的仓库沿用清单记录的版本，免得顺带升级它们；新仓库用默认分支最新提交
+    pinned = repo in repos_in_use(manifest) and pin_of(manifest, repo)
     fresh = not (repo_dir(repo) / ".git").exists()
     rdir = ensure_repo(repo)
+    if pinned:
+        checkout(rdir, pinned)
+        commit = git(["log", "-1", "--format=%h %cd", "--date=short"], cwd=rdir).stdout.strip()
+        say(f"{repo} already has skills in use, installing from the pinned version {commit}; to get the latest upstream, run skillctl update {repo} first")
+    elif not fresh:
+        try:
+            checkout(rdir, fetch_latest(rdir))
+        except SkillctlError as e:
+            warn(f"Note: {repo}: {e}; using the repo copy as is")
     skills = discover(rdir)
     if not skills:
-        raise SkillctlError(f"{repo} 里没有找到 SKILL.md")
+        raise SkillctlError(f"no SKILL.md found in {repo}")
 
     interactive = False
     if args.skill:
@@ -725,59 +848,59 @@ def cmd_add(args):
             w = w.rstrip("/") or w
             hit = [s for s in skills if s[0] == w] or [s for s in skills if s[1] == w]
             if not hit:
-                raise SkillctlError(f"{repo} 里没有 {w}，可选：" + "、".join(s[1] or s[0] for s in skills))
+                raise SkillctlError(f"{repo} has no {w}; available: " + ", ".join(s[1] or s[0] for s in skills))
             if len(hit) > 1:
-                raise SkillctlError(f"{repo} 里有多个叫 {w} 的 skill，请改用路径：" + "、".join(s[0] for s in hit))
+                raise SkillctlError(f"{repo} has several skills named {w}; use a path instead: " + ", ".join(s[0] for s in hit))
             if hit[0] not in chosen:
                 chosen.append(hit[0])
     else:
-        print_list(repo, skills, manifest, rdir, fresh)
+        print_list(repo, skills, manifest)
         if not is_tty():
-            say("标准输入不是终端，没有安装任何 skill。用 --skill 指定要装的 skill")
+            say("stdin is not a terminal, nothing installed. Choose skills with --skill")
             return 2
         if args.link:
-            raise SkillctlError("--link 只能和 --skill 一起使用")
+            raise SkillctlError("--link requires --skill")
         interactive = True
         if len(skills) == 1:
             chosen = skills
         else:
-            text = ask("输入要安装的编号（如 1,3,5-7），直接回车取消：")
+            text = ask("Numbers to install (e.g. 1,3,5-7), Enter to cancel: ")
             if not text:
-                say("已取消")
+                say("Cancelled")
                 return 0
             chosen = [skills[n - 1] for n in parse_selection(text, len(skills))]
     if args.as_name and len(chosen) != 1:
-        raise SkillctlError("--as 只能用于单个 skill")
+        raise SkillctlError("--as takes a single skill")
     if args.link and len(chosen) != 1:
-        raise SkillctlError("--link 只能用于单个 skill")
+        raise SkillctlError("--link takes a single skill")
 
     existing = {split_id(sid)[1]: sid for sid in present(manifest) if split_id(sid)[0] == repo}
     prefix = args.prefix
     new_items = [c for c in chosen if c[0] not in existing]
     if interactive and not prefix and len(new_items) > 1:
-        prefix = ask("统一前缀（如 gstack-），直接回车不加：")
+        prefix = ask("Common prefix (e.g. gstack-), Enter for none: ")
 
     plan, taken, refused = [], [], 0
     for path, upstream, _ in chosen:
         sid = f"{repo}:{path}"
         if path in existing and not args.as_name:
-            say(f"{upstream or path} 已装为 {manifest['skills'][sid]['name']}，不重复安装")
+            say(f"{upstream or path} is already installed as {manifest['skills'][sid]['name']}, skipping")
             continue
         if args.as_name:
             name = args.as_name
         elif not upstream:
-            raise SkillctlError(f"{path} 的 SKILL.md 没有 name，用 --as 指定安装名")
+            raise SkillctlError(f"{path}/SKILL.md has no name; set the install name with --as")
         else:
             name = apply_prefix(prefix, upstream)
         problem = name_problem(name, manifest, sid, taken)
         while problem and interactive:
-            alias = ask(f"{name} {problem}。输入别名，直接回车跳过：")
+            alias = ask(f"{name} {problem}. Alias, or Enter to skip: ")
             if not alias:
                 break
             name = alias
             problem = name_problem(name, manifest, sid, taken)
         if problem:
-            report.problem(f"{name}：{problem}，没有安装")
+            report.problem(f"{name}: {problem}, not installed")
             refused += 1
             continue
         taken.append(name)
@@ -788,8 +911,8 @@ def cmd_add(args):
     if interactive:
         for sid, name in plan:
             say(f"  {name}  ←  {sid}")
-        if ask("确认安装？[y/N] ").lower() not in ("y", "yes"):
-            say("已取消")
+        if ask("Install? [y/N] ").lower() not in ("y", "yes"):
+            say("Cancelled")
             return 0
 
     stamp = now()
@@ -801,6 +924,8 @@ def cmd_add(args):
         if old and old.get("state") == "present" and old.get("link") and not args.link:
             entry["link"] = True
         manifest["skills"][sid] = entry
+    if not pinned:
+        set_pin(manifest, repo, head(rdir), stamp)
     save_manifest(manifest)
     reconcile(manifest, report)
     remind_readme()
@@ -812,7 +937,7 @@ def cmd_remove(args):
     manifest = load_manifest()
     hits = [sid for sid, e in present(manifest).items() if e["name"] == args.name]
     if not hits:
-        raise SkillctlError(f"清单里没有叫 {args.name} 的 skill，不归 skillctl 管的 skill 不处理")
+        raise SkillctlError(f"no skill named {args.name} in the manifest; skills not managed by skillctl are left alone")
     stamp = now()
     for sid in hits:
         manifest["skills"][sid] = dict(manifest["skills"][sid], state="removed", updated_at=stamp)
@@ -827,22 +952,22 @@ def cmd_merge(args):
     pull_work()
     src = Path(args.file).expanduser()
     if not src.is_file():
-        raise SkillctlError(f"找不到文件 {src}")
+        raise SkillctlError(f"file not found: {src}")
     other = parse_manifest(src.read_text(encoding="utf-8"), src)
     manifest = load_manifest()
     merged, changed = merge_manifests(manifest, other)
     if not changed:
-        say("没有需要合并的改动")
+        say("Nothing to merge")
     else:
-        say(f"将合并以下 {len(changed)} 处改动：")
+        say(f"The merge brings {len(changed)} change(s):")
         for sid in sorted(changed):
             say("  " + describe_change(sid, manifest["skills"].get(sid), merged["skills"][sid]))
         if not args.yes:
             if not is_tty():
-                say("标准输入不是终端，没有合并。确认无误后加 --yes 再运行")
+                say("stdin is not a terminal, nothing merged. Review the changes, then re-run with --yes")
                 return 2
-            if ask("确认合并并按清单安装、卸载？[y/N] ").lower() not in ("y", "yes"):
-                say("已取消，清单和本机安装都没有改动")
+            if ask("Merge, then install and uninstall to match? [y/N] ").lower() not in ("y", "yes"):
+                say("Cancelled, the manifest and installed skills are unchanged")
                 return 0
     save_manifest(merged)
     report = Report()
@@ -862,21 +987,22 @@ def cmd_update(args):
         by_repo.setdefault(split_id(sid)[0], []).append((sid, e))
     if args.repo:
         if args.repo not in by_repo:
-            raise SkillctlError(f"清单里没有来自 {args.repo} 的 skill")
+            raise SkillctlError(f"no skills from {args.repo} in the manifest")
         by_repo = {args.repo: by_repo[args.repo]}
 
-    for repo in sorted(by_repo):
+    upgraded = 0
+    local = [repo for repo in sorted(by_repo) if (repo_dir(repo) / ".git").exists()]
+    latest = run_parallel(lambda repo: fetch_latest(repo_dir(repo)), local)
+    for repo in local:
         rdir = repo_dir(repo)
-        if not (rdir / ".git").exists():
+        new, err = latest[repo]
+        if err:
+            report.problem(f"{repo}: {err}")
             continue
-        fetch = git(["fetch", "--quiet"], cwd=rdir, check=False)
-        if fetch.returncode != 0:
-            report.problem(f"{repo}：拉取失败：{fetch.stderr.strip()}")
-            continue
-        old, new = head(rdir), git(["rev-parse", "origin/HEAD"], cwd=rdir).stdout.strip()
+        old = head(rdir)
         if old == new:
             continue
-        say(f"{repo}：{old[:7]} → {new[:7]}")
+        say(f"{repo}: {old[:7]} -> {new[:7]}")
         changed_ids = set()
         for sid, e in sorted(by_repo[repo]):
             path = split_id(sid)[1]
@@ -887,12 +1013,19 @@ def cmd_update(args):
             changed_ids.add(sid)
             gone = git(["cat-file", "-e", f"{new}:{'' if path == '.' else path + '/'}SKILL.md"],
                        cwd=rdir, check=False).returncode != 0
-            say(f"  {e['name']}：{len(files)} 个文件有变化" + ("，上游已删除这个 skill" if gone else ""))
+            say(f"  {e['name']}: {len(files)} file(s) changed" + (", the skill was deleted upstream" if gone else ""))
             for f in files[:10]:
                 say(f"    {f}")
             if len(files) > 10:
-                say(f"    …另有 {len(files) - 10} 个")
-        git(["reset", "--hard", "--quiet", new], cwd=rdir)
+                say(f"    ... and {len(files) - 10} more")
+        try:
+            checkout(rdir, new)
+        except SkillctlError as e:
+            report.problem(f"{repo}: {e}")
+            continue
+        set_pin(manifest, repo, new)
+        save_manifest(manifest)
+        upgraded += 1
         for sid, e in by_repo[repo]:
             t = AGENTS_DIR / e["name"]
             mk = read_marker(t)
@@ -900,6 +1033,8 @@ def cmd_update(args):
                 install_entry(sid, e, report)
             elif content_hash(t) == mk.get("hash"):
                 write_marker(t, sid, new)
+    if upgraded:
+        say(f"Pinned new versions of {upgraded} repo(s) in the manifest; commit and push it, and the other Mac installs the same versions on sync")
     return 1 if report.problems else 0
 
 
@@ -909,7 +1044,7 @@ def cmd_list(args):
     for sid, e in sorted(present(manifest).items(), key=lambda x: x[1]["name"]):
         t = AGENTS_DIR / e["name"]
         if e.get("link"):
-            state = "链接" if t.is_symlink() else "未安装"
+            state = "linked" if t.is_symlink() else "missing"
             commit = ""
             rdir = repo_dir(split_id(sid)[0])
             if (rdir / ".git").exists():
@@ -917,26 +1052,30 @@ def cmd_list(args):
         else:
             mk = read_marker(t)
             if not mk or mk.get("id") != sid:
-                state, commit = ("未安装" if not t.exists() else "冲突"), ""
+                state, commit = ("missing" if not t.exists() else "conflict"), ""
             else:
                 commit = mk.get("commit", "")[:7]
-                state = "正常" if content_hash(t) == mk.get("hash") else "本地手改"
+                state = "ok" if content_hash(t) == mk.get("hash") else "modified"
         rows.append((e["name"], sid, commit, state))
     width = max((len(r[0]) for r in rows), default=4)
     for name, sid, commit, state in rows:
-        say(f"{name:<{width}}  {commit:<7}  {state:<4}  {sid}")
-    say(f"共 {len(rows)} 个")
-
-    extra = unmanaged_skills()
-    if extra:
-        say()
-        say(f"未托管的 skill（{len(extra)} 个，skillctl 不会改动它们）：")
-        width = max(len(n) for n in extra)
-        for name, (where, detail, hint) in sorted(extra.items()):
-            say(f"{name:<{width}}  {where}  {detail}".rstrip())
-            if hint:
-                say(f"{'':<{width}}  纳入管理：先把现有目录移到备份，再运行 {hint}")
+        say(f"{name:<{width}}  {commit:<7}  {state:<8}  {sid}")
+    say(f"{len(rows)} managed")
+    print_unmanaged()
     return 0
+
+
+def print_unmanaged():
+    extra = unmanaged_skills()
+    if not extra:
+        return
+    say()
+    say(f"Unmanaged skills ({len(extra)}, not in the manifest, skillctl leaves them alone):")
+    width = max(len(n) for n in extra)
+    for name, (where, detail, hint) in sorted(extra.items()):
+        say(f"{name:<{width}}  {where}  {detail}".rstrip())
+        if hint:
+            say(f"{'':<{width}}  to manage it: move the directory to a backup, then run {hint}")
 
 
 def openskills_source(directory):
@@ -972,17 +1111,17 @@ def unmanaged_skills():
             found.setdefault(p.name, []).append((label, p))
     out = {}
     for name, items in found.items():
-        where = "、".join(label for label, _ in items)
+        where = ", ".join(label for label, _ in items)
         detail, hint = "", None
         for _, p in items:
             src = openskills_source(p)
             if src:
-                detail = f"来源 {src[0]}:{src[1]}"
+                detail = f"source {src[0]}:{src[1]}"
                 hint = f"skillctl add {src[0]} --skill {src[1]}"
                 break
         if not detail:
             links = sorted({os.readlink(str(p)) for _, p in items if p.is_symlink()})
-            detail = f"软链到 {'、'.join(links)}" if links else "来源未知"
+            detail = f"symlink to {', '.join(links)}" if links else "source unknown"
         out[name] = (where, detail, hint)
     return out
 
@@ -992,19 +1131,19 @@ def check_issues():
     # 工作 clone
     if git_dir() is not None:
         if pending_path().exists():
-            issues.append("工作 clone 里有中断遗留的清单临时文件，运行 skillctl sync 合并")
+            issues.append("the work clone has a pending manifest from an interrupted run; run skillctl sync to merge it")
         if git(["fetch", "--quiet"], cwd=WORK, check=False).returncode != 0:
-            issues.append("工作 clone 拉取失败，无法判断是否落后远端")
+            issues.append("failed to fetch the work clone, cannot tell whether it is behind")
         up = upstream_ref()
         if up:
             counts = git(["rev-list", "--left-right", "--count", f"HEAD...{up}"], cwd=WORK).stdout.split()
             ahead, behind = int(counts[0]), int(counts[1])
             if behind:
-                issues.append(f"工作 clone 落后远端 {behind} 个提交，运行 skillctl sync")
+                issues.append(f"the work clone is {behind} commit(s) behind; run skillctl sync")
             if ahead:
-                issues.append(f"工作 clone 有 {ahead} 个本地提交还没推送")
+                issues.append(f"the work clone has {ahead} unpushed commit(s)")
         if git(["status", "--porcelain", "--", "skills.json"], cwd=WORK).stdout.strip():
-            issues.append("skills.json 有未提交的修改（主力机：还没提交推送；副机：还有改动没传回主力机）")
+            issues.append("skills.json has uncommitted changes (main Mac: not committed and pushed yet; second Mac: changes not yet merged on the main Mac)")
 
     # 清单与安装状态
     manifest = load_manifest()
@@ -1013,32 +1152,32 @@ def check_issues():
         names.setdefault(e["name"], []).append(sid)
     for name, sids in names.items():
         if len(sids) > 1:
-            issues.append(f"清单里 {'、'.join(sids)} 都叫 {name}")
+            issues.append(f"{', '.join(sids)} are all named {name} in the manifest")
     for sid, e in present(manifest).items():
         name = e["name"]
         t, l = AGENTS_DIR / name, CLAUDE_DIR / name
         rdir = repo_dir(split_id(sid)[0])
         if e.get("link"):
             if not points_to(t, rdir):
-                issues.append(f"{name}：没有按清单链接安装，运行 skillctl sync")
+                issues.append(f"{name}: not link-installed as the manifest says; run skillctl sync")
         else:
             mk = read_marker(t)
             if not t.exists():
-                issues.append(f"{name}：未安装，运行 skillctl sync")
+                issues.append(f"{name}: not installed; run skillctl sync")
             elif not mk or mk.get("id") != sid:
-                issues.append(f"{name}：{t} 不是这个条目安装的，名字冲突")
+                issues.append(f"{name}: {t} was not installed by this entry, name conflict")
             elif content_hash(t) != mk.get("hash"):
-                issues.append(f"{name}：本地手改过")
-            elif (rdir / ".git").exists() and mk.get("commit") != head(rdir):
-                issues.append(f"{name}：安装的提交和仓库副本不一致，运行 skillctl sync")
+                issues.append(f"{name}: modified locally")
+            elif mk.get("commit") != pin_of(manifest, split_id(sid)[0]):
+                issues.append(f"{name}: installed version differs from the pinned version; run skillctl sync")
         if t.exists() and not points_to(l, t):
-            issues.append(f"{name}：{l} 没有指向 {t}")
+            issues.append(f"{name}: {l} does not point to {t}")
     for p, sid in managed_dirs().items():
         e = manifest["skills"].get(sid)
         if e is None:
-            issues.append(f"{p.name}：清单里没有对应条目（{sid}）")
+            issues.append(f"{p.name}: no entry for {sid} in the manifest")
         elif e.get("state") == "removed" or e.get("name") != p.name:
-            issues.append(f"{p.name}：清单里已删除或改名，运行 skillctl sync")
+            issues.append(f"{p.name}: removed or renamed in the manifest; run skillctl sync")
 
     # 名字冲突、失效软链接、目录名与 name 不一致
     groups = {}
@@ -1049,14 +1188,14 @@ def check_issues():
             if p.name.startswith("."):
                 continue
             if p.is_symlink() and not p.exists():
-                issues.append(f"失效的软链接：{p}")
+                issues.append(f"broken symlink: {p}")
                 continue
             if not (p / "SKILL.md").is_file():
                 continue
             groups.setdefault(p.name, []).append(p)
             fm_name, _ = read_frontmatter(p / "SKILL.md")
             if fm_name and fm_name != p.name:
-                issues.append(f"{p}：目录名和 name（{fm_name}）不一致")
+                issues.append(f"{p}: directory name differs from name ({fm_name})")
     for name, paths in sorted(groups.items()):
         distinct = {}
         for p in paths:
@@ -1064,18 +1203,25 @@ def check_issues():
             if real not in distinct:
                 distinct[real] = content_hash(Path(real))
         if len(set(distinct.values())) > 1:
-            issues.append(f"名字冲突 {name}：" + "、".join(str(p) for p in paths))
+            issues.append(f"name conflict {name}: " + ", ".join(str(p) for p in paths))
 
-    # 上游更新
-    for repo in sorted({split_id(sid)[0] for sid in present(manifest)}):
-        rdir = repo_dir(repo)
-        if not (rdir / ".git").exists():
+    # 仓库版本与上游更新；查询上游并发进行
+    repos = sorted(repos_in_use(manifest))
+    remotes = run_parallel(
+        lambda repo: git(["ls-remote", f"{GIT_BASE}{repo}", "HEAD"], check=False, timeout=LS_REMOTE_TIMEOUT),
+        [repo for repo in repos if pin_of(manifest, repo)])
+    for repo in repos:
+        pin, rdir = pin_of(manifest, repo), repo_dir(repo)
+        if not pin:
+            issues.append(f"{repo}: no pinned version in the manifest; run skillctl sync")
             continue
-        if git(["fetch", "--quiet"], cwd=rdir, check=False).returncode != 0:
-            issues.append(f"{repo}：拉取失败，无法判断上游是否有更新")
-            continue
-        if head(rdir) != git(["rev-parse", "origin/HEAD"], cwd=rdir).stdout.strip():
-            issues.append(f"{repo}：上游有更新，可运行 skillctl update {repo}")
+        if (rdir / ".git").exists() and head(rdir) != pin:
+            issues.append(f"{repo}: repo copy is not at the pinned version; run skillctl sync")
+        remote = remotes[repo][0]
+        if remote.returncode != 0 or not remote.stdout.strip():
+            issues.append(f"{repo}: failed to query upstream, cannot tell whether it has updates")
+        elif remote.stdout.split()[0] != pin:
+            issues.append(f"{repo}: upstream has updates; run skillctl update {repo} to upgrade")
     return issues
 
 
@@ -1083,29 +1229,29 @@ def cmd_check(args):
     issues = check_issues()
     for i in issues:
         say(f"  ! {i}")
-    say(f"发现 {len(issues)} 个问题" if issues else "检查通过")
+    say(f"{len(issues)} problem(s) found" if issues else "All checks passed")
     return 1 if issues else 0
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(prog="skillctl", description="跨 Agent、跨机器管理 skill")
+    parser = argparse.ArgumentParser(prog="skillctl", description="Manage skills across agents and machines")
     sub = parser.add_subparsers(dest="command")
-    p = sub.add_parser("add", help="从 GitHub 仓库挑选并安装 skill")
+    p = sub.add_parser("add", help="pick and install skills from a GitHub repository")
     p.add_argument("repo", help="owner/repo")
-    p.add_argument("--skill", help="要装的 skill，按 name 或仓库内路径，逗号分隔")
-    p.add_argument("--as", dest="as_name", help="安装名，只能用于单个 skill；对已装的 skill 使用即改名")
-    p.add_argument("--prefix", help="给这次新装的 skill 统一加前缀")
-    p.add_argument("--link", action="store_true", help="把仓库副本根目录直接软链成 skill 目录")
-    p = sub.add_parser("remove", help="卸载 skill 并在清单里标记为已删除")
-    p.add_argument("name", help="安装名")
-    sub.add_parser("sync", help="拉取工作 clone、合并清单，并让本机安装与清单一致")
-    p = sub.add_parser("merge", help="把另一台的清单合并进来")
+    p.add_argument("--skill", help="skills to install, by name or path in the repository, comma separated")
+    p.add_argument("--as", dest="as_name", help="install name for a single skill; on an installed skill, renames it")
+    p.add_argument("--prefix", help="prefix for the skills newly installed in this run")
+    p.add_argument("--link", action="store_true", help="symlink the repo copy root as the skill directory")
+    p = sub.add_parser("remove", help="uninstall a skill and mark it removed in the manifest")
+    p.add_argument("name", help="install name")
+    sub.add_parser("sync", help="pull the work clone, merge the manifest, and make installs match it")
+    p = sub.add_parser("merge", help="merge another machine's manifest")
     p.add_argument("file")
-    p.add_argument("-y", "--yes", action="store_true", help="跳过确认，直接合并")
-    p = sub.add_parser("update", help="拉取上游并重装有变化的 skill")
+    p.add_argument("-y", "--yes", action="store_true", help="merge without asking")
+    p = sub.add_parser("update", help="fetch the latest upstream, reinstall changed skills, and pin the new versions")
     p.add_argument("repo", nargs="?")
-    sub.add_parser("list", help="列出托管的 skill")
-    sub.add_parser("check", help="只读检查")
+    sub.add_parser("list", help="list managed and unmanaged skills")
+    sub.add_parser("check", help="read-only health check")
     args = parser.parse_args(argv)
     if not args.command:
         parser.print_help()
@@ -1116,10 +1262,10 @@ def main(argv=None):
         ensure_bin_link()
         return handlers[args.command](args)
     except SkillctlError as e:
-        warn(f"错误：{e}")
+        warn(f"Error: {e}")
         return 1
     except KeyboardInterrupt:
-        warn("已中断")
+        warn("Interrupted")
         return 130
 
 

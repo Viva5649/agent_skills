@@ -101,7 +101,7 @@ def load_global():
     try:
         skills = json.loads(MANIFEST.read_text(encoding="utf-8"))["skills"]
     except (json.JSONDecodeError, OSError, KeyError) as e:
-        fail("清单", f"skills.json 读取失败：{e}")
+        fail("manifest", f"cannot read skills.json: {e}")
         return None
     out = {e["name"]: sid.split(":", 1)[0].lower()
            for sid, e in skills.items() if e.get("state") == "present"}
@@ -117,16 +117,16 @@ def provenance(name):
 
 def report_set_diff(tag, actual, documented, annotate=None):
     for name in sorted(actual - documented):
-        extra = f"，{annotate(name)}" if annotate else ""
-        fail(tag, f"实际有 README 没有：{name}{extra}")
+        extra = f", {annotate(name)}" if annotate else ""
+        fail(tag, f"exists but missing from README: {name}{extra}")
     for name in sorted(documented - actual):
-        fail(tag, f"README 有实际没有：{name}")
+        fail(tag, f"in README but does not exist: {name}")
 
 
 # ---------- 载入 ----------
 
 if not README.is_file():
-    print(f"找不到 {README}", file=sys.stderr)
+    print(f"{README} not found", file=sys.stderr)
     raise SystemExit(2)
 
 lines = README.read_text(encoding="utf-8").splitlines()
@@ -149,23 +149,23 @@ actual_pai = skills_in(PAI_DIR)
 # ---------- 1. 三层名单 ----------
 
 readme_self = {n for c in table_rows(sec_self) if (n := code_name(c[0]))}
-report_set_diff("自建层", actual_self, readme_self)
+report_set_diff("own", actual_self, readme_self)
 
 if actual_global is None:
-    notes.append(f"找不到 {MANIFEST}，跳过全局层校验")
+    notes.append(f"{MANIFEST} not found, skipping the global layer")
     readme_global = set()
 else:
     readme_global = {n for c in table_rows(sec_global) if (n := code_name(c[0]))}
     report_set_diff(
-        "全局层", actual_global, readme_global,
-        annotate=lambda n: f"源 {provenance(n) or '未知'}",
+        "global", actual_global, readme_global,
+        annotate=lambda n: f"source {provenance(n) or 'unknown'}",
     )
 
 if actual_pai is None:
-    notes.append(f"pai 仓库不存在，跳过项目层校验：{PAI_DIR}")
+    notes.append(f"pai repository not found, skipping the project layer: {PAI_DIR}")
 else:
     readme_pai = {n for c in table_rows(sec_pai) if (n := code_name(c[0]))}
-    report_set_diff("项目层", actual_pai, readme_pai)
+    report_set_diff("project", actual_pai, readme_pai)
 
 # ---------- 2. 头部计数 ----------
 
@@ -186,9 +186,9 @@ if actual_pai is not None:
 for label, pattern, real in counts:
     m = re.search(pattern, head)
     if not m:
-        fail("计数", f"头部读不到「{label}」这一行")
+        fail("count", f"header line '{label}' not found")
     elif int(m.group(1)) != real:
-        fail("计数", f"头部「{label}」写 {m.group(1)}，实际 {real}")
+        fail("count", f"header '{label}' says {m.group(1)}, actual {real}")
 
 # ---------- 3. third_party 每仓库 skill 数 ----------
 
@@ -198,17 +198,17 @@ for cells in table_rows(sec_third):
         continue
     d = THIRD_PARTY / name
     if not d.is_dir():
-        fail("third_party", f"README 列了 {name}，但 third_party/ 下没有")
+        fail("third_party", f"README lists {name}, but third_party/ has no such directory")
         continue
     real = len(list(d.glob("**/SKILL.md")))
     if real == 0:
-        fail("third_party", f"{name} 里一个 SKILL.md 都没有，submodule 可能没初始化")
+        fail("third_party", f"{name} has no SKILL.md; the submodule may not be initialized")
     elif real != int(cells[2]):
-        fail("third_party", f"{name}：README 写 {cells[2]}，实际 {real}")
+        fail("third_party", f"{name}: README says {cells[2]}, actual {real}")
 
 for d in sorted(THIRD_PARTY.iterdir()) if THIRD_PARTY.is_dir() else []:
     if d.is_dir() and not any(code_name(c[0]) == d.name for c in table_rows(sec_third)):
-        fail("third_party", f"third_party/{d.name} 存在，但 README 第四节没有这一行")
+        fail("third_party", f"third_party/{d.name} exists but has no row in README section 4")
 
 # ---------- 4. 全局层的源仓库与「third_party/ 收录」列 ----------
 
@@ -222,7 +222,7 @@ if actual_global is not None:
         doc_repo = norm_repo(first_link(cells[2]))
         real_repo = provenance(name)
         if real_repo and doc_repo and real_repo != doc_repo:
-            fail("源仓库", f"{name}：README 写 {doc_repo}，skills.json 是 {real_repo}")
+            fail("source repo", f"{name}: README says {doc_repo}, skills.json says {real_repo}")
 
         mark = cells[3].strip()
         if doc_repo in OWN_REPOS:
@@ -233,7 +233,7 @@ if actual_global is not None:
             expected = "❌"
             unaggregated_expected.setdefault(doc_repo, []).append(name)
         if mark != expected:
-            fail("收录列", f"{name}：README 写「{mark}」，按 .gitmodules 应为「{expected}」")
+            fail("third_party column", f"{name}: README says '{mark}', .gitmodules implies '{expected}'")
 
 # ---------- 5. 自建层的「全局已装」列 ----------
 
@@ -245,7 +245,7 @@ if actual_global is not None:
         mark = cells[3].strip()
         expected = "✅" if name in actual_global else "❌"
         if mark != expected:
-            fail("全局已装列", f"{name}：README 写「{mark}」，实际{'已' if expected == '✅' else '未'}安装")
+            fail("installed column", f"{name}: README says '{mark}', but it is {'installed' if expected == '✅' else 'not installed'}")
 
 # ---------- 6. 尚未聚合的上游仓库表 ----------
 
@@ -254,21 +254,21 @@ if actual_global is not None:
         norm_repo(first_link(c[0])) for c in table_rows(sec_unaggregated) if first_link(c[0])
     }
     for repo in sorted(set(unaggregated_expected) - documented_unagg):
-        involved = "、".join(f"`{s}`" for s in sorted(unaggregated_expected[repo]))
-        fail("尚未聚合表", f"缺 {repo}（涉及 {involved}）")
+        involved = ", ".join(f"`{s}`" for s in sorted(unaggregated_expected[repo]))
+        fail("unaggregated table", f"missing {repo} (used by {involved})")
     for repo in sorted(documented_unagg - set(unaggregated_expected)):
-        fail("尚未聚合表", f"多出 {repo}，已无对应的未收录 skill")
+        fail("unaggregated table", f"extra {repo}, no unaggregated skill uses it any more")
 
 # ---------- 输出 ----------
 
 for n in notes:
-    print(f"提示：{n}")
+    print(f"Note: {n}")
 
 if problems:
-    print(f"\nREADME 同步校验发现 {len(problems)} 处漂移：\n")
+    print(f"\nREADME sync check found {len(problems)} drift(s):\n")
     for p in problems:
         print(f"  {p}")
-    print("\n用途描述和分类分组需人工撰写，脚本不自动改写 README。")
+    print("\nPurpose descriptions and category grouping are written by hand; this script does not rewrite README.")
     raise SystemExit(1)
 
-print("README 同步校验通过。")
+print("README sync check passed.")

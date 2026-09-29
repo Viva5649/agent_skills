@@ -1,4 +1,74 @@
 {
+  "repos": {
+    "JimLiu/baoyu-skills": {
+      "commit": "1567581c26ec29f4216c6e6835415bf30343b0e3",
+      "updated_at": "2026-09-29T22:56:32+08:00"
+    },
+    "KKKKhazix/khazix-skills": {
+      "commit": "b81ad3b442e778bb7bf27047034c1d0d9f0637ff",
+      "updated_at": "2026-09-29T22:56:32+08:00"
+    },
+    "Viva5649/agent_skills": {
+      "commit": "7986fe824bac60a64a471e891cc686e666774188",
+      "updated_at": "2026-09-29T22:56:32+08:00"
+    },
+    "ailabs-393/ai-labs-claude-skills": {
+      "commit": "1a12bc7aadcc7b211f77a7455db454b77a71f827",
+      "updated_at": "2026-09-29T22:56:32+08:00"
+    },
+    "alchaincyf/huashu-design": {
+      "commit": "0830494ecb1c117e25b313a8114fe55a6bf2b125",
+      "updated_at": "2026-09-29T22:56:32+08:00"
+    },
+    "anthropics/skills": {
+      "commit": "33375500bcea98d610eb30ce10ac4e59b89c390d",
+      "updated_at": "2026-09-29T22:56:32+08:00"
+    },
+    "blader/humanizer": {
+      "commit": "225a6f39ac85f76ee48dbad772ea4abe4ed6c9d8",
+      "updated_at": "2026-09-29T22:56:32+08:00"
+    },
+    "crazynomad/skills": {
+      "commit": "2bc470fc08b47b63af8c1721058672ad0678ab78",
+      "updated_at": "2026-09-29T22:56:32+08:00"
+    },
+    "garrytan/gstack": {
+      "commit": "01593aa67c94780528e8f5121e47362502410ced",
+      "updated_at": "2026-09-29T22:56:32+08:00"
+    },
+    "humanlayer/skills": {
+      "commit": "ca7c8088db69e315a8b2deea43820270457f8f3c",
+      "updated_at": "2026-09-29T22:56:33+08:00"
+    },
+    "icebear0828/notebooklm-client": {
+      "commit": "7319b6c59aaf5a65abdf627e40f1461f831037be",
+      "updated_at": "2026-09-29T22:56:33+08:00"
+    },
+    "jeffallan/claude-skills": {
+      "commit": "882ef55e377dbf9a4dbe496bb41ac6ccd0e555cf",
+      "updated_at": "2026-09-29T22:56:33+08:00"
+    },
+    "joeseesun/qiaomu-goal-meta-skill": {
+      "commit": "f29e0189f2ea03392c50b4f1c7230886bd838a13",
+      "updated_at": "2026-09-29T22:56:33+08:00"
+    },
+    "op7418/guizang-ppt-skill": {
+      "commit": "c91369c449d34755d320a8b81d0734000d99d1ab",
+      "updated_at": "2026-09-29T22:56:33+08:00"
+    },
+    "smallnest/goal-workflow": {
+      "commit": "b06ab3c1c147dcf7ef8dd62a8927cd506d098135",
+      "updated_at": "2026-09-29T22:56:33+08:00"
+    },
+    "vercel-labs/agent-browser": {
+      "commit": "d01253d9db28d75080e36da3c1c31ef89454731e",
+      "updated_at": "2026-09-29T22:56:33+08:00"
+    },
+    "vercel-labs/skills": {
+      "commit": "7407f3893ad4dceab546ac002c3ef806e4000c73",
+      "updated_at": "2026-09-29T22:56:33+08:00"
+    }
+  },
   "skills": {
     "JimLiu/baoyu-skills:skills/baoyu-article-illustrator": {
       "name": "baoyu-article-illustrator",
