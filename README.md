@@ -2,10 +2,10 @@
 
 个人 Agent Skill 仓库。收录自建 skill，并以 git submodule 方式聚合常用的外部 skill 库。
 
-本文档记录本机（macOS）当前的 skill 全貌，分三层：仓库自建、全局安装、项目级。来源仓库取自各 skill 目录下的 `.openskills.json`。
+本文档记录本机（macOS）当前的 skill 全貌，分三层：仓库自建、全局安装、项目级。全局安装的 skill 由 [`skillctl`](#六用-skillctl-管理全局-skill) 按仓库根目录的 `skills.json` 安装，来源仓库以它为准。
 
 - 自建 skill：8 个（`skills/`）
-- 全局安装：38 个（`~/.claude/skills/`）
+- 全局安装：35 个（`~/.agents/skills/`，`~/.claude/skills/` 下是指向它的软链接）
 - 项目级：6 个（`personal_ai_infrastructure/.claude/skills/`）
 - 外部聚合：7 个仓库，共 200 个 skill（`third_party/`）
 
@@ -16,7 +16,7 @@
 | Skill | 用途 | 源仓库 | 全局已装 |
 |---|---|---|:---:|
 | `clarify-life-direction` | 人生方向澄清。回溯经历、澄清愿景、定义反愿景、倒推路径，把「不知道自己想要什么」变成可执行方向 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
-| `clarify-thought` | 命题分解与决策澄清。维特根斯坦 + 苏格拉底 + 波兰尼三层架构，把模糊想法拆成精准指令或清晰决策 | [Viva5649/clarify-skill](https://github.com/Viva5649/clarify-skill)（原作者 riiiku） | ✅ |
+| `clarify-thought` | 命题分解与决策澄清。维特根斯坦 + 苏格拉底 + 波兰尼三层架构，把模糊想法拆成精准指令或清晰决策 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills)（原作者 riiiku） | ✅ |
 | `create-blueprint` | 生成工程蓝图风格技术图表，支持箭头、连线、关系标注，用于架构图与流程图 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
 | `creator-signal-digest` | 创作者信号雷达周报。扫描中文圈/英语圈 AI 创作者账号，筛选 AI 实操与副业信号 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ❌ |
 | `explain-concept` | 概念通俗讲解与可视化。输出生活化例子、记忆方法，适合时按概念结构选 mermaid / SVG / HTML 出图 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ❌ |
@@ -28,14 +28,14 @@
 
 ---
 
-## 二、全局安装 skill（`~/.claude/skills/`）
+## 二、全局安装 skill（`~/.agents/skills/` 与 `~/.claude/skills/`）
 
-对所有项目生效，由 [openskills](https://github.com/vercel-labs/skills) 安装。
+对所有项目生效，Claude Code 和 Codex 看到的是同一份。除 `agent-reach` 和 `ego-browser` 外，都由 skillctl 安装，见「六」。
 
 「`third_party/` 收录」列说明这个 skill 的**上游仓库**在本仓库里能不能直接翻到源码：
 
 - ✅ 上游仓库已作为 submodule 收进 `third_party/`，`cd third_party/xxx` 就能看源码、查历史、跟版本
-- ❌ 上游仓库还没收进来，只有装到 `~/.claude/skills/` 的那一份，想看源码得去 GitHub，清单见「四」的「尚未聚合的上游仓库」
+- ❌ 上游仓库还没收进来，只有装到本机的那一份，想看源码得去 GitHub，清单见「四」的「尚未聚合的上游仓库」
 - 本仓库 该 skill 是自建的，正文在 `skills/` 下，没有外部上游
 
 ### 官方 / Anthropic
@@ -47,14 +47,12 @@
 | `pptx` | PPT（.pptx/.potx）创建、解析、编辑，含模板、版式、演讲者备注 | [anthropics/skills](https://github.com/anthropics/skills) | ✅ |
 | `xlsx` | 电子表格（.xlsx/.csv/.tsv）创建、编辑、公式、图表、脏数据清洗 | [anthropics/skills](https://github.com/anthropics/skills) | ✅ |
 | `frontend-design` | 前端视觉设计指导，审美方向、排版、避免模板化默认样式 | [anthropics/skills](https://github.com/anthropics/skills) | ✅ |
-| `skill-creator` | 创建、修改、优化 skill，跑 eval 测试与描述调优 | [anthropics/skills](https://github.com/anthropics/skills) | ✅ |
+| `anthropic-skill-creator` | 创建、修改、优化 skill，跑 eval 测试与描述调优。上游名为 `skill-creator`，改名以区分 Codex 自带的同名 skill | [anthropics/skills](https://github.com/anthropics/skills) | ✅ |
 
 ### 工程 / 方法论
 
 | Skill | 用途 | 源仓库 | `third_party/` 收录 |
 |---|---|---|:---:|
-| `brainstorming` | 任何创作性工作前的强制前置，先探清意图、需求与设计再动手 | [obra/superpowers](https://github.com/obra/superpowers) | ✅ |
-| `writing-plans` | 有 spec 或需求的多步任务，先写计划再碰代码 | [obra/superpowers](https://github.com/obra/superpowers) | ✅ |
 | `agent-browser` | 浏览器自动化 CLI，导航、填表、截图、抓数据、测试 Web 与 Electron 应用 | [vercel-labs/agent-browser](https://github.com/vercel-labs/agent-browser) | ❌ |
 | `ego-browser` | ego lite 浏览器自动化，可复用用户已登录的网站与上下文，做网页操作、表单填写、截图、Web 应用测试 | [ego lite](https://lite.ego.app/)（随应用安装，非 GitHub） | ❌ |
 | `qiaomu-goal-meta-skill` | 把模糊任务转成结构化 Codex `/goal` 指令，含验收标准与边界条件 | [joeseesun/qiaomu-goal-meta-skill](https://github.com/joeseesun/qiaomu-goal-meta-skill) | ❌ |
@@ -77,7 +75,6 @@
 
 | Skill | 用途 | 源仓库 | `third_party/` 收录 |
 |---|---|---|:---:|
-| `khazix-writer` | 数字生命卡兹克风格的公众号长文写作，支持素材转长文、续写、扩写 | [KKKKhazix/khazix-skills](https://github.com/KKKKhazix/khazix-skills) | ✅ |
 | `humanizer` | 改写 AI 腔文本，去除套话、虚高措辞、重复结构，保持原意不变 | [blader/humanizer](https://github.com/blader/humanizer) | ❌ |
 | `guizang-ppt-skill` | 横向翻页网页 PPT（单 HTML），含 WebGL 背景与演讲者视图，两种风格 | [op7418/guizang-ppt-skill](https://github.com/op7418/guizang-ppt-skill) | ❌ |
 | `huashu-design` | HTML 高保真原型、幻灯片、动画、可视化，新设计强制先出三稿供选 | [alchaincyf/huashu-design](https://github.com/alchaincyf/huashu-design) | ❌ |
@@ -91,7 +88,7 @@
 
 | Skill | 用途 | 源仓库 | `third_party/` 收录 |
 |---|---|---|:---:|
-| `clarify-thought` | 命题分解与决策澄清 | [Viva5649/clarify-skill](https://github.com/Viva5649/clarify-skill) | 本仓库 |
+| `clarify-thought` | 命题分解与决策澄清 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | 本仓库 |
 | `clarify-life-direction` | 人生方向澄清 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | 本仓库 |
 | `optimize-prompt` | 提示词优化 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | 本仓库 |
 
@@ -116,7 +113,7 @@
 | `gstack-plan-ceo-review` | CEO / 创始人视角的方案评审，推动放大格局与重新审视范围 | [garrytan/gstack](https://github.com/garrytan/gstack) | ✅ |
 | `gstack-plan-eng-review` | 工程经理视角的方案评审，审架构与实施计划 | [garrytan/gstack](https://github.com/garrytan/gstack) | ✅ |
 
-> 上游共 61 个 skill，这里只装了需要的几个，装法见「五、状态说明」的 gstack 小节。
+> 上游共 61 个 skill，这里只装了需要的几个，装法见「六」的 gstack 小节。
 
 ---
 
@@ -191,63 +188,158 @@ git submodule update --remote --merge
 | 项 | 状态 |
 |---|---|
 | `creator-signal-digest`、`explain-concept` | 有意只留在仓库内，不做全局安装 |
-| `ego-browser` | 由 ego lite 应用安装，`~/.claude/skills/ego-browser` 软链到 `~/.local/share/ego/ego-skills`，实体在应用包内，随应用升级，没有 `.openskills.json`，也无法收进 `third_party/` |
-| 全局与 `third_party/` 内容重复 | 预期行为，非问题。`third_party/` 的定位是集中管理与查阅上游仓库，全局 skill 由 [openskills](https://github.com/vercel-labs/skills) 工具独立安装，两者各司其职 |
+| `ego-browser` | 由 ego lite 应用安装，两个全局目录下都是指向 `~/.local/share/ego/ego-skills` 的软链接，实体在应用包内，随应用升级，不归 skillctl 管，也无法收进 `third_party/` |
+| `agent-reach` | 由 Agent-Reach 自己的命令行工具安装，skill 版本要和工具版本对应，不归 skillctl 管 |
+| 全局与 `third_party/` 内容重复 | 预期行为，非问题。`third_party/` 的定位是集中管理与查阅上游仓库，全局 skill 由 skillctl 从上游仓库独立安装，两者各司其职 |
 
 ### README 同步校验
 
-本文档记录的是三个位置的实际状态，其中 `~/.claude/skills/` 在仓库之外，改动不会体现在 git 里，靠人工核对必然会漏。[`scripts/check-readme-sync.py`](scripts/check-readme-sync.py) 负责把可机械推导的部分对齐。
+[`scripts/check-readme-sync.py`](scripts/check-readme-sync.py) 负责把 README 里可机械推导的部分对齐。
 
 ```bash
 ./scripts/check-readme-sync.py
 ```
 
-校验六项：三层的 skill 名单、头部计数、`third_party/` 各仓库的 skill 数、全局 skill 的源仓库（比对 `.openskills.json` 的 `repoUrl`）、自建层的「全局已装」列、全局层的「`third_party/` 收录」列与「尚未聚合的上游仓库」表。
+校验六项：三层的 skill 名单、头部计数、`third_party/` 各仓库的 skill 数、全局 skill 的源仓库、自建层的「全局已装」列、全局层的「`third_party/` 收录」列与「尚未聚合的上游仓库」表。
 
-不校验也不生成用途描述和分类分组，这两项是人工撰写的。脚本只读，发现漂移时逐条打印并以退出码 1 结束，需要补的那一行会被精确指出，例如「本机有 README 没有：show-me，源 humanlayer/skills」。
+全局层以 `skills.json` 里在装的条目为准，再加上脚本里登记的非托管 skill（`agent-reach`、`ego-browser`），不扫描本机目录，所以在哪台电脑上校验结果都一样。本机实际装的和清单是否一致，由 `skillctl check` 负责。项目级默认读 `~/Desktop/personal_ai_infrastructure`，可用 `PAI_ROOT` 覆盖，目录不存在时跳过并打印提示。
 
-默认读 `~/.claude/skills/` 和 `~/Desktop/personal_ai_infrastructure`，可用 `GLOBAL_SKILLS_DIR` 和 `PAI_ROOT` 覆盖；目录不存在时跳过对应层并打印提示，不报错。personal_ai_infrastructure 仓库的 `run-maintenance` 每天会调一次。
+不校验也不生成用途描述和分类分组，这两项是人工撰写的。脚本只读，发现漂移时逐条打印并以退出码 1 结束。personal_ai_infrastructure 仓库的 `run-maintenance` 每天会调一次。
 
-### gstack 安装（选择性安装，不走官方 setup）
+---
 
-gstack 既不走 openskills，也没有用它自带的 `./setup`。官方脚本会一次性安装全部 61 个 skill，且要求 gstack 位于 `~/.claude/skills/gstack`（脚本把 skill 装到 gstack 目录的**父目录**下）。这里只需要其中几个，所以改用仓库自带的 [`scripts/link-gstack-skills.sh`](scripts/link-gstack-skills.sh) 从 `third_party/gstack` 选择性链接。
+## 六、用 skillctl 管理全局 skill
 
-脚本同时处理 `~/.claude/skills/`（Claude Code）和 `~/.agents/skills/`（其他 agent）。后者只在已存在时处理，本机没有这套约定就跳过，不主动创建。
+[`scripts/skillctl.py`](scripts/skillctl.py) 从 GitHub 拉取 skill，装到 `~/.agents/skills/<安装名>/`（Codex 读取），并在 `~/.claude/skills/<安装名>` 建软链接（Claude Code 读取）。只依赖 git 和系统自带的 Python 3.9 以上版本。第一次运行时会自动创建 `~/.local/bin/skillctl`，之后直接用命令名。
+
+装哪些 skill、叫什么名字，记在仓库根目录的 `skills.json` 里。它只通过命令修改，不要手工编辑。
+
+| 位置 | 内容 |
+|---|---|
+| `skills.json` | 清单，随本仓库分发 |
+| `~/.local/share/agent-skills/repos/<owner>/<repo>/` | 上游仓库的本机副本 |
+| `~/.agents/skills/<安装名>/` | skill 实体，内含标记文件 `.skillctl.json` |
+| `~/.claude/skills/<安装名>` | 指向上一行目录的软链接 |
+
+### 常用命令
+
+| 命令 | 作用 |
+|---|---|
+| `skillctl add owner/repo` | 列出仓库里的 skill，输入编号挑选安装 |
+| `skillctl add owner/repo --skill a,b [--as 名字 \| --prefix 前缀] [--link]` | 非交互安装，按 name 或仓库内路径指定。对已装的 skill 带 `--as` 就是改名 |
+| `skillctl remove 安装名` | 卸载，并在清单里标记为已删除 |
+| `skillctl sync` | 拉取本仓库、合并清单，让本机安装与清单一致 |
+| `skillctl merge 文件 [--yes]` | 把另一台电脑的 `skills.json` 合并进来，先列出改动，确认后再执行 |
+| `skillctl update [owner/repo]` | 拉取上游，列出有变化的文件，重装有变化的 skill |
+| `skillctl list` | 列出托管的 skill，以及两个全局目录里未托管的 skill；能查到来源的会给出纳入管理的 add 命令 |
+| `skillctl check` | 只读检查：清单与安装是否一致、重名、手改、失效软链接、上游更新 |
+
+`add`、`remove`、`update`、`merge` 执行前都会先做一次 `sync`。
+
+### 命名规则
+
+- 默认沿用上游的 name。安装时会拦截三种情况：和本机已有目录重名；命中保留名（常见泛名、Claude Code 和 Codex 自带的 skill 名）；不符合 Agent Skills 命名规范。遇到时用 `--as` 起别名，或用 `--prefix` 加前缀，前缀优先用项目名。
+- 已经装上的 skill 不会因为后来者改名；安装名写进 SKILL.md 的 `name:`，所以两个工具里看到的名字一致。
+- 手改过的 skill 不会被 sync、update、remove 覆盖或删除，只会被报告。
+
+### 在新电脑上安装
+
+1. `git clone https://github.com/Viva5649/agent_skills.git`，放在哪里都可以。
+2. 本机已有同名 skill 目录的，先移到备份目录。
+3. `python3 <仓库路径>/scripts/skillctl.py sync`，按 `skills.json` 装齐。sync 不会把本机已有、清单里没有的 skill 写进清单。
+4. `skillctl check`。
+5. `skillctl list`，看还有哪些未托管的 skill，按提示决定要不要纳入管理。
+
+### 两台电脑之间同步
+
+- **主力机**：增删之后，提交并推送 `skills.json`。其他电脑下次运行任意 skillctl 命令时就会拿到。
+- **不能推送的副机**：增删只改它本地的 `skills.json`，不要在副机的 clone 里提交，更新仓库用 `skillctl sync`。把副机的 `skills.json` 拷到主力机任意位置，运行 `skillctl merge <文件>`，再提交推送。副机下次 sync 后，`git diff skills.json` 变空，说明改动已经送达。
+
+合并按条目比较时间，取较晚的记录，删除以标记的形式保留在清单里，所以两边各自的增删都不会丢。
+
+### 示例：把副机的改动合并到主力机
+
+假设在副机上装了 `vercel-labs/agent-skills` 里的 `web-design-guidelines`，又删掉了 `smell`。
+
+**1. 副机：正常增删，不提交**
 
 ```bash
-./scripts/link-gstack-skills.sh --prune
+skillctl add vercel-labs/agent-skills --skill web-design-guidelines
 ```
 
-想要哪些 skill，改脚本顶部的 `WANTED` 数组即可。当前安装：
+```bash
+skillctl remove smell
+```
+
+**2. 把副机的清单传到主力机**
+
+副机仓库根目录的 `skills.json` 用隔空投送、网盘或 U 盘传到主力机任意位置，文件名不用改。不要直接覆盖主力机仓库里的 `skills.json`，那样主力机上副机没见过的改动会丢，也不会触发安装和卸载。
+
+**3. 主力机：合并**
+
+```bash
+skillctl merge ~/Downloads/skills.json
+```
+
+skillctl 先列出这次会带来的改动，等你确认：
+
+```text
+将合并以下 2 处改动：
+  新增 web-design-guidelines（vercel-labs/agent-skills:skills/web-design-guidelines）
+  删除 smell（smallnest/goal-workflow:skills/smell）
+确认合并并按清单安装、卸载？[y/N] y
+已安装 web-design-guidelines（vercel-labs/agent-skills:skills/web-design-guidelines）
+已卸载 smell
+提示：README 和清单不一致，需要在主力机上补 README（用途和分类要人工写）：
+  [全局层] 实际有 README 没有：web-design-guidelines，源 vercel-labs/agent-skills
+  [全局层] README 有实际没有：smell
+```
+
+回答 `y` 之外的任何内容都会取消，清单和本机安装都不变。在脚本里运行时，加 `--yes` 跳过确认。传进来的文件原样保留，确认没问题后可以自己删掉。
+
+**4. 主力机：补 README，提交推送**
+
+```bash
+git add skills.json README.md && git commit -m "sync skills from second Mac" && git push
+```
+
+**5. 副机：确认已送达**
+
+```bash
+skillctl sync
+```
+
+```bash
+git diff -- skills.json
+```
+
+第二条命令没有输出，说明副机的改动已经全部进了主力机。
+
+同一个文件 merge 两次，第二次会显示「没有需要合并的改动」；拷来的文件比主力机旧也没关系，较新的记录不会被覆盖。
+
+### gstack 安装
+
+gstack 的 SKILL.md 把 `~/.claude/skills/gstack/bin/...`、`ETHOS.md` 等写成了绝对路径，所以它的路由入口用链接安装：`~/.agents/skills/gstack` 直接软链到 gstack 的仓库副本。选用的几个 skill 加 `gstack-` 前缀复制安装：
+
+```bash
+skillctl add garrytan/gstack --skill . --link
+```
+
+```bash
+skillctl add garrytan/gstack --skill office-hours,plan-ceo-review,plan-eng-review --prefix gstack-
+```
 
 | 全局名 | 上游目录 |
 |---|---|
-| `gstack` | `third_party/gstack`（路由 skill，入口软链顺带注册） |
+| `gstack` | 仓库根目录（链接安装） |
 | `gstack-office-hours` | `office-hours/` |
 | `gstack-plan-ceo-review` | `plan-ceo-review/` |
 | `gstack-plan-eng-review` | `plan-eng-review/` |
 
-**脚本做了什么**
-
-1. 在每个目标 skill 目录下建软链 `gstack` 指向 `third_party/gstack`。三个 SKILL.md 把 `~/.claude/skills/gstack/bin/...` 和 `ETHOS.md` 写成了绝对路径，这个软链让它们解析得到，磁盘上仍然只有 submodule 一份。
-2. 为每个 skill 建**真实目录**（不是目录软链），内部放指向源文件的软链，且指向本目录自己的 `gstack` 入口，两棵树互不依赖。Claude Code 只扫 `<skills 目录>/<名字>/SKILL.md` 这一层，不递归，整个目录软链过去会扫不到。
-3. `SKILL.md` 之外的同级资源全部链过去，排除 `node_modules|dist|test|*.tmpl`。这一步对齐官方 `setup` 的 `_link_skill_runtime_assets`，上游给某个 skill 新增 `references/`、`templates/` 等目录时重跑即可自动跟上。
-4. 结尾做断链自检，入口软链自身也在检查范围内。它一断，三个包装目录会跟着全断，而包装目录本身看起来还是好的，所以必须单独查。
-
-**升级**
-
-```bash
-git submodule update --remote -- third_party/gstack && ./scripts/link-gstack-skills.sh
-```
-
-脚本幂等，重跑安全。上游删除或改名的 skill 会打印提示而不是静默失败。
-
-**注意**
-
-- 该方案绕开了 gstack 自带的 `/gstack-upgrade` 升级机制，版本由 submodule 指针决定。
-- 四个 skill 的可用性绑定在 agent_skills 仓库的当前路径上。移动或重命名本仓库后需重跑脚本，它会检测到软链失效并自动刷新。
+- 升级用 `skillctl update garrytan/gstack`，不用 gstack 自带的 `/gstack-upgrade`。
+- 链接安装的入口没有手改保护，update 会把仓库副本里改过的已跟踪文件还原。
 - `office-hours` 会用到 `browse/dist/browse` 二进制（需 `bun run build`），未编译时代码内有存在性判断和 fallback，只影响网页浏览部分。
-- 不要在 `third_party/gstack` 里执行官方 `./setup`，否则 skill 会被装到 `third_party/` 下而不是 `~/.claude/skills/`。
+- 不要在仓库副本里执行官方 `./setup`，它会一次装上全部 61 个 skill。
 
 ---
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""校验 README.md 与本机 skill 实际状态是否一致。
+"""校验 README.md 与 skill 清单、本机项目级 skill 是否一致。
 
 只读，不修改任何文件。发现漂移时逐条打印并以退出码 1 结束。
 
@@ -7,8 +7,10 @@ README 里的用途描述和分类分组是人工撰写的，本脚本不生成�
 只负责把「名单、计数、源仓库、两个标记列」这些可机械推导的部分对齐，
 把需要人写的那一行精确指出来。
 
+全局层以仓库根目录 skills.json 里 present 的条目为准，加上不归 skillctl 管的
+UNMANAGED，不扫描本机目录，所以这一层在哪台电脑上校验结果都一样。
+
 环境变量：
-  GLOBAL_SKILLS_DIR  全局 skill 目录，默认 ~/.claude/skills
   PAI_ROOT           personal_ai_infrastructure 仓库根，默认 ~/Desktop/personal_ai_infrastructure
 """
 
@@ -23,8 +25,10 @@ README = REPO / "README.md"
 SELF_DIR = REPO / "skills"
 THIRD_PARTY = REPO / "third_party"
 GITMODULES = REPO / ".gitmodules"
+MANIFEST = REPO / "skills.json"
 
-GLOBAL_DIR = Path(os.environ.get("GLOBAL_SKILLS_DIR") or Path.home() / ".claude" / "skills")
+# 由其他工具安装、不归 skillctl 管的全局 skill，及其上游
+UNMANAGED = {"agent-reach": "panniantong/agent-reach", "ego-browser": None}
 PAI_ROOT = Path(os.environ.get("PAI_ROOT") or Path.home() / "Desktop" / "personal_ai_infrastructure")
 PAI_DIR = PAI_ROOT / ".claude" / "skills"
 
@@ -90,23 +94,33 @@ def skills_in(directory):
     return {d.name for d in directory.iterdir() if d.is_dir() and (d / "SKILL.md").is_file()}
 
 
-def provenance(name):
-    """返回该全局 skill 的上游 owner/name，无 .openskills.json 时返回 None。"""
-    f = GLOBAL_DIR / name / ".openskills.json"
-    if not f.is_file():
+def load_global():
+    """返回 {全局 skill 名: 上游 owner/name 或 None}；skills.json 不存在时返回 None。"""
+    if not MANIFEST.is_file():
         return None
     try:
-        return norm_repo(json.loads(f.read_text(encoding="utf-8")).get("repoUrl", ""))
-    except (json.JSONDecodeError, OSError):
+        skills = json.loads(MANIFEST.read_text(encoding="utf-8"))["skills"]
+    except (json.JSONDecodeError, OSError, KeyError) as e:
+        fail("清单", f"skills.json 读取失败：{e}")
         return None
+    out = {e["name"]: sid.split(":", 1)[0].lower()
+           for sid, e in skills.items() if e.get("state") == "present"}
+    for name, repo in UNMANAGED.items():
+        out.setdefault(name, repo)
+    return out
+
+
+def provenance(name):
+    """返回该全局 skill 的上游 owner/name，未知时返回 None。"""
+    return (global_skills or {}).get(name)
 
 
 def report_set_diff(tag, actual, documented, annotate=None):
     for name in sorted(actual - documented):
         extra = f"，{annotate(name)}" if annotate else ""
-        fail(tag, f"本机有 README 没有：{name}{extra}")
+        fail(tag, f"实际有 README 没有：{name}{extra}")
     for name in sorted(documented - actual):
-        fail(tag, f"README 有本机没有：{name}")
+        fail(tag, f"README 有实际没有：{name}")
 
 
 # ---------- 载入 ----------
@@ -128,7 +142,8 @@ submodule_repos = {
 } if GITMODULES.is_file() else set()
 
 actual_self = skills_in(SELF_DIR) or set()
-actual_global = skills_in(GLOBAL_DIR)
+global_skills = load_global()
+actual_global = set(global_skills) if global_skills is not None else None
 actual_pai = skills_in(PAI_DIR)
 
 # ---------- 1. 三层名单 ----------
@@ -137,13 +152,13 @@ readme_self = {n for c in table_rows(sec_self) if (n := code_name(c[0]))}
 report_set_diff("自建层", actual_self, readme_self)
 
 if actual_global is None:
-    notes.append(f"全局目录不存在，跳过全局层校验：{GLOBAL_DIR}")
+    notes.append(f"找不到 {MANIFEST}，跳过全局层校验")
     readme_global = set()
 else:
     readme_global = {n for c in table_rows(sec_global) if (n := code_name(c[0]))}
     report_set_diff(
         "全局层", actual_global, readme_global,
-        annotate=lambda n: f"源 {provenance(n) or '未知（无 .openskills.json）'}",
+        annotate=lambda n: f"源 {provenance(n) or '未知'}",
     )
 
 if actual_pai is None:
@@ -207,7 +222,7 @@ if actual_global is not None:
         doc_repo = norm_repo(first_link(cells[2]))
         real_repo = provenance(name)
         if real_repo and doc_repo and real_repo != doc_repo:
-            fail("源仓库", f"{name}：README 写 {doc_repo}，.openskills.json 是 {real_repo}")
+            fail("源仓库", f"{name}：README 写 {doc_repo}，skills.json 是 {real_repo}")
 
         mark = cells[3].strip()
         if doc_repo in OWN_REPOS:

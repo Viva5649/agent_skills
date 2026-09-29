@@ -1,0 +1,181 @@
+{
+  "skills": {
+    "JimLiu/baoyu-skills:skills/baoyu-article-illustrator": {
+      "name": "baoyu-article-illustrator",
+      "state": "present",
+      "updated_at": "2026-09-28T23:34:38+08:00"
+    },
+    "JimLiu/baoyu-skills:skills/baoyu-cover-image": {
+      "name": "baoyu-cover-image",
+      "state": "present",
+      "updated_at": "2026-09-28T23:34:38+08:00"
+    },
+    "KKKKhazix/khazix-skills:aihot": {
+      "name": "aihot",
+      "state": "present",
+      "updated_at": "2026-09-28T23:34:15+08:00"
+    },
+    "KKKKhazix/khazix-skills:hv-analysis": {
+      "name": "hv-analysis",
+      "state": "present",
+      "updated_at": "2026-09-28T23:34:15+08:00"
+    },
+    "KKKKhazix/khazix-skills:neat-freak": {
+      "name": "neat-freak",
+      "state": "present",
+      "updated_at": "2026-09-28T23:34:15+08:00"
+    },
+    "Viva5649/agent_skills:skills/clarify-life-direction": {
+      "name": "clarify-life-direction",
+      "state": "present",
+      "updated_at": "2026-09-28T23:33:06+08:00"
+    },
+    "Viva5649/agent_skills:skills/clarify-thought": {
+      "name": "clarify-thought",
+      "state": "present",
+      "updated_at": "2026-09-28T23:33:06+08:00"
+    },
+    "Viva5649/agent_skills:skills/create-blueprint": {
+      "name": "create-blueprint",
+      "state": "present",
+      "updated_at": "2026-09-28T23:33:06+08:00"
+    },
+    "Viva5649/agent_skills:skills/optimize-prompt": {
+      "name": "optimize-prompt",
+      "state": "present",
+      "updated_at": "2026-09-28T23:33:06+08:00"
+    },
+    "Viva5649/agent_skills:skills/publish-site": {
+      "name": "publish-site",
+      "state": "present",
+      "updated_at": "2026-09-28T23:33:06+08:00"
+    },
+    "Viva5649/agent_skills:skills/send-email": {
+      "name": "send-email",
+      "state": "present",
+      "updated_at": "2026-09-28T23:33:06+08:00"
+    },
+    "ailabs-393/ai-labs-claude-skills:packages/skills/codebase-documenter": {
+      "name": "codebase-documenter",
+      "state": "present",
+      "updated_at": "2026-09-28T23:37:13+08:00"
+    },
+    "alchaincyf/huashu-design:.": {
+      "name": "huashu-design",
+      "state": "present",
+      "updated_at": "2026-09-28T23:38:19+08:00"
+    },
+    "anthropics/skills:skills/docx": {
+      "name": "docx",
+      "state": "present",
+      "updated_at": "2026-09-28T23:33:23+08:00"
+    },
+    "anthropics/skills:skills/frontend-design": {
+      "name": "frontend-design",
+      "state": "present",
+      "updated_at": "2026-09-28T23:33:23+08:00"
+    },
+    "anthropics/skills:skills/pdf": {
+      "name": "pdf",
+      "state": "present",
+      "updated_at": "2026-09-28T23:33:23+08:00"
+    },
+    "anthropics/skills:skills/pptx": {
+      "name": "pptx",
+      "state": "present",
+      "updated_at": "2026-09-28T23:33:23+08:00"
+    },
+    "anthropics/skills:skills/skill-creator": {
+      "name": "anthropic-skill-creator",
+      "state": "present",
+      "updated_at": "2026-09-28T23:33:35+08:00"
+    },
+    "anthropics/skills:skills/xlsx": {
+      "name": "xlsx",
+      "state": "present",
+      "updated_at": "2026-09-28T23:33:23+08:00"
+    },
+    "blader/humanizer:.": {
+      "name": "humanizer",
+      "state": "present",
+      "updated_at": "2026-09-28T23:38:41+08:00"
+    },
+    "crazynomad/skills:youtube-downloader": {
+      "name": "youtube-downloader",
+      "state": "present",
+      "updated_at": "2026-09-28T23:41:08+08:00"
+    },
+    "garrytan/gstack:.": {
+      "link": true,
+      "name": "gstack",
+      "state": "present",
+      "updated_at": "2026-09-28T23:35:19+08:00"
+    },
+    "garrytan/gstack:office-hours": {
+      "name": "gstack-office-hours",
+      "state": "present",
+      "updated_at": "2026-09-28T23:35:31+08:00"
+    },
+    "garrytan/gstack:plan-ceo-review": {
+      "name": "gstack-plan-ceo-review",
+      "state": "present",
+      "updated_at": "2026-09-28T23:35:31+08:00"
+    },
+    "garrytan/gstack:plan-eng-review": {
+      "name": "gstack-plan-eng-review",
+      "state": "present",
+      "updated_at": "2026-09-28T23:35:31+08:00"
+    },
+    "humanlayer/skills:plugins/show-me/skills/show-me": {
+      "name": "show-me",
+      "state": "present",
+      "updated_at": "2026-09-28T23:39:41+08:00"
+    },
+    "icebear0828/notebooklm-client:.": {
+      "name": "notecraft",
+      "state": "present",
+      "updated_at": "2026-09-28T23:39:01+08:00"
+    },
+    "jeffallan/claude-skills:skills/spec-miner": {
+      "name": "spec-miner",
+      "state": "present",
+      "updated_at": "2026-09-28T23:40:46+08:00"
+    },
+    "joeseesun/qiaomu-goal-meta-skill:.": {
+      "name": "qiaomu-goal-meta-skill",
+      "state": "present",
+      "updated_at": "2026-09-28T23:39:22+08:00"
+    },
+    "obra/superpowers:skills/brainstorming": {
+      "name": "brainstorming",
+      "state": "removed",
+      "updated_at": "2026-09-29T00:07:12+08:00"
+    },
+    "obra/superpowers:skills/writing-plans": {
+      "name": "writing-plans",
+      "state": "removed",
+      "updated_at": "2026-09-29T00:04:21+08:00"
+    },
+    "op7418/guizang-ppt-skill:.": {
+      "name": "guizang-ppt-skill",
+      "state": "present",
+      "updated_at": "2026-09-28T23:37:34+08:00"
+    },
+    "smallnest/goal-workflow:skills/smell": {
+      "name": "smell",
+      "state": "present",
+      "updated_at": "2026-09-28T23:40:04+08:00"
+    },
+    "vercel-labs/agent-browser:skills/agent-browser": {
+      "name": "agent-browser",
+      "state": "present",
+      "updated_at": "2026-09-28T23:36:20+08:00"
+    },
+    "vercel-labs/skills:skills/find-skills": {
+      "name": "find-skills",
+      "state": "present",
+      "updated_at": "2026-09-28T23:36:49+08:00"
+    }
+  },
+  "version": 1
+}
