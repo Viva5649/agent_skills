@@ -9,8 +9,8 @@
       "updated_at": "2026-09-29T22:56:32+08:00"
     },
     "Viva5649/agent_skills": {
-      "commit": "7986fe824bac60a64a471e891cc686e666774188",
-      "updated_at": "2026-09-29T22:56:32+08:00"
+      "commit": "d2362f76c06fe879cae033be26a3444b97ec9238",
+      "updated_at": "2026-09-30T08:17:56+08:00"
     },
     "ailabs-393/ai-labs-claude-skills": {
       "commit": "1a12bc7aadcc7b211f77a7455db454b77a71f827",
@@ -21,8 +21,8 @@
       "updated_at": "2026-09-29T22:56:32+08:00"
     },
     "anthropics/skills": {
-      "commit": "33375500bcea98d610eb30ce10ac4e59b89c390d",
-      "updated_at": "2026-09-29T22:56:32+08:00"
+      "commit": "8a1541c4a3ffa5a20a5a91de0dcf3f0bab1d1ef4",
+      "updated_at": "2026-09-30T08:17:57+08:00"
     },
     "blader/humanizer": {
       "commit": "225a6f39ac85f76ee48dbad772ea4abe4ed6c9d8",
@@ -33,8 +33,8 @@
       "updated_at": "2026-09-29T22:56:32+08:00"
     },
     "garrytan/gstack": {
-      "commit": "01593aa67c94780528e8f5121e47362502410ced",
-      "updated_at": "2026-09-29T22:56:32+08:00"
+      "commit": "96764e80a641e28141ec8297223768029f5bf483",
+      "updated_at": "2026-09-30T08:17:58+08:00"
     },
     "humanlayer/skills": {
       "commit": "ca7c8088db69e315a8b2deea43820270457f8f3c",
@@ -65,8 +65,8 @@
       "updated_at": "2026-09-29T22:56:33+08:00"
     },
     "vercel-labs/skills": {
-      "commit": "7407f3893ad4dceab546ac002c3ef806e4000c73",
-      "updated_at": "2026-09-29T22:56:33+08:00"
+      "commit": "3694740352eeef5cdd689af694c485f1ff62eec3",
+      "updated_at": "2026-09-30T08:17:59+08:00"
     }
   },
   "skills": {
