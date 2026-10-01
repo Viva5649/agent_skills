@@ -8,6 +8,7 @@ skill 实体装在 ~/.agents/skills/<安装名>/（Codex 读取），
 上游仓库浅 clone 在 ~/.local/share/agent-skills/repos/<owner>/<repo>/。
 
 只依赖 git 和 Python 3.9 标准库。
+设计原则见仓库 README「设计原则」一节，改动行为前先对照。
 
 环境变量（测试用）：
   SKILLCTL_GIT_BASE   上游仓库地址前缀，默认 https://github.com/
@@ -479,30 +480,37 @@ def reserved_names():
     return names
 
 
+def global_dirs():
+    """本机所有项目都能看到的 skill 目录。"""
+    return [AGENTS_DIR, CLAUDE_DIR, CODEX_DIR]
+
+
+def project_dirs():
+    return [Path.cwd() / ".agents" / "skills", Path.cwd() / ".claude" / "skills"]
+
+
 def scan_dirs():
-    dirs = [AGENTS_DIR, CLAUDE_DIR, CODEX_DIR, CODEX_SYSTEM,
-            Path.cwd() / ".agents" / "skills", Path.cwd() / ".claude" / "skills"]
     out, seen = [], set()
-    for d in dirs:
-        key = os.path.abspath(str(d))
+    for d in global_dirs() + [CODEX_SYSTEM] + project_dirs():
+        key = os.path.realpath(str(d))
         if key not in seen:
             seen.add(key)
             out.append(d)
     return out
 
 
-def occupied(name, ignore_id=None):
-    """扫描范围内是否已有同名目录；属于 ignore_id 自己安装的不算。"""
-    for d in scan_dirs():
+def taken_by(name, sid, dirs):
+    """返回 dirs 里第一个被占着的同名路径；本条目自己装的 T 和指向 T 的软链接不算。"""
+    t = AGENTS_DIR / name
+    mine = installed_id(t) == sid
+    for d in dirs:
         p = d / name
         if not (p.exists() or p.is_symlink()):
             continue
-        if d in (AGENTS_DIR, CLAUDE_DIR) and ignore_id:
-            t = AGENTS_DIR / name
-            mk = read_marker(t)
-            if mk and mk.get("id") == ignore_id:
-                continue
-        return str(p)
+        # 当前项目可能就是家目录，按真实路径认出同一个 T
+        if mine and (os.path.realpath(str(d)) == os.path.realpath(str(AGENTS_DIR)) or points_to(p, t)):
+            continue
+        return p
     return None
 
 
@@ -518,17 +526,30 @@ def apply_prefix(prefix, base):
     return base if base.startswith(prefix) else prefix + base
 
 
-def name_problem(name, manifest, sid, taken=()):
+def slot_problem(name, sid):
+    """装到本机之前的名字检查，add 和 sync 共用：命名规范、保留名、全局目录里的同名路径。"""
     if not valid_name(name):
         return "breaks the naming rules (1-64 lowercase letters, digits, or single hyphens)"
     if name in reserved_names():
         return "is a reserved name"
-    for other_id, e in present(manifest).items():
-        if other_id != sid and e["name"] == name:
-            return f"is already used by {other_id} in the manifest"
-    if name in taken:
-        return "clashes with another skill selected in this run"
-    where = occupied(name, ignore_id=sid)
+    where = taken_by(name, sid, global_dirs())
+    if where:
+        return f"clashes with existing directory {where}"
+    return None
+
+
+def name_problem(name, manifest, sid, taken=()):
+    """add 选名时的检查：在 slot_problem 之外，再看清单、本次选中的其他项和当前项目的 skill 目录。"""
+    if valid_name(name):
+        for other_id, e in present(manifest).items():
+            if other_id != sid and e["name"] == name:
+                return f"is already used by {other_id} in the manifest"
+        if name in taken:
+            return "clashes with another skill selected in this run"
+    problem = slot_problem(name, sid)
+    if problem:
+        return problem
+    where = taken_by(name, sid, project_dirs())
     if where:
         return f"clashes with existing directory {where}"
     return None
@@ -603,12 +624,11 @@ def ensure_claude_link(name, report):
     l.symlink_to(t)
 
 
-def claude_slot_taken(name, report):
-    """新装之前检查 L：被别的东西占着就两处都不装，免得两个工具里同名却是不同的 skill。"""
-    t, l = AGENTS_DIR / name, CLAUDE_DIR / name
-    if (l.exists() or l.is_symlink()) and not points_to(l, t):
-        report.problem(f"{name}: {l} is taken by a skill skillctl does not manage, name conflict; "
-                       f"installed in neither place")
+def slot_taken(name, sid, report):
+    """新装之前做和 add 相同的名字检查；不通过就 T 和 L 都不装，免得同名却是不同的 skill。"""
+    problem = slot_problem(name, sid)
+    if problem:
+        report.problem(f"{name}: {problem}; installed in neither place")
         return True
     return False
 
@@ -617,6 +637,9 @@ def install_entry(sid, entry, report):
     """让一个 present 条目在本机就位。返回是否做了改动。"""
     repo, path = split_id(sid)
     name = entry["name"]
+    if not valid_name(name):
+        report.problem(f"{sid}: install name {name!r} breaks the naming rules, skipped")
+        return False
     t = AGENTS_DIR / name
     try:
         rdir = ensure_repo(repo)
@@ -638,7 +661,7 @@ def install_entry(sid, entry, report):
             report.problem(f"{name}: {t} exists and was not installed by skillctl, name conflict")
             return False
         else:
-            if claude_slot_taken(name, report):
+            if slot_taken(name, sid, report):
                 return False
             AGENTS_DIR.mkdir(parents=True, exist_ok=True)
             t.symlink_to(rdir)
@@ -650,7 +673,7 @@ def install_entry(sid, entry, report):
             report.problem(f"{name}: {t} is taken, name conflict")
             return False
         if not t.exists():
-            if claude_slot_taken(name, report):
+            if slot_taken(name, sid, report):
                 return False
             copy_skill(src, sid, name, commit)
             report.info(f"Installed {name} ({sid})")
@@ -688,6 +711,19 @@ def uninstall_dir(t, sid, name, report, reason):
     report.info(f"{reason} {t.name}")
 
 
+def installed_id(p):
+    """返回 p 处由 skillctl 安装的 skill 标识，不是 skillctl 装的返回 None。"""
+    if p.is_symlink():
+        dest = Path(os.path.normpath(os.path.join(str(p.parent), os.readlink(p))))
+        try:
+            rel = dest.relative_to(REPOS).as_posix()
+        except ValueError:
+            return None
+        return f"{rel}:." if REPO_RE.match(rel) else None
+    mk = read_marker(p)
+    return mk.get("id") if mk else None
+
+
 def managed_dirs():
     """返回 {目录: skill 标识}，包括复制安装的目录和链接安装的软链接。"""
     out = {}
@@ -696,18 +732,9 @@ def managed_dirs():
     for p in AGENTS_DIR.iterdir():
         if p.name.startswith("."):
             continue
-        if p.is_symlink():
-            dest = Path(os.path.normpath(os.path.join(str(p.parent), os.readlink(p))))
-            try:
-                rel = dest.relative_to(REPOS).as_posix()
-            except ValueError:
-                continue
-            if REPO_RE.match(rel):
-                out[p] = f"{rel}:."
-        else:
-            mk = read_marker(p)
-            if mk and mk.get("id"):
-                out[p] = mk["id"]
+        sid = installed_id(p)
+        if sid:
+            out[p] = sid
     return out
 
 
@@ -801,9 +828,11 @@ def print_list(repo, skills, manifest):
     for i, (path, name, desc) in enumerate(skills, start=1):
         if path in installed:
             state = f"installed as {installed[path]}"
+        elif not valid_name(name):
+            state = "invalid name"
         elif name in reserved:
             state = "reserved"
-        elif occupied(name) or any(e["name"] == name for e in present(manifest).values()):
+        elif name_problem(name, manifest, f"{repo}:{path}"):
             state = "name taken"
         else:
             state = ""
@@ -1155,6 +1184,9 @@ def check_issues():
             issues.append(f"{', '.join(sids)} are all named {name} in the manifest")
     for sid, e in present(manifest).items():
         name = e["name"]
+        if not valid_name(name):
+            issues.append(f"{sid}: install name {name!r} breaks the naming rules")
+            continue
         t, l = AGENTS_DIR / name, CLAUDE_DIR / name
         rdir = repo_dir(split_id(sid)[0])
         if e.get("link"):

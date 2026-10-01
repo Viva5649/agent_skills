@@ -311,18 +311,40 @@ class ConflictTest(Base):
         self.assertIn("mine", (d / "SKILL.md").read_text())
         self.ok(self.m, "add", "acme/tools", "--skill", "alpha", "--as", "acme-alpha")
 
-    def test_claude_slot_taken_blocks_both_on_sync(self):
-        self.ok(self.m, "add", "acme/tools", "--skill", "alpha")
-        self.m.publish("add alpha")
+    def test_sync_applies_add_name_checks(self):
+        """副机 sync 新装时和 add 用同一套检查：L、~/.codex/skills、保留名任一不过，两处都不装。"""
+        self.env.upstream("acme/tools", {"skills/gamma/SKILL.md": skill_md("gamma"),
+                                         "skills/delta/SKILL.md": skill_md("delta")})
+        self.ok(self.m, "add", "acme/tools", "--skill", "alpha,beta,gamma,delta")
+        self.m.publish("add four")
         second = self.env.machine("second")
-        own = second.claude / "alpha"
-        own.mkdir(parents=True)
-        (own / "SKILL.md").write_text(skill_md("alpha", "mine"))
+        own = {"alpha": second.claude / "alpha",
+               "beta": second.home / ".codex" / "skills" / "beta",
+               "gamma": second.home / ".codex" / "skills" / ".system" / "gamma"}
+        for name, d in own.items():
+            d.mkdir(parents=True)
+            (d / "SKILL.md").write_text(skill_md(name, "mine"))
         rc, out = second.run("sync")
         self.assertEqual(rc, 1, out)
-        self.assertIn("installed in neither place", out)
-        self.assertFalse((second.agents / "alpha").exists())
-        self.assertIn("mine", (own / "SKILL.md").read_text())
+        self.assertEqual(out.count("installed in neither place"), 3, out)
+        self.assertIn("gamma: is a reserved name", out)
+        for name, d in own.items():
+            self.assertFalse((second.agents / name).exists(), name)
+            self.assertIn("mine", (d / "SKILL.md").read_text())
+        self.assertTrue((second.agents / "delta").is_dir())
+        self.assertEqual(os.readlink(str(second.claude / "delta")), str(second.agents / "delta"))
+
+    def test_invalid_name_in_manifest_skipped(self):
+        self.ok(self.m, "add", "acme/tools", "--skill", "alpha")
+        data = self.m.manifest()
+        data["skills"]["acme/tools:skills/alpha"]["name"] = "../evil"
+        (self.m.work / "skills.json").write_text(json.dumps(data))
+        rc, out = self.m.run("sync")
+        self.assertEqual(rc, 1, out)
+        self.assertIn("breaks the naming rules, skipped", out)
+        self.assertFalse((self.m.home / ".agents" / "evil").exists())
+        rc, out = self.m.run("check")
+        self.assertIn("install name '../evil' breaks the naming rules", out)
 
     def test_reserved_names(self):
         self.env.upstream("acme/tools", {"skills/review/SKILL.md": skill_md("review"),
@@ -531,6 +553,9 @@ class LinkTest(Base):
         self.assertTrue((self.m.claude / "kit" / "bin" / "tool").is_file())
         self.assertEqual(self.m.skill_name("kit-office"), "kit-office")
         self.check_clean(self.m)
+        # 链接安装的自己不算占用，重新指定同名不应被拦
+        self.ok(self.m, "add", "acme/kit", "--skill", ".", "--as", "kit")
+        self.assertTrue(t.is_symlink())
         self.ok(self.m, "remove", "kit")
         self.assertFalse(t.is_symlink() or (self.m.claude / "kit").is_symlink())
         self.assertTrue((self.m.home / ".local/share/agent-skills/repos/acme/kit/SKILL.md").exists())
