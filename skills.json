@@ -13,8 +13,8 @@
       "updated_at": "2026-10-01T11:29:25+08:00"
     },
     "Viva5649/agent_skills": {
-      "commit": "c432b96e0088ff96a368ba05abae9ee8a45d332e",
-      "updated_at": "2026-10-01T11:29:26+08:00"
+      "commit": "7c359588dd1eefc7a08ccaf2d5d0a18435e90c41",
+      "updated_at": "2026-10-02T12:32:22+08:00"
     },
     "ailabs-393/ai-labs-claude-skills": {
       "commit": "1a12bc7aadcc7b211f77a7455db454b77a71f827",
@@ -122,6 +122,11 @@
       "state": "present",
       "updated_at": "2026-09-28T23:34:15+08:00"
     },
+    "Viva5649/agent_skills:skills/audit-docs-landscape": {
+      "name": "audit-docs-landscape",
+      "state": "present",
+      "updated_at": "2026-10-02T12:32:40+08:00"
+    },
     "Viva5649/agent_skills:skills/clarify-life-direction": {
       "name": "clarify-life-direction",
       "state": "present",
@@ -137,6 +142,21 @@
       "state": "present",
       "updated_at": "2026-09-28T23:33:06+08:00"
     },
+    "Viva5649/agent_skills:skills/deep-research-with-verification": {
+      "name": "deep-research-with-verification",
+      "state": "present",
+      "updated_at": "2026-10-02T12:32:40+08:00"
+    },
+    "Viva5649/agent_skills:skills/execute-tickets": {
+      "name": "execute-tickets",
+      "state": "present",
+      "updated_at": "2026-10-02T12:32:40+08:00"
+    },
+    "Viva5649/agent_skills:skills/optimize-docs-readability": {
+      "name": "optimize-docs-readability",
+      "state": "present",
+      "updated_at": "2026-10-02T12:32:40+08:00"
+    },
     "Viva5649/agent_skills:skills/optimize-prompt": {
       "name": "optimize-prompt",
       "state": "present",
@@ -151,6 +171,16 @@
       "name": "send-email",
       "state": "present",
       "updated_at": "2026-09-28T23:33:06+08:00"
+    },
+    "Viva5649/agent_skills:skills/write-implementation-tickets": {
+      "name": "write-implementation-tickets",
+      "state": "present",
+      "updated_at": "2026-10-02T12:32:40+08:00"
+    },
+    "Viva5649/agent_skills:skills/write-okr": {
+      "name": "write-okr",
+      "state": "present",
+      "updated_at": "2026-10-02T12:32:40+08:00"
     },
     "ailabs-393/ai-labs-claude-skills:packages/skills/codebase-documenter": {
       "name": "codebase-documenter",

@@ -5,7 +5,7 @@
 本文档记录本机（macOS）当前的 skill 全貌，分三层：仓库自建、全局安装、项目级。全局安装的 skill 由 [`skillctl`](#六用-skillctl-管理全局-skill) 按仓库根目录的 `skills.json` 安装，来源仓库以它为准。
 
 - 自建 skill：14 个（`skills/`）
-- 全局安装：63 个（`~/.agents/skills/`，`~/.claude/skills/` 下是指向它的软链接）
+- 全局安装：69 个（`~/.agents/skills/`，`~/.claude/skills/` 下是指向它的软链接）
 - 项目级：6 个（`personal_ai_infrastructure/.claude/skills/`）
 - 外部聚合：7 个仓库，共 200 个 skill（`third_party/`）
 
@@ -15,20 +15,20 @@
 
 | Skill | 用途 | 源仓库 | 全局已装 |
 |---|---|---|:---:|
-| `audit-docs-landscape` | 仓库级文档全景审计。找出文档缺口、导航与可发现性问题，梳理新人阅读路径；单篇文档的可读性交给 `optimize-docs-readability` | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ❌ |
+| `audit-docs-landscape` | 仓库级文档全景审计。找出文档缺口、导航与可发现性问题，梳理新人阅读路径；单篇文档的可读性交给 `optimize-docs-readability` | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
 | `clarify-life-direction` | 人生方向澄清。回溯经历、澄清愿景、定义反愿景、倒推路径，把「不知道自己想要什么」变成可执行方向 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
 | `clarify-thought` | 命题分解与决策澄清。维特根斯坦 + 苏格拉底 + 波兰尼三层架构，把模糊想法拆成精准指令或清晰决策 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills)（原作者 riiiku） | ✅ |
 | `create-blueprint` | 生成工程蓝图风格技术图表，支持箭头、连线、关系标注，用于架构图与流程图 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
 | `creator-signal-digest` | 创作者信号雷达周报。扫描中文圈/英语圈 AI 创作者账号，筛选 AI 实操与副业信号 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ❌ |
-| `deep-research-with-verification` | 带独立事实核查的深度研究。完整复用 `hv-analysis` 的研究流程，初稿后追加独立核查与修复，以 Markdown 交付 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ❌ |
-| `execute-tickets` | 按依赖顺序执行已准备好的实现 ticket，逐张实现、验证、评审，支持多仓库和中断后续跑 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ❌ |
+| `deep-research-with-verification` | 带独立事实核查的深度研究。完整复用 `hv-analysis` 的研究流程，初稿后追加独立核查与修复，以 Markdown 交付 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
+| `execute-tickets` | 按依赖顺序执行已准备好的实现 ticket，逐张实现、验证、评审，支持多仓库和中断后续跑 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
 | `explain-concept` | 概念通俗讲解与可视化。输出生活化例子、记忆方法，适合时按概念结构选 mermaid / SVG / HTML 出图 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ❌ |
-| `optimize-docs-readability` | 长文可读性优化。起草或大改面向人的长文后自动检查清晰度，保留事实、引用与必要限定；显式审阅时只给问题和改写建议 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ❌ |
+| `optimize-docs-readability` | 长文可读性优化。起草或大改面向人的长文后自动检查清晰度，保留事实、引用与必要限定；显式审阅时只给问题和改写建议 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
 | `optimize-prompt` | 提示词优化。基于 57 个提示词框架选择合适结构，先澄清目标、受众、上下文再改写 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
 | `publish-site` | 管理个人 Vantage 站点，把已准备好的内容转成双主题编辑风格 HTML 报告并发布 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
 | `send-email` | 通过 SMTP 发送邮件，支持 Markdown 转 HTML、附件、多收件人与 CC/BCC | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
-| `write-implementation-tickets` | 把仓库里的规格拆成 agent 能独立执行的实现 ticket，写明边界、验证方式和依赖 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ❌ |
-| `write-okr` | 把工作方向、技术规划或草稿整理成简洁、可验收的 OKR，区分交付承诺、探索验证和采用门槛 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ❌ |
+| `write-implementation-tickets` | 把仓库里的规格拆成 agent 能独立执行的实现 ticket，写明边界、验证方式和依赖 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
+| `write-okr` | 把工作方向、技术规划或草稿整理成简洁、可验收的 OKR，区分交付承诺、探索验证和采用门槛 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
 
 > `clarify-thought` 迁移自独立仓库 `Viva5649/clarify-skill`，原作者 riiiku（MIT，署名保留在 `skills/clarify-thought/LICENSE`）。
 >
@@ -71,6 +71,9 @@
 | `ce-code-review` | 审查指定 diff 或 PR 的 bug、回归、测试与规范问题，也能把审查结论直接改到本地 | [EveryInc/compound-engineering-plugin](https://github.com/EveryInc/compound-engineering-plugin) | ✅ |
 | `ce-doc-review` | 用多个角色视角审阅需求、计划或规格文档 | [EveryInc/compound-engineering-plugin](https://github.com/EveryInc/compound-engineering-plugin) | ✅ |
 | `ce-simplify-code` | 实现完成、评审之前，简化刚改动的代码，提升清晰度、复用与效率，不改变行为 | [EveryInc/compound-engineering-plugin](https://github.com/EveryInc/compound-engineering-plugin) | ✅ |
+| `audit-docs-landscape` | 仓库级文档全景审计 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | 本仓库 |
+| `write-implementation-tickets` | 把规格拆成可独立执行的实现 ticket | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | 本仓库 |
+| `execute-tickets` | 按依赖顺序执行实现 ticket | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | 本仓库 |
 
 ### 信息获取 / 研究
 
@@ -81,6 +84,7 @@
 | `aihot` | 查询 AIHOT 中文 AI 资讯、精选、热点与日报，走匿名只读 API | [KKKKhazix/khazix-skills](https://github.com/KKKKhazix/khazix-skills) | ✅ |
 | `notecraft` | NotebookLM 自动化。建笔记本、加源、生成播客/视频/幻灯片/闪卡 | [icebear0828/notebooklm-client](https://github.com/icebear0828/notebooklm-client) | ❌ |
 | `youtube-downloader` | 基于 yt-dlp 下载 YouTube 及 1000+ 站点视频 | [crazynomad/skills](https://github.com/crazynomad/skills) | ❌ |
+| `deep-research-with-verification` | 带独立事实核查的深度研究 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | 本仓库 |
 
 ### 内容创作 / 设计
 
@@ -96,6 +100,7 @@
 | `show-me` | 把当前话题讲成图。按内容挑最小够用的形式，伪代码、diff 草图、mermaid 或单页 HTML | [humanlayer/skills](https://github.com/humanlayer/skills) | ❌ |
 | `create-blueprint` | 工程蓝图风格技术图表 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | 本仓库 |
 | `publish-site` | Vantage 站点报告发布 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | 本仓库 |
+| `optimize-docs-readability` | 长文可读性优化 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | 本仓库 |
 
 ### 个人决策 / 思考
 
@@ -116,6 +121,7 @@
 | Skill | 用途 | 源仓库 | `third_party/` 收录 |
 |---|---|---|:---:|
 | `send-email` | SMTP 发信 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | 本仓库 |
+| `write-okr` | 整理可验收的 OKR | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | 本仓库 |
 
 ### gstack（选择性安装）
 
