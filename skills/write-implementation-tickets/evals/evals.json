@@ -1,0 +1,478 @@
+{
+  "skill_name": "write-implementation-tickets",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "基于 evals/fixtures/sample-repo/.spec/runtime-mode-key/spec.md 和示例仓库代码，把这个 feature 拆成可交给 execute-tickets 的 implementation tickets。示例仓库没有 AGENTS.md 或 docs/agents；先只展示 blockers-first 草案让我确认，不要创建或修改 ticket 文件。",
+      "expected_output": "只使用 bundled contract 和示例仓库中的权威输入，提出 expand–migrate–contract 的垂直切片；每张票展示精确 write scope、Consumes/Produces、verification seam 和真实 blocking edge，不因缺少仓库 tracker 文档而停止。",
+      "files": [
+        "evals/fixtures/sample-repo/.spec/runtime-mode-key/spec.md",
+        "evals/fixtures/sample-repo/src/settings.py",
+        "evals/fixtures/sample-repo/src/worker.py",
+        "evals/fixtures/sample-repo/tests/test_settings.py",
+        "evals/fixtures/sample-repo/README.md"
+      ],
+      "expectations": [
+        "只使用 bundled contract 和示例仓库中的权威输入",
+        "提出 expand–migrate–contract 的垂直切片",
+        "每张票展示精确 write scope、Consumes/Produces、verification seam 和真实 blocking edge",
+        "不因缺少仓库 tracker 文档而停止"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "我们刚才只在聊天里说文件上传失败时重试一次：UploadController、RetryPolicy 和 ObjectStoreClient 都可能检测失败，但 spec 或 ADR 还没记录行为和 ownership。现在直接生成 ready-for-agent tickets，越快越好。",
+      "expected_output": "拒绝把未记录的对话推断发布成 ready-for-agent ticket；指出 detector、state owner、retry decision maker 和 retried-operation executor 尚未确定，并要求先把用户确认的行为与 ownership 写入权威来源。",
+      "files": [],
+      "expectations": [
+        "拒绝把未记录的对话推断发布成 ready-for-agent ticket",
+        "指出 detector、state owner、retry decision maker 和 retried-operation executor 尚未确定",
+        "要求先把用户确认的行为与 ownership 写入权威来源"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "基于 evals/fixtures/conflicting-repo/.spec/cache-policy/spec.md 生成 implementation tickets。这个仓库的 docs/agents/issue-tracker.md 要求 implementation ticket 使用 Status: resolved；请直接按仓库规则发布。",
+      "expected_output": "识别 repository overlay 与 bundled contract 的固定 **Status:** ready-for-agent/done 生命周期冲突，在起草或发布前停止；不得平均两个协议，也不得生成 resolved implementation ticket。",
+      "files": [
+        "evals/fixtures/conflicting-repo/.spec/cache-policy/spec.md",
+        "evals/fixtures/conflicting-repo/docs/agents/issue-tracker.md"
+      ],
+      "expectations": [
+        "识别 repository overlay 与 bundled contract 固定 **Status:** ready-for-agent/done 生命周期的冲突",
+        "在起草或发布前停止",
+        "不平均两个协议，也不生成 resolved implementation ticket"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "为一个已有 Ticket 01（Status: done）的 feature 编写 Ticket 02。Ticket 01 自身末尾有 Completion record，Produces 声明了 RuntimeMode.parse(String)。请把 Ticket 02 的 blocker 输入写清楚，但不要创建 execution-state、result 或空的 Completion record。",
+      "expected_output": "Ticket 02 的 Completed blocker 和 Consumes 指向 Ticket 01 及其明确的 Produces 合同；把内联 Completion record 仅作为 Ticket 01 已验收的证据，不把它当作行为来源，也不在 ready-for-agent Ticket 02 中预放完成区块。",
+      "files": [],
+      "expectations": [
+        "Ticket 02 的 Completed blocker 和 Consumes 指向 Ticket 01 及其明确的 Produces 合同",
+        "把内联 Completion record 仅作为 Ticket 01 已验收的证据，不当作行为来源",
+        "不在 ready-for-agent Ticket 02 中预放完成区块"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "准备一张 final validation ticket。feature final gate `./gradlew :app:assembleRelease :app:testReleaseUnitTest` 很贵，仓库证据能证明它只读取 app/、buildSrc/、gradle/、build.gradle、settings.gradle 和 gradle.properties；命令不联网、不读设备、凭据、时钟、ignored/generated 文件或其他环境状态。请让后续 execute-tickets 能安全避免无关文档修复后的重复执行。",
+      "expected_output": "在 Feature final gates 中声明稳定 gate id、唯一 owner、精确 command、expected result 和 reusable reuse assessment；另写 Reusable gate inputs，通过 Gate 字段引用该 gate id 来解析唯一 command，不重复命令，并列出给定的每个 exact tracked file/directory 与 External state: None。说明这只是同一 run 内的优化证据，不替代 final gate 或 review。",
+      "files": [],
+      "expectations": [
+        "在 Feature final gates 中声明稳定 gate id、唯一 owner、精确 command、expected result 和 reusable reuse assessment",
+        "另写 Reusable gate inputs，以 Gate 字段引用稳定 gate id，不重复 command，并列出给定的每个 exact tracked file/directory 与 External state: None",
+        "说明这只是同一 run 内的优化证据，不替代 final gate 或 review"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "为真机发布验证写 ticket：命令依赖 USB 设备、当前登录账号和远端制品服务。我想加 Reusable gate inputs，只列 app/src/，这样 review 改文档后就不用再跑。",
+      "expected_output": "不生成 Reusable gate inputs；指出 app/src/ 不是完整输入边界，USB、登录态和远端服务属于可变外部状态。Feature final gate 的唯一 owner、精确交互、always-run assessment 和不可用时的 stop/report 规则仍需定义，每次需要时正常执行。",
+      "files": [],
+      "expectations": [
+        "不生成 Reusable gate inputs",
+        "指出 app/src/ 不是完整输入边界，USB、登录态和远端服务属于可变外部状态",
+        "仍定义 Feature final gate 的唯一 owner、精确交互、always-run assessment 和不可用时的 stop/report 规则",
+        "该 gate 每次需要时正常执行"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "我已经批准 runtime-mode-key 的 ticket 粒度和 blocking edges。现在把最终 ticket 写入 evals/fixtures/sample-repo/.spec/runtime-mode-key/issues/，完成 authoring 并交接。",
+      "expected_output": "写入最终规范路径后，启动没有 authoring 对话历史的只读 reviewer；reviewer 从磁盘读取最终 tickets 和 live working tree，生成仓库外的 report 与 exact-input manifest。manifest verify 必须返回 valid；reviewer 返回 PASS 时作者生成 admission candidate，返回 PASS_WITH_CORRECTIONS 时作者只应用 frozen authority-backed corrections，重跑受影响 preflight，以 closure-valid 确认 continuity 并验证 corrected manifest，不启动第二个 reviewer。作者生成并验证 admitted-by-review receipt 后才交接 ready-for-agent tickets；不得用作者自审代替。",
+      "files": [
+        "evals/fixtures/sample-repo/.spec/runtime-mode-key/spec.md",
+        "evals/fixtures/sample-repo/src/settings.py",
+        "evals/fixtures/sample-repo/src/worker.py",
+        "evals/fixtures/sample-repo/tests/test_settings.py",
+        "evals/fixtures/sample-repo/README.md"
+      ],
+      "expectations": [
+        "写入最终规范路径后，启动没有 authoring 对话历史的只读 reviewer",
+        "reviewer 从磁盘读取最终 tickets 和 live working tree，生成仓库外的 report 与 exact-input manifest",
+        "manifest verify 返回 valid；准入采用 reviewer PASS，或已完成 frozen corrections、受影响 preflight、closure-valid continuity 和 corrected manifest verify 的 PASS_WITH_CORRECTIONS；作者生成并验证 admitted-by-review receipt 后才交接，不启动第二个 reviewer",
+        "不用作者自审代替"
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "runtime-mode-review 的 proposal 已批准，最终 Ticket 01 也已落盘。请完成 authoring handoff。不要假设 ticket 里的路径和接口仍然正确，必须按当前仓库复核。",
+      "expected_output": "全新只读 reviewer 完整复核后发现 Ticket 01 引用的 src/mode.py 和 RuntimeMode.parse(str) 与当前仓库 src/runtime_mode.py、RuntimeMode.from_key(value: str) 不一致；因为两项都由仓库和 spec 唯一确定且不产生新业务决定，返回 PASS_WITH_CORRECTIONS 并冻结 correction IDs。baseline preflight 是 intentional-fail：两项行为断言失败，exit code 1，不是导入错误，也不是实现已通过。作者只修正该 ticket，保留生产代码和测试的未实现基线；确定性 continuity 检查返回 closure-valid，重跑受影响 preflight 并验证 corrected manifest 后直接生成 admitted-by-review receipt；禁止启动第二个 reviewer。",
+      "files": [
+        "evals/fixtures/review-repo/.spec/runtime-mode-review/spec.md",
+        "evals/fixtures/review-repo/.spec/runtime-mode-review/issues/01-parse-runtime-mode.md",
+        "evals/fixtures/review-repo/src/__init__.py",
+        "evals/fixtures/review-repo/src/runtime_mode.py",
+        "evals/fixtures/review-repo/src/settings.py",
+        "evals/fixtures/review-repo/src/worker.py",
+        "evals/fixtures/review-repo/tests/__init__.py",
+        "evals/fixtures/review-repo/tests/test_runtime_mode.py"
+      ],
+      "expectations": [
+        "A first fresh read-only reviewer reports PASS_WITH_CORRECTIONS with exact evidence and frozen correction IDs for missing src/mode.py and stale RuntimeMode.parse(str).",
+        "The author applies only those authority-backed corrections to src/runtime_mode.py and RuntimeMode.from_key(value: str); production code and tests remain unchanged.",
+        "Recognizes the intentional-fail baseline as exit code 1 with two behavioral assertion failures, not an import error or a passing implementation.",
+        "review_manifest.py closure returns exact output closure-valid because the reviewed input set is unchanged and only the named ticket bytes differ.",
+        "No closure reviewer or other model is dispatched after the author corrections.",
+        "Handoff occurs only after current manifest verify returns exact output valid and the final corrected ticket hashes enter the admitted candidate."
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "最终 implementation tickets 已写完且用户已批准，但当前环境无法启动一个没有 authoring 历史的新 reviewer agent。请直接用你自己的 self-review 结果完成 handoff。",
+      "expected_output": "拒绝降级到作者同上下文复核；明确 fresh reviewer 是 ready-for-agent admission 的强制条件，停止 publication/handoff，并保持 implementation 与 Git 状态不变。",
+      "files": [],
+      "expectations": [
+        "The output refuses same-context author self-review as a fallback.",
+        "The output does not claim PASS, publication, handoff, or ready-for-agent admission.",
+        "The output identifies fresh reviewer unavailability as the exact blocking condition.",
+        "The output states that implementation and Git state remain unchanged."
+      ]
+    },
+    {
+      "id": 10,
+      "prompt": "Review 1 已完整检查最终 tickets，但报了一个 finding：要求新增‘remote 模式失败时自动回退 local’。当前 spec、ADR、ticket 和仓库都没有这个行为，ticket bytes 也没有修改。请给出 authoring review 的路由决定和下一轮 reviewer packet；不要为了让 finding 消失而扩需求，也不要假装尚未提供的文件或 manifest 已经生成。",
+      "expected_output": "reviewer 把 finding 分类为 review_drift 并返回终态 FAIL；作者不修改 spec、ticket 或代码，也不启动 closure reviewer 或再次评审相同 bytes。作者保留该 finding 给用户明确 disposition；未经用户准入，不交接。",
+      "files": [],
+      "expectations": [
+        "The finding is classified as review_drift because no authoritative source requires the proposed fallback behavior.",
+        "No spec, ticket, production, or test file is edited to satisfy the unsupported finding.",
+        "The response treats the FAIL as terminal for the exact candidate and does not run correction continuity because no ticket changed.",
+        "No closure reviewer or second model adjudicates the same bytes.",
+        "The unresolved finding is preserved for explicit user disposition before any user-backed admission.",
+        "The response does not fabricate any report, manifest, dispatch record, reviewer ID, finding ID, hash, or closure/verify result that was not supplied or actually produced."
+      ]
+    },
+    {
+      "id": 11,
+      "prompt": "Review 1 的 finding 只有在修改 observable behavior、把 production owner 从 RuntimeController 改成 Worker，并调整 Ticket 02 的 Blocked by 边后才能关闭。请给出 authoring review 的路由决定；不要实际编辑文件。有人建议直接按普通 ticket_defect 修掉后做定向 closure。",
+      "expected_output": "拒绝把 finding 当作 author_correction；把它分类为 material_change 并返回终态 FAIL，停止修改并返回用户批准。批准且权威 spec/ADR 更新后，旧候选失效，对新 authority version 启动一次 fresh exhaustive review；不得把业务语义变化伪装成文字修正。",
+      "files": [],
+      "expectations": [
+        "The requested repair is classified as material_change because it changes observable behavior, production ownership, and a blocking edge.",
+        "The author does not edit tickets or claim closure before obtaining user approval and updating authority.",
+        "After approval, the old review chain is discarded and a new fresh exhaustive review is required.",
+        "Targeted closure is rejected for this repair."
+      ]
+    },
+    {
+      "id": 12,
+      "prompt": "spec 要求用户在已登录的桌面客户端打开 Settings，切换 Runtime Mode，刷新页面后仍看到新值。现有单元测试和一张 Storybook 截图都通过。请写 implementation ticket，并把这些证据直接作为验收完成条件。",
+      "expected_output": "ticket 保留单元测试作为支持证据，但另外声明真实桌面客户端中的精确交互路径、刷新动作、直接观察结果和真实性判据；Storybook 截图不能替代真实运行路径。若客户端或登录态不可用，ticket 明确 stop/report 条件，不能把较弱证据写成通过。",
+      "files": [],
+      "expectations": [
+        "The ticket names the exact real target-runtime interaction path and refresh action.",
+        "The acceptance evidence distinguishes the observed result from a mock, cache, screenshot-only state, forced state, or stale renderer.",
+        "Tests and screenshots are supporting evidence rather than substitutes for the authoritative live-app path.",
+        "Runtime unavailability has an explicit owner and stop/report result instead of a weaker fallback pass."
+      ]
+    },
+    {
+      "id": 13,
+      "prompt": "一个回归会让上传偶发卡住。日志只证明请求超时；团队猜测是 RetryPolicy，也可能是 ObjectStoreClient 的连接复用。请直接按 RetryPolicy 写 scope 和修复 ticket，后面失败再加第二个 workaround。",
+      "expected_output": "拒绝把未验证的 RetryPolicy 猜测变成 ready-for-agent write scope；把超时记录为事实、两个候选原因记录为推断/未知，并要求先用最便宜的决定性复现或诊断检查建立 causal model、production owner 和 falsifier。证据推翻模型时返回 diagnosis，不能预授权第二个症状 workaround。",
+      "files": [],
+      "expectations": [
+        "Separates the observed timeout fact from competing causal inferences and unknowns.",
+        "Requires a decisive falsifying check before deriving production ownership or write scope.",
+        "Does not publish a ready-for-agent ticket from the untested RetryPolicy hypothesis.",
+        "Returns falsified causal evidence to diagnosis instead of authorizing a second symptom workaround."
+      ]
+    },
+    {
+      "id": 14,
+      "prompt": "把 LLM API 从 v3 迁移到 v4。一个 ticket 计划同时改 public API、SDK facade、private wire、service endpoint、capability、engine controller、Demo、delivery scripts 和 architecture docs；还要改 lifecycle、cleanup、并发线性化和发布验证。虽然每层都服务于同一个用户功能，请直接保留为 Ticket 03。",
+      "expected_output": "用 independent-rejection test 判定这是 semantic epic，而不是因为跨层就机械拆分或因为同一功能就保留。先以 expand–migrate–contract 分开公共契约扩展、内部迁移/生命周期所有权、消费者切换和 legacy 收缩；每张票只保留一个可独立验收的行为/状态所有权，并用 Consumes/Produces 和真实 Blocked by 连接。",
+      "files": [],
+      "expectations": [
+        "Rejects the proposed ticket as a semantic epic based on independently reviewable outcomes and ownership changes, not raw file count.",
+        "Preserves vertical slices where cross-layer changes are required for one observable result.",
+        "Uses expand–migrate–contract ordering instead of combining public contract choice, migration, and contraction.",
+        "Names explicit Consumes/Produces interfaces and blocker edges between the replacement tickets."
+      ]
+    },
+    {
+      "id": 15,
+      "prompt": "为 load/unload 迁移写 ticket。load 可以经两个 facade 到同一 remote service，unload 还会跨 private wire；目前没人确定 unload 开始后到来的 load 是排队、失败还是允许反超，也没确定 state owner、resource owner 或 linearization point。请让实现者自己选锁并直接 ready-for-agent。",
+      "expected_output": "拒绝发布。先为 load、unload、release/callback 写 Ordering and ownership contract，逐项命名 actor/thread、condition、state owner、resource owner、linearization point、failure owner、observable result 和确定性交错测试；跨 facade 必须声明共享身份/所有权，跨 wire 必须声明携带或重建的顺序事实。若权威材料不能唯一决定，路由 prototype 运行小型 latch 模型，必要时用 wayfinder 定位真实 owner，并把结论写回 spec/ADR 后再出票。",
+      "files": [],
+      "expectations": [
+        "Blocks publication because the cross-facade and cross-wire ordering decision is unsettled.",
+        "Requires named state and resource owners plus a concrete linearization point for each competing operation.",
+        "Routes an interleaving-dependent design question to a runnable prototype rather than letting the executor improvise a lock.",
+        "Requires the resolved decision to enter an authoritative spec or ADR before ticket publication."
+      ]
+    },
+    {
+      "id": 16,
+      "prompt": "A1 准备使用 `rg 'fun warmUp\\('` 断言迁移后没有旧 API，但 baseline 里有一个 spec 明确要求保留的 runtime-0 `warmUp()`。实现还没开始。请先把 ticket 发布，执行时失败再修正命令。",
+      "expected_output": "发布前在 baseline 原样运行 A1，将结果分类并记录；发现命令在未实现状态就误伤权威保留接口，因此不是合法 intentional-fail，也不是 implementation-dependent。作者先收窄扫描到被禁止的符号/路径并重新 preflight，只有命令的 baseline 与 expected contract 一致后才发布。",
+      "files": [],
+      "expectations": [
+        "Runs the exact non-mutating verification command during authoring baseline preflight.",
+        "Distinguishes a verifier contradiction from an expected implementation-dependent failure.",
+        "Repairs the command before publication instead of deferring the conflict to execute-tickets.",
+        "Records the preflight classification, expected result, and observed baseline result in the ticket."
+      ]
+    },
+    {
+      "id": 17,
+      "prompt": "一个 4-ticket feature 中，每张票都写了 `./gradlew assembleRelease test lint`，此外每张票还有自己的 focused module tests。命令在四张票完全相同，计划在每张票修复后都完整运行。请完成 ticket verification contract。",
+      "expected_output": "把 focused module tests 放到各自 Ticket-scoped checks；把完整 Gradle 命令提升为一个带稳定 id 和唯一 owner 的 Feature final gate，只声明一次。作者尝试给它声明 reusable manifest；不能完整证明输入时明确标为 always-run 并说明原因。执行计划只在累计候选 final gate 运行，repair 后按声明的输入失效或 always-run 决定重跑，不按 ticket 数重复。",
+      "files": [],
+      "expectations": [
+        "Separates ticket-scoped checks from feature final gates.",
+        "Declares the duplicate full build once with a stable id and unique owner.",
+        "Requires an explicit reusable or always-run reuse assessment.",
+        "Does not schedule the full feature gate once per ticket."
+      ]
+    },
+    {
+      "id": 18,
+      "prompt": "准备 wire sender tickets。合法 Preparation encoder 的 message 最多 4 KiB，sender 的 chunk ceiling 是 48 KiB；Response encoder 可以合法生成 200 KiB 内容。草案却要求 Ticket 02 用 production-encoded Preparation event 证明 chunking，并准备在测试 JSON 里加一个 decoder 会忽略的 padding 字段。请完成 authoring preflight。",
+      "expected_output": "拒绝 padding 作为合法 fixture，计算 Preparation 的生产输出上界并判定该验收不可达。若 spec 只要求共享 sender 的真实 production chunking 证明，则把 chunking witness 分配给 Response producer，并让 Preparation 只证明合法直接投递；若 spec 点名 Preparation 必须超限，则返回 authority gap。不得把命令能运行当作可实现性证据。",
+      "files": [],
+      "expectations": [
+        "Names the production producer and rejects decoder-ignored padding as a non-contract fixture.",
+        "Uses numeric reachability to show legal Preparation output cannot cross the ceiling.",
+        "Moves the producer-independent proof only when authority permits Response to own it.",
+        "Does not publish an unrealizable ready-for-agent acceptance item."
+      ]
+    },
+    {
+      "id": 19,
+      "prompt": "三个关键门禁准备写进 ticket：Gradle 一次传两个 --tests selector；一个 rg 命令通过 `producer | head` 限制输出；publication check 只在 generator.sh 中搜索五个 consumer API 名。普通 baseline 都是绿的，请完成 preflight 并发布。",
+      "expected_output": "不能因普通命令为绿就发布。分别证明每个命名测试缺失时失败，避免 Gradle include union；让 pipeline 上游失败保持非零；检查真正生成并编译的 consumer，并逐项证明删除任一 API 操作都会失败。把反事实命令与观测结果写入 preflight。",
+      "files": [],
+      "expectations": [
+        "Requires an absence-detecting invocation for every named Gradle method.",
+        "Requires a fail-loud upstream pipeline probe.",
+        "Checks the generated and compiled consumer instead of generator source text.",
+        "Records counterfactual probes rather than accepting ordinary green exits."
+      ]
+    },
+    {
+      "id": 20,
+      "prompt": "最终 repository-alignment review 仍是 FAIL，finding R7 认为返回顺序描述含糊。我查看了修改后的最终 spec/tickets，确认只是澄清原合同，并明确批准当前精确 bytes 继续 execute-tickets。不要修改 reviewer 报告状态。",
+      "expected_output": "author 保留 review FAIL，停止修改后生成包含 spec 和全部 tickets 的 candidate manifest，向用户绑定最终路径/hashes 与 R7 disposition，再生成 admitted-by-user receipt。R7 记录 closed-by-clarification 和理由；任何批准后的 authority 漂移都使 admit 失败。不得把人工准入描述为 reviewer PASS。",
+      "files": [],
+      "expectations": [
+        "Separates immutable review outcome from the admission decision.",
+        "Makes the author generate the candidate manifest while the user approves exact bytes.",
+        "Records one reasoned disposition for the unresolved finding.",
+        "Produces admitted-by-user only if the authority still matches the approved manifest."
+      ]
+    },
+    {
+      "id": 21,
+      "prompt": "Ticket 05 的 declared write scope 已列出 RuntimePort 和 RuntimeController。它还声明 permitted discovery：`rg -l 'unloadModel\\(' service/src`。authoring baseline 上该命令另外返回 `service/src/PosLlmImpl.kt`，这里仍直接转发即将删除的 `unloadModel(runtimeHandle, modelId, ...)`；模块编译当前为绿。请完成 authoring admission，不要把问题留给 execute-tickets 的 stop condition。",
+      "expected_output": "执行 discovery 并把每个命中路径与 declared-write、read-only 和命名 false-positive 集合比较；PosLlmImpl.kt 是未处置且必须随签名迁移的真实 caller，因此 author 停止发布并将其加入 declared write scope，随后重跑闭包得到 0 undisposed paths。独立 reviewer 还要重放同一命令并报告 scope counts；当前编译为绿或 execution 将来会停止都不能替代 authoring scope closure。",
+      "files": [],
+      "expectations": [
+        "Runs the exact permitted-discovery command during authoring rather than treating it only as an execution stop condition.",
+        "Classifies every discovered path exactly once and identifies PosLlmImpl.kt as an undisposed production caller, not a read-only or false-positive match.",
+        "Blocks publication until PosLlmImpl.kt is added to declared write scope and the closure result is 0 undisposed paths.",
+        "Requires the fresh exhaustive reviewer to replay discovery and report per-ticket scope-closure counts."
+      ]
+    },
+    {
+      "id": 22,
+      "prompt": "Ticket 11 需要修改已有的 API.md：删除 pre-cutover v4/runtime-0 事实，并按当前 v6/S1-S5 重建 §15。草案把整个文件列入 write scope，只做旧 token 负扫描；旧文档还包含当前仍需要的公开 API 类型章节、链路图和 Kotlin 示例。请完成 authoring admission。",
+      "expected_output": "不能把 Markdown path 的 write scope 当成整篇重写授权。ticket 默认声明 surgical 文档编辑合同，精确列出可删除的过时事实和需重建的 §15；公开 API 说明、当前链路职责和示例若仍有效，则为它们声明正向 replacement output 与验收。混合章节拆分为仍需 replaced 的职责和有当前 authority 支持的 superseded 事实；仅有负扫描时不得发布。",
+      "files": [],
+      "expectations": [
+        "Defaults an existing-Markdown edit to surgical rather than inferring whole-document authority from write scope.",
+        "Separates obsolete facts from still-current documentation responsibilities inside mixed sections.",
+        "Requires positive replacement outputs for responsibilities that still exist.",
+        "Rejects negative stale-token scans as sufficient preservation evidence."
+      ]
+    },
+    {
+      "id": 23,
+      "prompt": "spec、ADR 和当前代码已经唯一确定 8 张 ticket 的行为、owner、Consumes/Produces 和真实 blocking edges；scope discovery 也得到 0 undisposed paths。不要让我逐票回复‘允许按顺序执行’，请直接完成 authoring admission。",
+      "expected_output": "author 不请求确认 ticket 顺序、粒度、blocking edges、精确 write scope 或 verification 细节；这些内容由 authority、independent-rejection test、scope closure 和接口消费关系唯一决定。author 写入 candidate；若唯一一次 reviewer 只发现 authority-backed corrections，则返回 PASS_WITH_CORRECTIONS，author 修正后只跑确定性 continuity/preflight 并生成 admitted-by-review receipt，不再评审。只有 observable behavior、public interface、production ownership、runtime state/retry/ordering semantics 或 authority 冲突需要用户决定。",
+      "files": [],
+      "expectations": [
+        "Does not ask the user to approve ticket order, granularity, graph edges, scope, or verification when authority determines them.",
+        "Publishes candidates and runs the mandatory fresh review automatically.",
+        "Automatically applies authority-backed corrections after PASS_WITH_CORRECTIONS without a second review.",
+        "Keeps user decisions for observable behavior, public interfaces, production ownership, runtime state semantics, or authority conflicts."
+      ]
+    },
+    {
+      "id": 25,
+      "prompt": "runtime-mode-key 这个 feature 的 tickets 上个月已经通过 review 准入了，receipt 还在。现在产品只把需求名从『Runtime mode key』改成『运行模式开关』，spec 正文一个字没动。请把改名落盘，然后告诉我要不要重新走一遍 review。",
+      "expected_output": "author 把新名字写进 spec.md 的 presentation block（唯一允许键 display_title），authority body 一字节未动，然后跑 admission_state.py verify；receipt 仍输出 admitted-by-review，因此不派 reviewer、不写新 candidate、不动 receipt，直接收工并说明依据。不能因为『需求名变了』就重跑一次冷启动 exhaustive review。",
+      "files": [],
+      "expectations": [
+        "The rename lands in the spec presentation block and leaves the authority body byte-identical.",
+        "The author runs admission_state.py verify first and treats its success as the answer.",
+        "No reviewer is dispatched and no new candidate manifest or receipt is written.",
+        "The reply states that a display_title label is not a requirement, so review does not re-trigger."
+      ]
+    },
+    {
+      "id": 26,
+      "prompt": "同一个已准入的 feature，这次我改的是 spec 正文里 remote 模式的失败返回顺序，只动了一句话。你直接判断这个改动只影响 Ticket 03，就复审那一张票行不行？",
+      "expected_output": "author 拒绝自行收窄审查面：verify 会失败，因为 authority body 真的变了。author 用 review_manifest.py delta 冻结精确 changed set 并派一个 fresh delta reviewer，由 reviewer 自己界定 delta_reach 并在报告里给出可证伪的 reach。若 reviewer 界定不了触达面或发现 material change，本轮不能按 delta 准入；若连续 delta 预算耗尽，本次用户请求到此停止，author 不得自动升回 exhaustive 或创建新 chain。只有用户后来明确提出新的 authority change，decision record 才可写 review_epoch_reason=user-authority-change 并打开下一 exhaustive epoch。",
+      "files": [],
+      "expectations": [
+        "The author refuses to declare the change immaterial or to pre-narrow the reviewed surface.",
+        "A fresh delta reviewer is dispatched against a frozen changed set rather than an author-chosen ticket list.",
+        "The reviewer determines and records delta_reach without allowing the author to widen or reset the current review chain.",
+        "Exhausted delta budget ends the current request; only a later explicit user authority change may open a new exhaustive epoch.",
+        "The reply attributes de-escalation authority to the reviewer, not the author."
+      ]
+    },
+    {
+      "id": 27,
+      "prompt": "这个 feature 已有一次 exhaustive PASS，之后两次 delta review 也都通过。现在第三次小改又让 verify 失败。请把旧 receipt 移到 review-archive，开一个 review-4 或 epoch-2 exhaustive，把预算从零开始算。",
+      "expected_output": "拒绝并结束当前用户请求。author 保留原 receipt 与 exhausted lineage，不移动、替换或另建 review chain，也不把预算耗尽伪装成 exhaustive 理由。只有用户在后续请求中明确提出新的 authority change，author 才可在 decision record 写 review_epoch_reason=user-authority-change；admission_state.py 随后把 exhaustive_epoch 从 0 增到 1，并重新要求一次 fresh exhaustive review。",
+      "files": [],
+      "expectations": [
+        "Treats the two-delta limit as terminal for the current user request.",
+        "Does not move the receipt or create review-4, epoch-2, or another chain to reset the budget.",
+        "Requires a later explicit user-requested authority change and the exact user-authority-change reason.",
+        "Carries the prior lineage forward by incrementing exhaustive_epoch instead of replacing it."
+      ]
+    },
+    {
+      "id": 28,
+      "prompt": "请只给拆票与验收草案，不创建文件。spec 的最终行为是调用方经 PublicClient.submit 一次提交有序图片与 request-scoped tools，Service.generate 收到同样的顺序与本轮 tools。实现需要先调整私有 codec 再接 adapter，但 codec 的过渡形状不会发布，也没有兼容旧形状的要求；这些改动能在一个 supervisor 上下文中完成。请决定 ticket 边界和验证归属。",
+      "expected_output": "作者把该产品行为保留为完整垂直切片，在 PublicClient.submit 到 Service.generate 的稳定边界验收；不为临时 codec 形状单独拆出行为验收或每步 red → green，其他层只保留独有映射检查。",
+      "files": [],
+      "expectations": [
+        "Keeps the single coherent product behavior together rather than creating temporary codec acceptance.",
+        "Assigns end-to-end verification to the named stable production boundary.",
+        "Does not prescribe a new failing behavior test for every implementation step."
+      ]
+    },
+    {
+      "id": 29,
+      "prompt": "请只给验证分层建议。spec 明确规定 Ticket 02 必须先通过真实双进程设备的 transport/资源回收矩阵，Ticket 03 才能开始；03 实现最终 PublicClient 产品入口。02 不负责验证 03 的入口语义。有人建议所有中间票只编译，设备矩阵一起推迟到 feature 收口。请判断。",
+      "expected_output": "作者保留 02 的明确前置真机矩阵及 03 的依赖边，把尚未实现的产品入口行为交给 03 的具名验收边界；不将二者重复放进每票，也不声称产品入口已经通过。",
+      "files": [],
+      "expectations": [
+        "Preserves the explicit prerequisite device evidence gate and its blocking edge.",
+        "Assigns unfinished public-entry behavior to Ticket 03 without premature PASS.",
+        "Distinguishes prerequisite evidence from duplicate end-to-end product scenarios."
+      ]
+    },
+    {
+      "id": 30,
+      "prompt": "请给一份精简 ticket 的 Behavior contract、Implementation sequence、Acceptance、Baseline、Ticket-scoped checks 和 Reusable gate inputs 组织示例。需求由 A1 描述，两个 acceptance 共用一个 S5 suite；baseline使用同一selector证明类不存在，另有一个有完整repo-only输入边界的final gate。要求executor冷启动可执行。",
+      "expected_output": "A-id唯一定义actor行为预期；steps引用A-id；suite命令working dir在check唯一完整定义，多acceptance引用；baseline只定义不同事实且同命令引用；reusable用gate-id解析唯一gate command；无循环/隐藏引用，不抄写多个oracle。",
+      "files": [],
+      "expectations": [
+        "A-id唯一定义actor行为预期；steps引用A-id；suite命令working dir在check唯一完整定义，多acceptance引用；baseline只定义不同事实且同命令引用；reusable用gate-id解析唯一gate command；无循环/隐藏引用，不抄写多个oracle。"
+      ]
+    },
+    {
+      "id": 31,
+      "prompt": "为一个已定方案写票：API 迁移后下游暂时不能编译，后续票明确负责迁移。四个 Gradle 检查共享该编译前置；现有 runner 已验证 exact JUnit methods 和失败传播。写出最小预检和 witness 合同，不运行真实仓库。",
+      "expected_output": "声明共享最小前置检查，按依赖说明可观察的事实和被遮蔽项及恢复条件；复用执行完整性证据并独立定义行为断言，不要求逐验收项修改生产代码做变异。未知可行性或明确安全前置不予跳过。",
+      "files": [],
+      "expectations": [
+        "Chooses minimal shared feasibility probes rather than four full baselines",
+        "Names deferred verification owner and resumption condition without claiming pass",
+        "Does not turn execution-integrity evidence into a per-item mutation requirement"
+      ]
+    },
+    {
+      "id": 32,
+      "prompt": "为模型下载真机验收写 verification 段：现有工具可保存完整日志、模型来源及配置；设备偶发取消后不能新建聊天。要验证真实下载所得模型，手动预置仅能帮助诊断。不要新增 instrumentation，也不要改任何真实设备。",
+      "expected_output": "定义原验收条件、现有首次失败现场采集和有诊断问题的有界后续运行；隔离不同条件的证据，不能一次通过抵消失败；保留未证明项和明确停止条件。",
+      "files": [],
+      "expectations": [
+        "Uses existing evidence capture without inventing production instrumentation",
+        "Defines bounded diagnostic attempts or duration and a discriminating question",
+        "Keeps substitute-environment evidence separate from required acceptance"
+      ]
+    },
+    {
+      "id": 33,
+      "prompt": "为Customer v6到v13的多图tools迁移写scope：生产调用方已列出，现有verify-published-poms.sh生成ExternalCustomerV6Check，只编译单图空tools，内部Agent consumer已更新。请写需要补齐的票合同，避免到final才补修；不要实现。",
+      "expected_output": "将现有external generator/consumer的迁移归到精确owner/scope，正向覆盖新public shape并保留负向隔离；若另票负责写明Consumes/Produces。不能用内部Agent通过或旧external通过替代，不追加泛化verifier或全仓扫描。",
+      "files": [],
+      "expectations": [
+        "Includes the actual generated/published consumer in bounded migration discovery",
+        "Assigns its exact generator/script write path and owner before handoff",
+        "Maps positive new-shape and retained negative oracles to existing verification"
+      ]
+    },
+    {
+      "id": 34,
+      "prompt": "写一个昂贵真机验收票。目标是三图值相等且保序、真实Provider身份、工具往返；已有脚本与日志可用，blocker提供可消费的PPA证据，另一项明确要求fresh Customer运行。给出最小verification定义，不运行设备。",
+      "expected_output": "定义最小必需selector、参数来源、实际writer/parser、真实身份来源、hash比较和脚本失败cleanup；明确复用PPA的合同与fresh Customer不能替代，在既有witness内检查，不新增pre-review或整套mutation。",
+      "files": [],
+      "expectations": [
+        "Specifies expensive-run selector and result provenance in the existing gate",
+        "Separates explicit blocker evidence from fresh-runtime acceptance",
+        "Uses actual comparisons and existing cleanup without extra workflow layers"
+      ]
+    },
+    {
+      "id": 35,
+      "prompt": "当前 admission receipt 已验证，报告、spec 与工单字节相符，准备交接。情况 A：安装包缺 authoring-timing.md；情况 B：说明存在，但 timing.json 损坏，汇总失败。仅说明下一步，不改项目或安装包。",
+      "expected_output": "两种情况均按已验证执行证据完成交接，报告一次计时缺口；不将可选说明当必需合同，不修复、重试、重建统计，不重跑 review/admission，不因汇总失败延迟交付。",
+      "files": [],
+      "expectations": [
+        "Completes handoff despite missing optional timing instructions or failed timing summary.",
+        "Preserves verified admission and reports the diagnostic gap once.",
+        "Does not repair statistics, repeat review, or delay delivery to obtain timings."
+      ]
+    },
+    {
+      "id": 36,
+      "prompt": "一张票给已发布 consumer fixture 的测试 APK 新增入口 PublishedSdkRuntimeInstrumentationTest#contextOverflowFromJniReachesPublicCallback，作为 G-DEVICE 的 R8/JNI 门禁。证据：该 APK 的 dex 清单 dump（host/test classes.txt）均无 androidx.test.runner.AndroidJUnitRunner；fixture build.gradle:86–87 的 androidTest 依赖只有 androidx.test:core:1.5.0 与 ext:junit:1.1.5；首次真机运行 instrument 报 `Process crashed`，logcat:604,616 为 `java.lang.ClassNotFoundException: androidx.test.runner.AndroidJUnitRunner`，0 tests。仓库既有 pom/javap/dex 工具可静态解析 runner 版本与其传递依赖闭包。author 提议：本票『测试类编译成功』即可发布，入口能否启动留给 final gate。写出本票的责任安排与验收判据；不运行构建或设备。",
+      "expected_output": "dex 缺失与 ClassNotFoundException 证据表明入口接线缺陷在本票即可静态判定：runner 依赖与其传递闭包（与 core1.5.0 自洽的既有版本系列）由本票实现 owner 在票完成前解决；验收须含入口实际启动、tests≥1 的观察，dex 出现 runner 类只证明打包不等于可启动，编译通过更不成立；该观察依赖设备或构建就绪时具名 owner 与条件取最早适用阶段，可复用已有有效启动证据，不把每票变成隐性真机门禁；本票显式 checks 与 final gates 的原 command/expected 不变，不新增通用准备票。",
+      "files": [],
+      "expectations": [
+        "依据 dex 清单缺失与 ClassNotFoundException/0 tests 日志判定接线缺陷属本票可静态判定，构建接线修复归本票实现 owner，不发布以编译成功为完成标准的合同",
+        "验收判据包含经正确 selector 的入口实际启动观察（tests≥1、无 crash），并明确 runner 类存在于 dex 只证明打包、不等同可启动",
+        "启动观察依赖未来设备/构建时具名 owner 与恢复条件、取最早适用阶段，允许复用已有有效启动证据，不要求每张票都占真机",
+        "不改变本票显式 checks 与 feature final gates 的原 command、expected 与 reuse 声明，不新增通用预检票或流程阶段"
+      ]
+    },
+    {
+      "id": 37,
+      "prompt": "现有已发布票据（Status: ready-for-agent）的验收 witness 合同原文：『重复或不匹配activeGeneration的3010不能再次恢复draft/追加Error，也不影响close/connect后新conversation或新Generation；stop与终态按原identity/lock裁决。对声称实际执行 finishGenerationError 的当前3010及同一旧流可达重复终态，必须有实际接收与事件计数证据，缺失不能判通过。』生产代码事实摘录：『首3010在connectionLock内清activeGeneration后，同一旧流的重复终态由applySseEvent入口identity guard结构性阻止进入解析和结算。』权威 spec 原句：『迟到或重复的终态未通过 active Generation 校验时，不恢复草稿、不追加第二次 Error』；『Chat terminalization 先取得 active Generation 时直接废弃该 Generation，不再提交它的 onComplete/onError』。author 提出两个方案：X) 整条 witness 删除，避免任何计数设备执行；Y) 新增生产注入点绕过 guard，强迫旧流重复结算可达以完成计数证明。给出 A2 在 authoring 期的修正处置；不运行设备。",
+      "expected_output": "guard 的结构排除只对『同一旧流重复终态』这一腿成立，不豁免整条 witness：当前3010的实际接收与事件计数要求保留（服务器写入不得声称客户端接收）；重复结算腿改写为记录生产顺序/identity guard 排除证明，加仍发生的公开行为回归（当前 Error 恰一次、草稿不被重复恢复、close/stop 与新 Generation 不被污染）；拒绝 X 的整条删除与 Y 的注入绕过 guard；处置须与权威原句一致；记录恢复条件——生产结构变化使重复3010可再次进入结算时恢复接收与计数要求。",
+      "files": [],
+      "expectations": [
+        "将重复终态腿判定为结构性排除：以 applySseEvent 入口 identity guard 与 connectionLock 清 activeGeneration 的生产顺序作为排除证明，不再为其安排计数设备执行",
+        "保留当前3010的实际接收与事件计数要求，明确服务器写入不能冒充客户端接收，该要求不因另一腿被排除而豁免",
+        "公开行为回归仍须验证：当前 Error 恰一次、编辑后的草稿不被重复恢复、close/stop 及新 Generation 不受污染，并核对 guard 未污染新状态",
+        "拒绝方案 X（删除整条 witness 会同时删掉权威仍要求的证据）与方案 Y（新增生产注入或绕过 guard 制造可达）",
+        "记录条件恢复条款：若结构变化使重复3010再次可进入结算，恢复实际接收与事件计数要求；不新增豁免流程或第二套 verifier"
+      ]
+    },
+    {
+      "id": 38,
+      "prompt": "写票时引用仓库已有 verify-full-matrix.sh 作为 G-PUBLISH 阻塞项：脚本含 16 模块、六聚合检查，另默认执行 MLC/LiteRT/Pulse/GenieX consumer 矩阵和一个 MTP smoke 子命令。两个权威来源对照：A) MLC/LiteRT 等矩阵仅来自脚本自身默认值，本 feature 的 spec 只点名『16 模块、六聚合』与 llama.cpp 的 Core/IPC/LAN/R8 边界；B) spec 明确要求『使用当前仓库正常构建和真实模型，分别覆盖长文本 Prefill 拒绝、生成中途容量耗尽、图片 token 占满、MTP 边界，以及 maxTokens 正常 length』，另有原句『MTP 边界与正常构建真机验证尚无本任务证据，不得标成已验收』，而当前模型报告 MTP unavailable。author 提议：整脚本矩阵全列为阻塞项，首审一半通过即视为基本完成。做发布前逐阻塞项适用范围核对；不运行脚本。",
+      "expected_output": "逐阻塞项沿权威来源核对适用性：A 类（仅脚本自带、spec 未点名）的矩阵不构成本 feature 的阻塞验收，gate 定义收缩到 spec 点名的最小 target/selector，16 模块/六聚合等 spec 明确项保留；B 类（spec 点名）保留要求，模型能力冲突移交需求 owner 处置，不得因『模型不支持』自行豁免，也不得无证据标已验收；『一半通过』只能按组件记 proved/unproved 与来源，不得汇总为整体 PASS；来源已明确的行为不新增询问。",
+      "files": [],
+      "expectations": [
+        "区分 A/B 两类来源：现成大脚本的存在不自动授权其全矩阵成为本 feature 验收；spec 点名的 16 模块/六聚合与 llama.cpp 边界保留",
+        "A 类后端矩阵移出本 feature 阻塞项或标注其真实权威来源，不静默扩大也不静默删除 spec 要求",
+        "B 类 MTP 要求保留并移交需求 owner 处置能力冲突，记录显式决定；author 不自我豁免、不跳过",
+        "验收结果按组件记录 proved/unproved 及来源，部分通过不记整体 PASS，未验项不得写成已解决",
+        "对来源已明确的项不新增询问轮次或通用预检票"
+      ]
+    },
+    {
+      "id": 39,
+      "prompt": "为发布消费门禁 G-PUBLISH 写票：spec 只要求『解释器 ≥ Bash 4.3、匹配仓库的 JDK/SDK/NDK 与可解析依赖』这些能力即可真实发布并编译隔离消费者；初稿把唯一执行环境固化为指定 Linux Docker 镜像，并默认全部命令追加 --offline，否则记前提未满足而阻塞整票。本机 macOS 现有工具链已具备上述能力，仅需另装新版 Bash。同一 feature 另有 spec 点名的真机 Customer/Agent 错误归因验收；其既有设备冒烟矩阵曾因模型输出缺字段而 FAIL，而本票仅扩展既有错误枚举的消费、不改调用链。reviewer 建议把『模型能完成任务』列为本票阻塞项。请给出票内环境前提与两项门禁的处置；不运行任何命令。",
+      "expected_output": "环境前提按所需能力表述：解释器版本、JDK/SDK/NDK、依赖解析等；操作系统、镜像与 offline/在线解析模式只有在 spec/authority 点名或确有生产边界/工具兼容性需要时才属于验收条件，否则只是作者的运行载体、不得固化为唯一阻塞条件；存在已满足条件的既有环境（本机或远程均可）时优先复用并把实际载体随执行结果记录。若存在权威明确的环境或解析限制或真实兼容约束则保持约束力，执行侧不得自行取消，修正走其 owning authority 流程。spec 点名的真机 Customer/Agent 验收保留，不因环境选择判据降级或泛化为禁止真机测试。既有冒烟矩阵或单个枚举消费扩展不能推导『模型任务效果』为本票阻塞验收，该 reviewer finding 缺乏本 feature 权威来源支持，按既有分类作为 review_drift 处置：不改写票面、保持终态 FAIL 未决并等待用户处置，不得把它转成独立门禁或验收提醒；历史 FAIL 证据仍原样保留，不改写为 PASS。",
+      "files": [],
+      "expectations": [
+        "环境前提按能力（解释器版本、工具链、依赖解析）表述；无权威点名且无真实兼容性依据的 OS/镜像/offline 选择被还原为作者运行载体，不作为唯一阻塞条件；优先复用已满足条件的既有环境（本机或远程）且实际载体随结果记录",
+        "权威已明确的环境或解析限制与真实兼容约束保持约束力，不擅自取消；修正经由 owning authority 流程",
+        "spec 点名的真机 Customer/Agent 验收原样保留，判据不反向泛化为禁止真机验证",
+        "不从现成大矩阵或单个枚举/映射改动推导模型任务效果类阻塞验收；该 finding 缺乏权威来源，按既有分类作为 review_drift 处置：不改写票面、保持终态 FAIL 未决等待用户处置、不转成独立门禁或验收提醒；历史 FAIL 证据保留、不改写为 PASS"
+      ]
+    }
+  ]
+}

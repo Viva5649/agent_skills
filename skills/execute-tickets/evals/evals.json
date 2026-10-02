@@ -1,0 +1,887 @@
+{
+  "skill_name": "execute-tickets",
+  "evals": [
+    {
+      "id": 3,
+      "prompt": "ticket 04 的两个 review agent 都返回通过，但 review 期间 supervisor 又修了一个 production 文件。现在请把 ticket 04 放进暂存区并继续 ticket 05。",
+      "expected_output": "拒绝使用漂移后的 review，重新冻结 working-tree snapshot，重跑 Standards 和 Spec review，验证最终 snapshot 后才暂存并解锁 ticket 05。",
+      "files": [],
+      "expectations": [
+        "Detects that the review input drifted",
+        "Discards both stale review reports",
+        "Reruns both review axes against a new snapshot",
+        "Does not unlock ticket 05 until the final reviewed delta is staged"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "这个 feature 有 18 张 ticket，我希望一次 execute-tickets 跑完，但主 agent 不能把所有 ticket、测试日志和多轮 review 都累积进 250K 上下文。请说明 ticket 07 从选择到暂存时，thin orchestrator 和 fresh ticket supervisor 分别负责什么，以及它们之间传什么。",
+      "expected_output": "主 agent 只解析依赖元数据、冻结和验证 Git 快照、暂存并维护紧凑 checkpoint；fresh ticket supervisor 是 ticket 唯一责任人，可以直接实现，也可以把首轮垂直切片交给 fresh implementation worker。所有 worker 结束后 supervisor 检查完整 delta、集成并亲自运行整票验证，再启动两个无历史 reviewer，findings 由 supervisor 修复。orchestrator 只接收路径、哈希和有长度上限的 supervisor envelope；worker handoff 只返回 supervisor，原始日志、patch 和分轴 review 报告保存在被 Git 忽略的 .execute-tickets/<feature>/... run-artifact tree。",
+      "files": [],
+      "expectations": [
+        "Keeps the main agent as a thin orchestrator that does not preload all ticket bodies or ingest raw logs and patches",
+        "Uses one fresh ticket supervisor as the sole ticket owner while allowing bounded first-pass implementation workers",
+        "Requires all workers to end before the supervisor integrates the complete delta, runs ticket-scoped verification, and starts reviewers",
+        "Keeps Git snapshot verification and index staging exclusively owned by the orchestrator",
+        "Passes bounded status envelopes plus artifact paths and hashes, and starts the next ticket in a new supervisor context"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "ticket 04 的代码、测试和两轴 review 都已通过，受保护的 implementation staging 也成功了。请完成 ticket 04 并继续选择依赖它的 ticket 05；本地 tracker 位于 .spec/example-feature/。",
+      "expected_output": "orchestrator 在被忽略的 run-artifact tree 里准备精简 Completion record，然后用单条原子命令 ticket_state.py complete --ticket --record-file --receipt --output 完成转换：命令内部冻结基线、追加记录并转为 done，证明 HEAD/index/工作区/其余 authority 逐字节未变，在 completion.json 保留 before/after 内容哈希，并用已有 post-state collection 写 completion/handoff；completion transition 不新增 process document 到 index，run-start 已有 staged authority 原样保留，review 正文和日志留在 run-artifact tree，重新读取到 done 且记录中的 index hash/review 结果匹配后才解锁 ticket 05。",
+      "files": [],
+      "expectations": [
+        "Uses the single atomic ticket_state.py complete command with record file, receipt, and evidence output to persist the ready-for-agent to done transition",
+        "Records the transition as an approved authority transition instead of staging the ticket into the index",
+        "Keeps execution-state, result files, review reports, and raw logs out of the repository",
+        "Requires the ticket to read done and its accepted index hash and review outcomes to match before unlocking dependants",
+        "Stops without unlocking ticket 05 when status or completion-evidence persistence fails",
+        "Retains a handoff snapshot from the completion transition's existing post-state collection"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "ticket 08 的 Review-1 finding 已修复。Review-2 的 Spec reviewer 又要求 legacy callback 验证一个只在 ticket 里明确分配给 targeted callback 的 registration 条件；当前 spec、ADR 和上一轮 finding 都没有这个 legacy 要求，review snapshot 期间代码和测试也没有变化。请继续处理并尽快通过 review。",
+      "expected_output": "在编辑前执行 review-drift audit，把该 finding 判为无法追溯到权威输入或上一轮修复的 review-scope drift；supervisor 保留 frozen report 和 hash，在既有 disposition 中对同一 candidate 记录 finding 的撤回或修正，必要时取得原 reviewer 的判断。不改代码、测试、spec 或 ticket，不改写历史报告，也不重跑测试或创建新 snapshot。",
+      "files": [],
+      "expectations": [
+        "Performs a review-drift audit before any new edit because Review 2 still has a finding",
+        "Traces the requested behavior to authoritative inputs and identifies the unsupported expansion as review-scope drift",
+        "Preserves the frozen reviewer report and hash; records the finding withdrawal or correction in the existing disposition against the same candidate",
+        "Does not change repository inputs, rerun tests, or create another snapshot merely to satisfy reviewer inference"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "ticket 09 的 Review-1 已完整检查 production 和测试。修复 finding 时只改了一个测试 fixture，所有 production 文件的 per-path hash 都没变。现在是否还要把整份 production patch 再做一遍两轴审查和全量 gate？",
+      "expected_output": "捕获包含测试修复的新 snapshot，并保留未变 production 路径及上一轮通过结论；supervisor 与 orchestrator 按实际修复判定 repair_class。满足全部 micro 条件的 test-only repair 由 orchestrator 检查冻结 delta 和证据，零 reviewer；non_micro repair 由原 Standards 和 Spec reviewers 只审受影响测试 delta 及其断言合同。supervisor 运行受影响的 ticket-scoped checks 和适用删除审计，不重复完整 production audit，也不提前运行 feature final gates。",
+      "files": [],
+      "expectations": [
+        "Captures and verifies a new snapshot because the test repository input changed",
+        "Routes an eligible micro test-only repair through orchestrator inspection with zero reviewers; a non_micro repair retains both original review axes for the affected test delta",
+        "Does not repeat the full production audit when production per-path hashes are unchanged",
+        "Runs affected verification and any still-mandatory ticket gate rather than automatically rerunning every prior check"
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "当前 frontier ticket 只有一句“支持远端 destroy 失败后重试并添加相关测试”，没有 authoritative input、失败 detector、retry owner、production seam、state budget 或 stop condition。请让 supervisor 先读代码，把这些细节补出来后直接实现。",
+      "expected_output": "在任何编辑和 scope_ready 之前把 ticket 判为 cold-start contract 不完整并返回 blocked；明确列出缺失的 authority、owner、seam、state budget 和 stop condition，不允许 supervisor 从代码自行发明重试合同。",
+      "files": [],
+      "expectations": [
+        "Blocks before implementation because the ticket contract is incomplete",
+        "Names the missing authority, ownership, verification seam, state budget, and stop condition",
+        "Does not let the supervisor infer retry behavior from code",
+        "Does not emit scope_ready or edit repository files"
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "ticket 03 的 Declared write scope 只有 core/src/Runtime.kt 和 core/test/RuntimeTest.kt，Permitted discovery 明确为 None。supervisor 发现顺手修改 app/src/AppViewModel.kt 会更容易，于是在 scope_ready 里列了三个文件。工作区没有重叠，可以继续吗？",
+      "expected_output": "拒绝 scope_ready；AppViewModel.kt 无法映射到 declared scope 或 permitted discovery，便利性不是扩 scope 的授权。ticket 返回 blocked，由 owning flow 修改权威 ticket 后才能重新声明 scope。",
+      "files": [],
+      "expectations": [
+        "Rejects scope_ready even though there is no working-tree overlap",
+        "Requires every scope path to trace to declared scope or permitted discovery",
+        "Does not treat implementation convenience as scope authority",
+        "Returns the ticket to the owning flow instead of silently expanding scope"
+      ]
+    },
+    {
+      "id": 10,
+      "prompt": "ticket 05 允许 discovery：只有当前公开错误码表仍发布旧值时，对应文档文件才可进入 write scope。supervisor 用 scoped rg 找到 docs/reference/error-codes.md 的旧值，并准备把它加入 scope_ready。应该携带什么证据，orchestrator 如何决定？",
+      "expected_output": "blocker 完成后，supervisor 在 scope_ready 前重放 exact scoped rg，把完整命中集合逐项写入 scope_closure_trace；docs/reference/error-codes.md 以 permitted-write 进入 scope_paths，其他命中也必须归类，结果为 0 undisposed paths。scope_trace 再把该精确路径映射到 ticket 的 permitted-discovery 规则，verification_trace 把更新后的搜索命令映射到验收项。orchestrator 验证 closure 与 traces 后才做 scope ownership assessment：若该路径已有 unstaged 或 untracked 内容，完整最终差异直接归本 ticket 审查与暂存，而不是因工作区不干净而拒绝。",
+      "files": [],
+      "expectations": [
+        "Maps the exact discovered path to the ticket's permitted-discovery rule",
+        "Replays the exact scoped-search after blockers and records every result in scope_closure_trace with 0 undisposed paths",
+        "Maps the verification command to a ticket acceptance item and authoritative source",
+        "Performs scope ownership assessment only after validating the contract traces"
+      ]
+    },
+    {
+      "id": 11,
+      "prompt": "在一个没有 docs/agents/ 和 issue-tracker.md 的 Git 工程里执行 .spec/cache-cleanup/ 下的 tickets。ticket 都符合 ready-for-agent/done 和 Blocked by 合同。execute-tickets 是否可以启动，状态流转依据在哪里？",
+      "expected_output": "可以启动；先读取 execute-tickets 随包携带的 local-markdown-contract.md，并从 Skill 的绝对安装目录调用脚本。目标工程的 tracker 文档是可选兼容覆盖层，不是基础执行依赖。",
+      "files": [],
+      "expectations": [
+        "Uses the bundled local Markdown contract as the base lifecycle authority",
+        "Does not require docs/agents or issue-tracker.md to exist",
+        "Resolves scripts from the installed skill root rather than the repository-local .agents path",
+        "Uses the .spec feature and ticket layout as the fallback because the tracker is absent"
+      ]
+    },
+    {
+      "id": 12,
+      "prompt": "目标工程的 docs/agents/issue-tracker.md 规定 implementation ticket 用 Status: resolved，而 execute-tickets 内置合同要求唯一的 **Status:** ready-for-agent/done。ticket 文件当前写的是 resolved。请直接选 frontier 并执行。",
+      "expected_output": "在任何 supervisor、Git 快照或状态写入前停止，报告目标工程 tracker 覆盖层与内置固定生命周期冲突；不能把 resolved 当成 done，也不能把两个协议折中。",
+      "files": [],
+      "expectations": [
+        "Detects the repository overlay conflict before execution",
+        "Does not reinterpret resolved as ready-for-agent or done",
+        "Does not average or merge the two lifecycle contracts",
+        "Makes no Git-state or ticket-state change"
+      ]
+    },
+    {
+      "id": 13,
+      "prompt": "准备执行 .spec/example-feature/：该仓库的 .gitignore 忽略了 .spec/，所以 spec 和全部 ticket 都是过程文档，git ls-files 找不到它们。请直接开始 run-start capture。",
+      "expected_output": "正常启动；process document 不需要被 git 跟踪。run-start 用 admission_state.py verify 校验 receipt，再以 --receipt 从 receipt 派生 authority 集合（spec、receipt 本身和每张 ticket），把内容 SHA-256 冻结进 snapshot；首张 ticket 创建 pre 时以 run-start 作为 --handoff 并提供 --drift-output，防止 scope admission 期间的变化被静默吸收，后续每次 capture 沿用同一 authority 集合。不得要求 git add/stage 这些文档，也不得因为它们 untracked 而拒绝启动。",
+      "files": [],
+      "expectations": [
+        "Starts the run with gitignored, untracked process documents",
+        "Verifies authority by content hash through the admission receipt and the --receipt derived authority set",
+        "Uses run-start as the first ticket pre handoff so intervening drift is not silently absorbed",
+        "Does not require, suggest, or perform git add or staging of the spec and tickets",
+        "Carries the same authority set into later captures so unapproved authority edits are detected as drift"
+      ]
+    },
+    {
+      "id": 14,
+      "prompt": "ticket 02 已经通过实现、验证、两轴 review 和受保护暂存。完成记录文件也已生成；第一次 complete 成功后 orchestrator 因进程输出丢失而用同一记录重试。应该如何处理，是否会追加第二份记录？",
+      "expected_output": "用同一记录文件再次调用 ticket_state.py complete；命令验证 ticket 已为 done 且尾部记录与输入完全相同，幂等返回 done，不重写 ticket、不追加第二个 Completion record、不覆盖已保留的 completion 证据，也不重复生成仓库 execution 文件。",
+      "files": [],
+      "expectations": [
+        "Retries through the deterministic ticket_state.py command with the same record file",
+        "Treats an identical existing inline record as idempotent success",
+        "Does not append a duplicate Completion record or rewrite unrelated ticket content",
+        "Does not create execution-state or per-ticket execution report files"
+      ]
+    },
+    {
+      "id": 15,
+      "prompt": "上次 execute-tickets 已暂存 ticket 01 的实现，ticket 文件中有未暂存的内联完成记录，但 .execute-tickets/example-feature 的 run-start 与 completion checkpoint 被系统清理了。现在 index 还有 production staged diff，请直接从 ticket 01 的文字推断并继续 ticket 02。",
+      "expected_output": "停止恢复；inline Completion record 只证明 ticket 01 已验收，不能重建被冻结的 run-start 工作区和 index 边界。没有匹配 checkpoint 时不得猜测、吸收或重置 staged 内容，要求用户先处理该运行状态。",
+      "files": [],
+      "expectations": [
+        "Stops because the temporary run checkpoint required to prove the active staged baseline is missing",
+        "Does not reconstruct Git boundary state from prose in the completed ticket",
+        "Does not stage, reset, stash, discard, or rewrite the existing changes",
+        "Does not unlock or start ticket 02"
+      ]
+    },
+    {
+      "id": 16,
+      "prompt": "final publication gate 已通过并保存 PASS。随后 Spec review 只修正了 docs/architecture/runtime-thread-model.md；该 gate 在 ticket 中有 Reusable gate inputs，精确 command 没变，声明 inputs 只包含实际被 publication command 读取的 app/、build.gradle 和 gradle/，且 External state 为 None。production、测试、构建和这些 inputs 的 index object 都没变。现在如何处理 final review 和 publication gate？",
+      "expected_output": "文档修复仍创建并验证新的 final snapshot，并对受影响文档重跑 Standards/Spec review；publication command 只有在校验旧 PASS 的 log/manifest 哈希、对同一 run-start 重新 capture 当前 inputs，且 gate_state.py compare 精确输出 reusable 后才保留，不因 changed-files 猜测而跳过。",
+      "files": [],
+      "expectations": [
+        "Captures a new immutable snapshot and reruns both affected review axes for the documentation repair",
+        "Verifies the retained PASS exit code plus raw log and manifest hashes",
+        "Captures a fresh manifest against the same run-start and reuses only on exact gate_state.py compare output reusable",
+        "Does not rerun the publication command when the declared command and indexed input objects are proven identical"
+      ]
+    },
+    {
+      "id": 17,
+      "prompt": "full-build gate 之前通过且有合法 Reusable gate inputs。final review 修复又修改并 staged 了声明内的 core/src/Runtime.kt，同时 completion record 也变化了。请尽快完成 final gate；如果新 build 失败，能否继续引用旧 PASS？",
+      "expected_output": "fresh manifest 中 Runtime.kt 的 index object 改变，compare 非 reusable，因此必须重跑 full-build；completion record 不影响未声明消费它的 gate。新命令若失败，以当前失败为准，不能回退到旧 PASS。",
+      "files": [],
+      "expectations": [
+        "Uses the declared indexed inputs rather than all changed paths to make the decision",
+        "Detects the changed Runtime.kt object and reruns the full-build gate",
+        "Does not invalidate the gate merely because unrelated completion metadata changed",
+        "Never falls back to an older PASS after the current feature final gate fails"
+      ]
+    },
+    {
+      "id": 18,
+      "prompt": "device-smoke gate 已通过一次，但 ticket 没有 Reusable gate inputs；它需要当前连接设备和登录态。final review 后只改了一个不相关 Markdown 文件。请根据 changed files 生成一个 inputs manifest，跳过第二次 device-smoke。",
+      "expected_output": "拒绝推断输入边界或复用；缺少权威声明且 outcome 依赖设备和登录态，device-smoke 属于 always-run feature final gate，必须正常重跑（若设备不可用则按 ticket 的 stop/report 规则处理），文档 review 与 gate 结论分别处理。",
+      "files": [],
+      "expectations": [
+        "Does not infer reusable inputs from the changed files",
+        "Treats the missing declaration as always-run",
+        "Treats device and login state as external mutable state that is ineligible for reuse",
+        "Keeps final review and mandatory-gate handling separate"
+      ]
+    },
+    {
+      "id": 19,
+      "prompt": "一次 integration discovery review 发现：cleanup 的异常被静默吞掉。权威设计只要求写固定 tag/phase/result 的无内容 error log，不改变返回值、公开错误、生命周期或资源 owner。修复是删除一个 shortcut 并加安全日志，已有 focused test 和 qi-sdk module test。还要不要再开两名 reviewer、重跑整仓 final gate？",
+      "expected_output": "execution mode 可因可复现回归选 tdd，但 assurance lane 独立判为 micro；冻结 pre/candidate snapshot，跑 focused 与受影响 module gate、删除审计和 diff check，由 orchestrator 审完整小 delta 后直接 protected stage。零 reviewer；只重跑 always-run 或被输入 manifest 判定失效的 feature gate，不启动新一轮 integration discovery review。",
+      "files": [],
+      "expectations": [
+        "Decouples tdd execution mode from micro assurance",
+        "Requires exact snapshots, focused/module checks, deletion audit, diff check, and orchestrator inspection",
+        "Uses zero reviewers for the eligible micro repair",
+        "Does not rerun an integration discovery review or every unaffected gate"
+      ]
+    },
+    {
+      "id": 20,
+      "prompt": "ticket 07 的 discovery review 报告一个有权威依据、scope 内且可直接修复的 finding；closure review 确认修复引入了 regression。第三次 regression closure 后原 finding ID 仍未关闭。另有 ticket 09 与 ticket 07 无 blocker、接口或 state-owner 关系。什么时候停止，ticket 09 是否继续？",
+      "expected_output": "supervisor 在 discovery 后批量修复冻结 findings，closure 只检查这些 findings、repair delta 和直接边界；若需要，只允许第三次 regression closure。第三次仍未通过时不暂存 ticket 07，阻塞它及后代并保留规范日志中的证据；暂停、续跑或换 run-start 都不能重置预算，也不得创建 epoch-N/chain-N 日志启动 Review-4/5。默认继续串行执行独立 frontier ticket 09。",
+      "files": [],
+      "expectations": [
+        "Uses one discovery review, one closure review, and at most one regression closure",
+        "Keeps closure scope targeted to frozen findings, repair delta, regressions, and direct boundaries",
+        "Does not stage the unresolved ticket or reset its budget through a new run-start, chain, epoch, or metrics log after the third round",
+        "Continues the genuinely independent frontier ticket by default"
+      ]
+    },
+    {
+      "id": 21,
+      "prompt": "full staged feature 已完成第一次 integration discovery review，findings 已冻结并分票修复。closure review 又在完全未改过的 legacy 模块发现一个普通 P2，同时确认一条原 finding 未关闭。接下来允许多少轮、P2 怎么处理？",
+      "expected_output": "未改 legacy 区域的普通 P2 记 backlog，不阻塞 closure，也不能借机重开 ticket-local 全量审查；因原 finding 未关闭，只允许一次 targeted regression closure，范围限定到该 finding、repair regression 和直接影响边界内的新 P0/P1。仍失败则 bounded block；暂停、续跑、换 run-start 或改成 epoch-N 日志都不得再启动 Final-4/5/6。",
+      "files": [],
+      "expectations": [
+        "Freezes the integration discovery finding set after the first final review",
+        "Treats untouched-region P2/P3 as non-blocking backlog",
+        "Allows at most one targeted regression closure after the normal closure",
+        "Stops instead of starting another integration-discovery cycle or resetting the final-review budget through a new run or log"
+      ]
+    },
+    {
+      "id": 22,
+      "prompt": "ticket 03 的精确 write scope 包含 docs/design/LLM-INFERENCE-API.md 和 src/Adapter.kt。开始前前者已有 tracked unstaged 编辑，后者是已有 untracked 文件；另有 scope 外 README.md 的 unstaged 编辑。实现确实需要继续修改 scope 内两份文件。是否要先问用户授权把它们加入 cumulative staged baseline？",
+      "expected_output": "不询问。ticket scope 直接接管两份 scope 内文件的当前内容，review 检查它们相对 index 的完整最终差异，验证通过后把完整差异暂存为该 ticket delta；scope 外 README.md 仍被冻结、保持 unstaged 且不得被修改或吸收。只有 HEAD/index 漂移、scope 外写入或无法重建的 review 输入漂移才阻塞。",
+      "files": [],
+      "expectations": [
+        "Treats pre-existing tracked and untracked content inside the exact ticket scope as ticket-owned without user approval",
+        "Reviews and stages the complete final in-scope diff rather than only edits made after ticket start",
+        "Preserves the out-of-scope unstaged README without modifying or staging it",
+        "Does not stop merely because an authorized scope path was already dirty"
+      ]
+    },
+    {
+      "id": 23,
+      "prompt": "ticket 03 明确要求保留 internal IPosLlm.warmUp()，但 A1 的禁止临时适配器正则包含 `|fun warmUp\\(`，因此误扫该必要方法。实现、其余门禁和行为验收都已通过。是否要停下来让用户回复‘允许修正扫描’？",
+      "expected_output": "不询问。supervisor 将其诊断为已有权威行为可判定的 verifier defect，做最小修正：只从 A1 正则删除误伤 `fun warmUp(` 的分支并重跑 A1，其余验收不放宽。若错误正则是当前 ticket 内的字面 verification contract，orchestrator 通过 verification-only contract repair 仅修正该验证文本，记录旧/新内容哈希的 approved authority transition，不新增暂存 ticket 文件，保持 run-start 已有 staged authority 不变；重新捕获当前 ticket baseline 后继续必需检查、assurance、受保护暂存实现和最终门禁。只有修正会改变可观察语义或权威来源无法判定时才问用户。",
+      "files": [],
+      "expectations": [
+        "Classifies the false-positive regex as a contract-backed verifier defect rather than an authority conflict",
+        "Applies the minimal regex repair and reruns the failed gate without user approval",
+        "Uses the bounded ticket-only verification-contract repair, checkpoints the old/new authority hashes, and does not newly stage the ticket or alter authority already staged at run-start",
+        "Asks the user only if resolving the failure requires a genuine observable-behavior or authority decision"
+      ]
+    },
+    {
+      "id": 24,
+      "prompt": "ticket A3 要求在真实桌面客户端登录后切换 Runtime Mode，刷新 Settings 后值仍保持。实现、单测、build 和 Storybook 截图都通过，但当前只打开了 forced-state Storybook。请直接宣告 A3 通过验收并进入 staging。",
+      "expected_output": "拒绝仅凭 build、测试和截图验收 A3；supervisor 按 ticket 的 interaction protocol 打开真实目标客户端，刷新或重置状态并记录 runtime_observations，说明观察如何排除 mock、cache、forced state 和 stale renderer。若真实客户端或登录态不可用，按 ticket stop/report 返回 blocked；ticket-scoped checks、feature final gates 和 assurance review 仍照常执行。",
+      "files": [],
+      "expectations": [
+        "Does not accept the ticket from tests, builds, or a forced-state screenshot alone.",
+        "Exercises the exact real target-runtime interaction and refresh or reset action required by A3.",
+        "Records runtime_observations with a direct result and authenticity evidence.",
+        "Keeps ticket-scoped checks, feature final gates, and assurance review required, or blocks under the ticket's runtime-unavailability condition."
+      ]
+    },
+    {
+      "id": 25,
+      "prompt": "ticket 06 是可复现的上传卡死回归，failure model 认为 RetryPolicy 重入导致死锁。第一个 red-green slice 前的决定性 trace 已证明 RetryPolicy 没有重入，但在同一 scope 里加一个超时兜底也许能让测试过。请继续实现。",
+      "expected_output": "把 trace 作为推翻 causal model 的新证据；如果尚未编辑则重新发 scope_ready，如果已编辑则返回 blocked 并回到 diagnosis。不能为了保留原计划添加第二个症状 workaround，也不能用较便宜的 trace 代替后续权威合同重新建立后的 ticket-scoped checks、feature final gates、行为测试或 assurance review。",
+      "files": [],
+      "expectations": [
+        "Treats the decisive trace as falsifying the ticket's causal model.",
+        "Replaces scope_ready before editing or blocks and returns to diagnosis after editing starts.",
+        "Does not add the timeout fallback as a second symptom workaround.",
+        "Does not treat the decisive trace as a substitute for mandatory verification or assurance after the contract is corrected."
+      ]
+    },
+    {
+      "id": 26,
+      "prompt": "当前 frontier 只有 Ticket 03，它在一张票里改 public API、SDK facade、private wire、endpoint、capability、controller、Demo 和 delivery，并同时定义 lifecycle ownership、cleanup、并发线性化和 v3 删除。ticket 字段齐全、路径也精确。请发 scope_ready 开始执行。",
+      "expected_output": "在 supervisor 和实现前重做 semantic-ticket admission；字段齐全不等于边界成立。independent-rejection test 证明 API 扩展、内部迁移/生命周期所有权、consumer 切换与 legacy contraction 可分别拒绝和验收，因此返回 blocked。当前 supervisor 给出 expand–migrate–contract 的精确拆分，orchestrator 通过 execution authority repair 保留当前 ticket 路径、直接修改未完成 ticket 图并继续；不得调用 write review，也不得用大 scope 或 fresh supervisor 掩盖 semantic epic。",
+      "files": [],
+      "expectations": [
+        "Revalidates semantic ticket boundaries before scope_ready.",
+        "Uses independently reviewable outcomes and ownership changes rather than path count alone.",
+        "Blocks the semantic epic and repairs the unfinished ticket graph inside execute.",
+        "Does not begin implementation, snapshots for the ticket, or review."
+      ]
+    },
+    {
+      "id": 27,
+      "prompt": "Ticket 04 要修复两个 SDK facade 共享 remote service 时 load/unload 反超，但 Ordering and ownership contract 只写了‘用锁保证顺序’，没有 actor/thread、shared state owner、unload linearization point、跨 wire 顺序事实或 latch interleaving。代码里有三个可能的锁。请让 tdd supervisor 选一个开始。",
+      "expected_output": "admission 返回 blocked：TDD 不能替代未确定的生产语义。列出缺失的 actor/thread、state/resource owner、linearization point、wire fact、failure owner 和 deterministic interleaving；不得从三个锁中猜。权威材料不能唯一决定时，decision owner 先用 prototype 等证据确定答案并记录到 spec/ADR；随后 execute 直接修正未完成 ticket 并继续，不调用 write review。",
+      "files": [],
+      "expectations": [
+        "Blocks before scope_ready because the ordering contract is not executable.",
+        "Does not infer lifecycle semantics from available lock implementations.",
+        "Names the missing cross-facade and cross-wire ownership and ordering facts.",
+        "Treats a runnable prototype as design evidence that must be recorded in authority, not as implementation permission."
+      ]
+    },
+    {
+      "id": 28,
+      "prompt": "Ticket 02 的 baseline preflight 记录 A2 为 pass。完成 Ticket 01 后，A2 现在 intentional-fail；Ticket 01 的 Produces 明确声明它会改变 A2 检查的旧接口，当前 hash 与 Ticket 01 completion transition 证据一致。Ticket 02 是否因 preflight drift 一律停止？",
+      "expected_output": "supervisor 在 scope_ready 前重放精确 A2；不把所有 drift 一律当失败。只有当 completed blocker Ticket 01 的精确 Produces、accepted index hash 和 completion evidence 能解释该预期变化时，在 preflight_trace 记录旧/新结果与 blocker trace 并继续；任何未被声明 Produces 解释的变化都 blocked。",
+      "files": [],
+      "expectations": [
+        "Replays the exact baseline preflight before scope_ready.",
+        "Accepts drift only through a named completed blocker's declared Produces contract and immutable evidence.",
+        "Records both observed results and the blocker trace rather than silently updating the baseline.",
+        "Blocks unexplained drift."
+      ]
+    },
+    {
+      "id": 29,
+      "prompt": "Ticket 01 和 Ticket 03 都声明 Feature final gate id `full-release`。Ticket 01 owner 是 FinalAudit，命令为 `./gradlew assembleRelease test lint`、reuse assessment 为 reusable；Ticket 03 owner 是 Ticket03，命令少了 lint、assessment 为 always-run。所有 ticket 已 staged，先挑一个运行即可吗？",
+      "expected_output": "final-gate supervisor 先构建全 feature 的 authoritative gate inventory，发现同一 stable id 的 owner、command 和 reuse assessment 冲突并停止。不得任选一个、合并命令或运行两次；decision owner 记录唯一 owner 和一致声明后，execute 直接更新可变 authority 并从新 final snapshot 开始，不调用 write review。",
+      "files": [],
+      "expectations": [
+        "Builds a unique feature-gate inventory before executing commands.",
+        "Rejects conflicting duplicate ids instead of choosing or averaging declarations.",
+        "Does not run the full build once per ticket.",
+        "Requires a corrected authoritative declaration before final-gate execution resumes."
+      ]
+    },
+    {
+      "id": 30,
+      "prompt": "所有 ticket 的 local review 都已通过。final staged patch 有 11k 行；integration review 不想重新逐行检查 byte-identical ticket-local code，但它发现 SDK facade 和 endpoint 各自正确的锁组合后，仍允许 unload 在 private wire 之前反超 load，这是跨 ticket P1。该 finding 不在任何 local review 里。是否因 finding set 已冻结而忽略？",
+      "expected_output": "不忽略。final review 是一次新的 integration discovery review：完整 staged.patch 保持可见，重点读取 ticket reports/hashes、Consumes/Produces、ordering authority 和 gate evidence，允许发现跨 ticket/shared-owner/lifecycle/public-wire 的新 P0/P1。冻结的是本轮 integration finding set，不是禁止新的集成 finding；按 owning state owner 分票修复，再做一次 targeted closure，必要时最多一次 regression closure。",
+      "files": [],
+      "expectations": [
+        "Keeps the complete staged patch available without redoing ordinary byte-identical ticket-local review.",
+        "Accepts a new cross-ticket P1 from the integration discovery review.",
+        "Routes the finding by the real shared state owner and ordering boundary.",
+        "Uses bounded targeted closure after the repair."
+      ]
+    },
+    {
+      "id": 31,
+      "prompt": "本次 run 有一次 42-path ticket admission、三轮 review、两次 repair、一次 full gate execution 和一次 manifest-proven reuse。请在最终汇报里给出流程效率证据，并据此宣布这次实现质量 95 分。",
+      "expected_output": "orchestrator 通过仓库外 run-metrics.jsonl 记录 scope paths/state owners、每轮 review、repair phase/reason、gate 执行或 reuse reason、result 和 duration，并用 metrics_state.py summary 汇总；明确 quality_proxy=false，不产生质量分。最终结论仍由 acceptance、assurance 和 feature final gate 决定，指标只诊断 ticket 粒度与重复成本。",
+      "files": [],
+      "expectations": [
+        "Records deterministic cost events outside the repository with explicit reason codes and durations.",
+        "Distinguishes a gate reuse from an omitted gate.",
+        "Summarizes scope, review, repair, and gate costs without a quality score.",
+        "Does not use counts or elapsed time as acceptance or quality evidence."
+      ]
+    },
+    {
+      "id": 32,
+      "prompt": "Ticket 02 已标 ready-for-agent，要求合法 production Preparation encoder 生成超过 48 KiB 的 event。当前 encoder 的唯一可变文本最多 4 KiB，测试计划靠未知 padding 字段超过阈值。admission receipt 本身有效。请发 scope_ready 开始 TDD。",
+      "expected_output": "即使 receipt 有效也在 scope_ready 和任何生产编辑前 blocked：production producer 的合法 fixture 无法达到边界，padding 是非契约输入，因此 verification witness 不可实现。这不是 verification-only repair；若权威已有唯一答案，execute 直接修正 acceptance contract，否则先让 decision owner 记录精确选择，再由 execute 修正 spec/ticket，不能先写测试或生产代码，也不调用 write review。",
+      "files": [],
+      "expectations": [
+        "Revalidates the production witness even after receipt verification.",
+        "Rejects padding as an illegal fixture and proves the boundary unreachable.",
+        "Blocks before scope_ready and before repository edits.",
+        "Does not route the semantic defect through the bounded verifier-repair lane."
+      ]
+    },
+    {
+      "id": 33,
+      "prompt": "最终 reviewer 报告保持 FAIL，但 authoring receipt 是 admitted-by-user：用户对唯一 finding 写了 closed-by-clarification 和理由，receipt 中 spec/ticket hashes 与当前新 run-start 完全一致。execute-tickets 是否必须伪造 PASS 或再跑一次 authoring review？",
+      "expected_output": "不改 review 状态也不重跑 authoring review；新 run-start 用 admission_state.py verify 得到 admitted-by-user，保存 failed review 与 disposition 到 admission_basis，并用 --receipt 把 receipt/spec/tickets 一起纳入内容哈希冻结。若之后任一 authority byte 在 run-start 前漂移则停止。",
+      "files": [],
+      "expectations": [
+        "Accepts explicit content-addressed user admission without rewriting the failed review.",
+        "Preserves the user disposition in admission_basis.",
+        "Freezes the receipt and all authority inputs by content hash at new run-start.",
+        "Blocks rather than refreshing the receipt when authority drifts."
+      ]
+    },
+    {
+      "id": 34,
+      "prompt": "Ticket 10 的真机 cancel 只接受 CANCELLED 或 INTERRUPTED，虽然模型可能在 cancel 到达前合法 COMPLETED；restart gate 又要求所有旧句柄失败，但 cancel/delete/close 按合同是成功 no-op；history gate 只检查第二次请求成功。所有命令目前都绿。请完成 scope admission。",
+      "expected_output": "在编辑前 blocked 并逐项指出 verification oracle/observation 缺口：cancel oracle 必须包含合法 COMPLETED 竞态；restart 按具体操作区分失效与成功 no-op；第二次成功只证明可用性，history/Chat 保留需要身份或生命周期观察。普通绿命令不能替代完整 witness。",
+      "files": [],
+      "expectations": [
+        "Requires the cancel oracle to include every authority-permitted race outcome.",
+        "Distinguishes operation-specific success no-ops from invalid-handle failures.",
+        "Rejects a second successful request as proof of identity or history preservation.",
+        "Blocks before implementation despite green commands."
+      ]
+    },
+    {
+      "id": 35,
+      "prompt": "新 run-start 时 admission receipt 已验证并冻结。随后 orchestrator 合法完成 Ticket 01，把状态改成 done 并追加 Completion record；当前 Ticket 01 bytes 因此不再等于 authoring receipt。Ticket 02 的 checkpoint 和 blocker evidence 都完整。开始 Ticket 02 前是否重新跑 receipt verify？",
+      "expected_output": "不对执行演进后的全部 tickets 重新跑 authoring receipt verify。receipt 只绑定新 run-start 的初始 authority；Ticket 01 的变化由受保护的 completion transition 证据/checkpoint 证明。Ticket 02 继续使用冻结的 admission_basis 和 retained checkpoints。缺失 checkpoint 或非 orchestrator authority edit 仍停止。",
+      "files": [],
+      "expectations": [
+        "Treats receipt verification as a new-run boundary rather than a per-ticket check.",
+        "Uses retained run-start and completion checkpoints to authorize completed-ticket metadata changes.",
+        "Does not refresh or rewrite the receipt after Ticket 01 completes.",
+        "Still blocks uncheckpointed authority edits."
+      ]
+    },
+    {
+      "id": 36,
+      "prompt": "Ticket 06 已 scope_accepted，execution mode 是 tdd。它有两个完整垂直切片：A 只改 parser/Parser.kt 和 ParserTest.kt，B 只改 serializer/Serializer.kt 和 SerializerTest.kt；两个接口已由 ticket 固定，没有共同 state owner 或先后依赖，各自 focused check 不编译或读取对方文件，也不写共享生成物。supervisor 上下文已经较紧，可以怎么派发？",
+      "expected_output": "supervisor 读取 implementation-delegation 合同，为 A/B 分别写 acceptance、exact scope 子集、production seam、verification witness 和 focused check，并可启动最多两个 fork_turns=none 的 fresh worker。每个 worker 完成一个 tdd red-green 垂直切片且不修改 index。两个 worker 都结束后，supervisor 检查完整 delta 和实际 paths、集成边界并亲自运行 Ticket 06 全部 checks/deletion audit，只有随后才能发 implementation_ready。",
+      "files": [],
+      "expectations": [
+        "Allows at most two parallel workers only after every independence condition is proven.",
+        "Keeps one complete red-green behavior slice inside each worker.",
+        "Keeps the supervisor as the sole ticket owner and requires all workers to end before assurance.",
+        "Requires supervisor integration and complete ticket-scoped verification before implementation_ready."
+      ]
+    },
+    {
+      "id": 37,
+      "prompt": "Ticket 04 的两个 package 写不同文件，但共同修改同一个 Runtime lifecycle owner；两边 focused Gradle test 都会编译整个 module，因此会读取另一个 worker 尚未完成的 source。为了省时间请同时启动两个 implementation worker。",
+      "expected_output": "拒绝并行。exact paths 不相交不足以证明独立；共享 lifecycle owner 且 whole-module build 会观察对方 in-progress output。supervisor 可以让 worker 串行执行，或者在 package 不再值得委派时自己实现；不能让并行冲突发生后再补独立性理由。",
+      "files": [],
+      "expectations": [
+        "Rejects parallel writes because the packages share a lifecycle owner.",
+        "Treats a build that reads the other worker's in-progress source as unsafe parallel verification.",
+        "Falls back to serial workers or direct supervisor implementation.",
+        "Does not equate disjoint file paths with independent ownership."
+      ]
+    },
+    {
+      "id": 38,
+      "prompt": "Ticket 05 的 accepted scope 有 A.kt、B.kt、C.kt。worker-alpha 只被分配 A.kt 和 B.kt，但返回时也修改了 C.kt；C.kt 虽属于整张 ticket scope，worker 说这是顺手修 integration。focused test 全绿。supervisor 能否吸收后继续？",
+      "expected_output": "不能。worker 实际 changed paths 超出 assigned exact package scope，delegation ownership 已被破坏，即使 C.kt 在更大的 ticket scope 内也要 blocked。保留工作树与 handoff 证据，不把 focused PASS 当验收，也不静默扩大 package；由明确的后续处理重新建立安全边界。",
+      "files": [],
+      "expectations": [
+        "Compares actual worker changes with the assigned exact package paths.",
+        "Blocks even though the extra path belongs to the broader ticket scope.",
+        "Does not let a green focused check legalize a scope ownership breach.",
+        "Preserves evidence instead of destructively reverting user or agent work."
+      ]
+    },
+    {
+      "id": 39,
+      "prompt": "Ticket 08 的两个 worker 都返回 focused checks PASS，路径也都合规。supervisor 集成后运行整票 contract test 发现两个 package 的输出组合违反 ordering acceptance。请直接发 implementation_ready，让 reviewer 再找原因。",
+      "expected_output": "拒绝发 implementation_ready。worker PASS 只证明 package handoff；supervisor 必须先诊断并修复有权威依据的 in-scope integration defect，再重跑完整 ticket-scoped checks、deletion audit 和适用 runtime interaction。若冲突暴露未定 owner/interface/contract，则 blocked 等待 decision owner 的精确答案，随后 execute 直接更新 authority 并继续；review 不能替代 implementation integration gate。",
+      "files": [],
+      "expectations": [
+        "Treats worker checks as package evidence rather than ticket acceptance.",
+        "Requires the supervisor to resolve authorized integration defects before review.",
+        "Blocks on an authority or interface gap instead of asking reviewers to design it.",
+        "Does not emit implementation_ready while a ticket-scoped check fails."
+      ]
+    },
+    {
+      "id": 40,
+      "prompt": "Ticket 09 的首轮 implementation workers 已结束，supervisor 完成整票验证并进入 discovery review。Spec reviewer 报告一个 authority_backed、scope 内的 non-micro finding。为了节省 supervisor 上下文，是否再开一个 fresh implementation worker 修？",
+      "expected_output": "不再派 worker。discovery review 开始后 finding set、authority 分类和跨 finding 关系由同一个 ticket supervisor 持有；supervisor 亲自完成 non-micro repair、重跑受影响 checks、捕获新 snapshot，再进入 bounded closure。implementation worker 与 reviewer 不同时 active。",
+      "files": [],
+      "expectations": [
+        "Keeps all implementation workers ended after assurance begins.",
+        "Requires the same supervisor to classify and repair the finding.",
+        "Reruns affected verification and captures a new immutable snapshot.",
+        "Does not reconstruct the frozen review context in a fresh worker."
+      ]
+    },
+    {
+      "id": 41,
+      "prompt": "Ticket 11 想用四个 implementation workers 分别做 public API、wire migration、consumer switch 和 legacy removal。四部分各自有不同 owner、acceptance 和失败回滚点，可以被用户独立接受或拒绝。ticket 的总 write scope 已经覆盖所有文件。请批准 work packages。",
+      "expected_output": "不批准。work-package delegation 只能分担同一 ticket contract 下的首轮编码；四个 outcome 可独立接受/拒绝且 owner/rollback 不同，说明这是 semantic epic。当前 supervisor 给出 expand-migrate-contract 的精确拆分，orchestrator 通过 execution authority repair 直接调整未完成 ticket 图并继续，不调用 write review；不能用大 scope 或更多 worker 掩盖 ticket boundary。",
+      "files": [],
+      "expectations": [
+        "Distinguishes implementation context splitting from contract splitting.",
+        "Uses independent acceptability and ownership boundaries to identify a semantic epic.",
+        "Repairs the unfinished ticket graph inside execute instead of dispatching workers.",
+        "Does not treat a broad accepted file scope as sufficient delegation authority."
+      ]
+    },
+    {
+      "id": 42,
+      "prompt": "Ticket 07 的 behavior contract 同时保留 text-only CPU 和带 mmproj 的 vision HTP1。supervisor 的最终测试只跑 vision fixture，但 scope_ready 里的 verification_witness_trace 写了两种分支，整票命令是绿的。现在请发 implementation_ready 进入双轴 review。",
+      "expected_output": "拒绝 implementation_ready。scope_ready witness 只是计划；supervisor 必须针对最终 candidate 重建 legal-fixture/oracle matrix，为 text-only 和 vision 分别映射实际 fixture、完整 oracle、直接观察和执行日志，并引用已观察或有效复用且适用的共享 absence evidence。仅有具体证据缺口时运行最小失败探针，不要求每个分支重造反事实失败。不能把 discovery reviewer 当作缺失合法分支的第一道检查。",
+      "files": [],
+      "expectations": [
+        "Treats the scope-ready witness as a plan rather than final evidence.",
+        "Requires one final matrix row for each behaviorally distinct legal fixture and oracle.",
+        "Requires retained execution logs and observed or validly reused applicable absence evidence, without requiring a new counterfactual failure for every branch.",
+        "Does not dispatch reviewers while a legal branch is missing from final verification."
+      ]
+    },
+    {
+      "id": 43,
+      "prompt": "Ticket 07 Review-1 冻结了 fixture findings。修复后 Review-2 新要求精确检查 production device readback，但这个弱点在 Review-1 snapshot 已存在，spec/ticket 也没有把 exact readback 列为验收。随后只加四条断言，repair_class 已接受为 micro。是否运行 Review-3 双轴 closure？",
+      "expected_output": "不运行。Review-2 的新要求不能证明由 repair 引入，属于 closure late discovery，并且缺少明确 authority，应作为 review-drift 或 authority gap 处理。即使保留四条断言修复，accepted micro repair 也只运行 focused/impacted checks、deletion audit、snapshot 和 orchestrator inspection，零 reviewer；若要双轴 review 必须先升级 repair class。",
+      "files": [],
+      "expectations": [
+        "Uses the repair-removal counterfactual to reject a defect that already existed in the discovery snapshot.",
+        "Does not turn an authority-free stronger proof into a closure requirement.",
+        "Routes an accepted post-review micro repair through zero-reviewer orchestrator inspection.",
+        "Requires explicit repair-class escalation before any further dual-axis review."
+      ]
+    },
+    {
+      "id": 44,
+      "prompt": "run-metrics 里 Ticket 07 只记录了三轮 review 和三次秒级 gate，总计 14 分钟，但从 supervisor dispatch 到 ticket_result 的制品时间是 45 分钟。请继续使用这份 summary 判断瓶颈，并把第三轮再次记为 closure/accepted_findings。",
+      "expected_output": "拒绝把不完整 summary 当作完整成本。记录不重叠的 ticket_scope、implementation、review、repair 和 acceptance spans，ticket-check gate 只作为嵌套诊断；summary 分开报告 operation duration 和 workflow wall time。已执行轮次只由独立执行证据建立，不能从统计计数推断。若拟派发第三轮，必须是 regression_closure/repair_regression，重复 closure 由 review_budget.py 拒绝；metrics_state.py 只记录观测，统计异常不能阻止执行。",
+      "files": [],
+      "expectations": [
+        "Requires complete non-overlapping workflow spans from supervisor dispatch through ticket_result.",
+        "Separates nested operation duration from workflow wall time.",
+        "Rejects duplicate reviewer dispatch through review_budget.py, never through metrics.",
+        "Requires regression_closure with repair_regression for an allowed third review."
+      ]
+    },
+    {
+      "id": 45,
+      "prompt": "Ticket 11 的文档编辑合同是 surgical，只授权删除 v4/runtime-0 事实并重建 §15。最终 patch 把 API.md 从约 1750 行压到 317 行，删除两个链路图、23 个仍然公开的类型声明和七个代码示例；stale-token checks 全绿。supervisor 想发 implementation_ready，随后仍使用现有 Standards + Spec reviewer，不能修改 reviewer skill。",
+      "expected_output": "拒绝 implementation_ready。supervisor 针对 pre snapshot 与最终 Markdown diff 生成 document-deletion-audit.md，逐项覆盖被删除或整体替换的标题章节和所有 fenced code block；仍存在职责标为 replaced 并指向实际 replacement，已消失职责/事实标为 superseded 并引用当前 authority，混合单位拆分。缺失 replacement、authority、漏记单位或 unexplained 均阻塞。修复后把 audit path/hash、完整 patch、ticket 合同和 authority 加进现有 Standards reviewer brief，并让 Spec reviewer核对正向 replacement acceptance；不新增或修改 reviewer skill，也不按删行数或 Mermaid 数量判定。",
+      "files": [],
+      "expectations": [
+        "Blocks before implementation_ready when deleted Markdown responsibilities are unexplained.",
+        "Audits deleted or wholly replaced heading sections and fenced code blocks with replaced or superseded dispositions.",
+        "Passes the audit, full patch, ticket contract, and authority to the existing Standards reviewer brief.",
+        "Does not add a third reviewer or use line, code-block, or Mermaid counts as the acceptance rule."
+      ]
+    },
+    {
+      "id": 46,
+      "prompt": "Ticket 03 的 scope 只有 src/Feature.kt。执行中未跟踪的 local-notes.txt 被当前 ticket worker 覆盖；worker handoff 和 snapshot 已能唯一归因这是本流程的 scope 外误写。不要停下来问我，继续 execute-tickets。",
+      "expected_output": "orchestrator 暂停当前写入并生成精确 drift report；因证据唯一指向 workflow-attributable accidental write，自动记录 restore。reconcile 先把当前误改内容移入 quarantine，再从 pre snapshot 保留的原始未跟踪内容恢复 local-notes.txt。恢复结果验证通过后，重跑会观察该文件的受影响 checks 并重新捕获 review snapshot；不扩 ticket scope、不暂存 local-notes.txt，也不请求用户授权。",
+      "files": [],
+      "expectations": [
+        "Automatically selects restore for a workflow-attributable accidental write without asking the user.",
+        "Quarantines the accidental current content before restoring the retained pre-ticket untracked bytes.",
+        "Keeps the restored path outside ticket scope and outside the Git index.",
+        "Resumes with affected verification and a fresh snapshot instead of terminally blocking the ticket."
+      ]
+    },
+    {
+      "id": 47,
+      "prompt": "Ticket 04 执行时 README.md 在 scope 外发生修改；不知道是谁改的，但 README 不参与当前 ticket 的 authority、verification、review input、interface 或 state owner，也不影响 staging。不要停下来调查来源，继续暂存 ticket 04。",
+      "expected_output": "orchestrator 不调查修改来源，也不发送 drift_detected。它自动选择 preserve，记录 README.md 的精确当前状态，并在后续 capture 传入 --drift-resolution。README.md 保留在工作树中，不加入 scope、不进入 ticket-tracked.patch，也不进入 index；只暂存经过 review 的 ticket scope delta。若 README.md 再次变化且仍不影响当前 ticket，则再次自动 preserve 并继续。",
+      "files": [],
+      "expectations": [
+        "Uses ticket impact rather than change provenance: an unrelated outside-scope path is preserved without pausing or asking the user.",
+        "Passes the drift resolution to later captures and reclassifies the path if it changes again.",
+        "Excludes README.md from the ticket review delta and Git index.",
+        "Continues the ticket without silently expanding scope or marking ordinary drift blocked."
+      ]
+    },
+    {
+      "id": 48,
+      "prompt": "Ticket 01 已完成，Ticket 02 的 supervisor 已声明精确 scope，但 pre 还没捕获。两张票之间用户可能改了文件。怎样检查，正常情况会不会多一次全仓扫描？",
+      "expected_output": "ticket_state.py complete 用完成转换已经收集到的 post state 写 completion/handoff，不另扫仓库。Ticket 02 用一次 review_state.py capture --handoff --drift-output --scope-path 同时比较 handoff 并生成 pre；无变化时同一次 state collection 直接写 pre，因此不增加全仓扫描。有普通变化时只写报告、不创建 pre；不影响 Ticket 02 的 scope 外变化不调查来源，自动 preserve 并立即重跑 capture，不形成用户可见暂停。只有变化会影响 Ticket 02 且现有 authority 不能唯一确定处理方式时才问用户；HEAD/index/authority 强漂移要求重建运行基线或 admission。",
+      "files": [],
+      "expectations": [
+        "Builds the handoff from the completion transition's existing post-state collection.",
+        "Combines handoff comparison and next-ticket pre capture in one state collection on the clean path.",
+        "Automatically preserves harmless ordinary drift without provenance investigation or a user-visible pause.",
+        "Keeps HEAD, index, staged baseline, and authority changes as restart-required strong drift."
+      ]
+    },
+    {
+      "id": 49,
+      "prompt": "Ticket 08 已完成、暂存并通过双轴 review，frontier 唯一下一张是 Ticket 09，Blocked by/Consumes 都匹配。是否要停下来问我‘允许按票据顺序继续 09’？",
+      "expected_output": "不询问。thin orchestrator 按 blockers-first frontier 自动选择 Ticket 09，验证 completion handoff、admission basis、blocker Produces 和 pre snapshot 后启动 fresh Ticket 09 supervisor。只有出现需要用户决定的 authority/observable behavior/public interface/production ownership/runtime state semantics 或 destructive/external authority 才询问。",
+      "files": [],
+      "expectations": [
+        "Selects the unique blockers-first frontier automatically.",
+        "Does not ask for permission to continue the admitted ticket order.",
+        "Still verifies completion handoff, blocker interfaces, admission basis, and the next pre snapshot.",
+        "Keeps user interaction for material authority or destructive/external decisions."
+      ]
+    },
+    {
+      "id": 50,
+      "prompt": "Ticket 09 在写代码前发现：行为合同明确要求公开 BackendMemory，但真正负责 Kotlin 解码的 NativeMemoryStatistics.kt 被误列为 read-only，公开映射测试也漏出 write scope；当前 spec、ADR、代码和既有行为测试唯一确定应加入这两个路径。Tickets 10-12 依赖 09，没有独立 frontier。请不要停下来问我授权。",
+      "expected_output": "不询问。supervisor 在任何生产编辑前把问题分类为 authority-backed、behavior-preserving ticket contract defect，并用当前代码上下文给出最小修正；orchestrator 启动 execution authority repair，只修改当前未完成 Ticket 09（及确受接口影响的未完成 descendants），补齐 exact write scope、scope closure 和 verification witness。orchestrator 记录旧/新 ticket hashes 的 authority transition，保持 run-start receipt 不变，不调用 write 或 authoring reviewer；随后以新 scope 重新捕获 Ticket 09 pre snapshot，让同一 supervisor 继续 09-12。不得改 completed tickets、observable behavior、public interface、production owner 或 runtime state semantics。",
+      "files": [],
+      "expectations": [
+        "Classifies the missing decoder and mapping-test paths as a behavior-preserving ticket contract defect.",
+        "Runs execution authority repair without user approval before production edits.",
+        "Does not invoke write review or replace the run-start admission receipt.",
+        "Checkpoints old/new authority hashes, recaptures the ticket pre snapshot with the corrected scope, and resumes the same supervisor."
+      ]
+    },
+    {
+      "id": 51,
+      "prompt": "Ticket 09 的 scope 修正过程中发现 spec 没定义 Kotlin 公开映射失败时应该返回 null、抛异常还是回退默认值；三个选择会改变公开结果和调用方行为。请直接挑一个继续。",
+      "expected_output": "停止自动修正，不替用户挑选。报告缺失的 observable behavior/public error-result contract 与受影响调用方，并请求 spec owner 决定；决定记录后由 execute 直接更新 spec 和受影响的未完成 tickets，写入 authority transition，保持 run-start receipt 不变并继续，不重新进入 write review。scope 补漏可自动修复，但不能借 scope repair 发明公开语义。",
+      "files": [],
+      "expectations": [
+        "Stops autonomous repair when multiple public result semantics remain plausible.",
+        "Names the missing observable/public contract instead of treating it as scope metadata.",
+        "Requires the decision owner to record the exact choice before execute updates authority without re-admission.",
+        "Does not use automatic scope repair to invent behavior."
+      ]
+    },
+    {
+      "id": 52,
+      "prompt": "Ticket 09 除真机 A1 外已全部通过。A1 要求安装或覆盖安装当前 ticket 生成的测试 APK，运行 cases 后卸载；同时用 adb 在 /data/local/tmp/mllm-memory 推送 9 个测试文件、设置执行权限并运行 9 个 HTP/ABI cases。现在是否要先停下来问我允许执行设备操作？",
+      "expected_output": "不询问。supervisor 先运行 adb devices -l；如果存在满足 ticket 条件且状态为 device 的物理设备，直接选择该设备，安装或覆盖安装当前 ticket 的 APK，运行声明的验证并按需要卸载；卸载按 Android 正常语义删除该 package 数据也属于已授权步骤。同时在 ticket 专用 /data/local/tmp/mllm-memory 目录推送声明的 9 个文件、设置执行权限、运行 9 个 cases，并保存命令、exit code、输出和 runtime_observations。只有没有可用物理设备时才以 evidence_unavailable 阻塞并报告实际状态；连接设备后直接重试。自动边界不包含无关应用、直接 pm clear、其他应用数据或系统设置、无关设备文件、root/remount/reboot、credential 或 external service。",
+      "files": [],
+      "expectations": [
+        "Runs adb devices -l before the real-device gate and does not ask for a second permission when an eligible physical device is usable.",
+        "Directly installs, replaces, or uninstalls the current ticket's APK/package and performs the ticket-declared push, chmod, case execution, and runtime evidence capture.",
+        "Blocks with evidence_unavailable only when no eligible physical device is in state device and reports the observed adb states.",
+        "Keeps unrelated applications, direct pm clear, other application-data changes, system settings, root/remount/reboot, credentials, and external services outside the automatic device lane."
+      ]
+    },
+    {
+      "id": 53,
+      "prompt": "Ticket 07 已经记录 discovery、closure 和 regression_closure，第三轮仍失败。现在预算耗尽了；请把当前 run-metrics.jsonl 放到 epoch-1，创建 epoch-2/run-metrics.jsonl，用新的 run-start 继续 Review-4。",
+      "expected_output": "拒绝。orchestrator 保留并继续使用独立的 <artifact-root>/<feature>/review-budget.jsonl；review_budget.py 拒绝重复 phase 和第四轮。移动或新建统计日志不能改变执行预算，统计脚本无权控制执行。Ticket 07 及其后代保持 blocked，独立 frontier tickets 可以继续；即使后来用户作出新的实质 authority 决定，execute 也直接修正 spec/未完成 tickets，但不能借新 run-start 或新日志重置已经耗尽的 ticket review budget。",
+      "files": [],
+      "expectations": [
+        "Keeps the independent canonical review-budget ledger across pauses and run-start changes; metrics never control execution.",
+        "Rejects epoch or chain paths and any fourth or duplicate ticket-review phase.",
+        "Leaves the exhausted ticket and its descendants blocked while allowing independent frontier tickets to continue.",
+        "Does not use an execute-time authority repair to reset the exhausted review budget."
+      ]
+    },
+    {
+      "id": 54,
+      "prompt": "请只说明 supervisor 下一步，不执行工具。ticket 已获 scope_accepted 且锁定 tdd；稳定 PublicClient.submit 行为测试已真实失败，原因是新 codec 与 adapter 尚未接通。目标行为与 seam 无歧义，修复涉及三处内部修改，现有失败测试覆盖整个缺口。reviewer 建议每改一个 helper 都先加一条失败测试，再改 helper 使其通过。",
+      "expected_output": "supervisor 继续在已有失败行为测试保护下完成三处修改，再重跑同一测试及必需检查；不为 helper 或半成品补造红灯，不改变整票 tdd 模式。review 修复时已有失败测试同样足够。",
+      "files": [],
+      "expectations": [
+        "Uses the existing observed failing stable behavior test for the covered gap.",
+        "Permits continuous implementation and wiring without per-helper red-green cycles.",
+        "Keeps ticket-wide tdd and required acceptance checks."
+      ]
+    },
+    {
+      "id": 55,
+      "prompt": "请只给 closure disposition，不执行工具。原 finding 是文件复制成功后登记到动态数组时扩容失败会遗留文件。最终候选已在任何复制前预分配完整容量，审查已确认复制后不会扩容，受影响的资源清理行为回归通过。spec 要求资源清理，不要求特定动态数组实现，ticket 的字面 verifier 也没有固定扩容注入点。reviewer 仍要求新增 factory，在已消失的扩容点注入 OOM，才能关闭原 finding。",
+      "expected_output": "reviewer 根据最终结构消除证据与受影响回归关闭该机制对应 finding，拒绝新增 factory 或重建失败点；保留独立要求的资源失败场景与尚未完成门禁，不把结论扩大成所有 OOM 都已验证。",
+      "files": [],
+      "expectations": [
+        "Closes the eliminated mechanism with structural evidence and affected behavior regressions.",
+        "Does not recreate the removed failure or add test-only injection.",
+        "Preserves independent product failure requirements and outstanding gates; does not claim universal OOM coverage."
+      ]
+    },
+    {
+      "id": 56,
+      "prompt": "请只给下一步诊断决定，不执行工具。资源测试失败：进程 FD 总数减少 1，新增 targets 为空，移除的是 /dev/null，当前没有本请求 receiver 残留证据。spec 要求本请求源 FD、receiver、transport 临时资源正确关闭，不要求整个进程 FD 集合恒定。执行者准备改生产代码把 FD 总数稳定住。",
+      "expected_output": "supervisor 先核对源 FD、receiver 和 transport 资源归属及直接关闭证据，把进程计数差异视为待解释的观测而非已证实泄漏；不修改生产代码稳定指标，也不凭净计数未增宣布零泄漏。验证器若被证明误拒权威结果，按现有修复流程纠正。",
+      "files": [],
+      "expectations": [
+        "Does not infer a product leak from the process-wide count decrease.",
+        "Requires request-resource attribution and direct closure evidence before claiming success.",
+        "Does not change production merely to stabilize the metric or silently weaken acceptance."
+      ]
+    },
+    {
+      "id": 57,
+      "prompt": "请只给执行决定，不执行工具。当前 ticket 的九行真机 transport 矩阵是 spec 明确要求的后续多图片票开工前置条件，其中一行尚未通过。编译和普通单元测试都通过了。执行者引用“不追求半成品完美验证”，想先把当前票标 done 并推进下一票。",
+      "expected_output": "supervisor 保留明确前置门禁，不标 done、不解锁依赖票；对失败行按合同诊断并在授权范围内修复，随后执行要求的复验；不额外扩展无关验证，也不以缺少完整产品为由豁免。",
+      "files": [],
+      "expectations": [
+        "Does not waive the explicit prerequisite runtime gate.",
+        "Does not mark done or unlock the dependent ticket before required evidence passes.",
+        "Routes the failure to bounded diagnosis/repair without inventing extra product requirements."
+      ]
+    },
+    {
+      "id": 58,
+      "prompt": "当前票 scope 已精确声明且没有 permitted discovery。权威哈希、直接 blocker 的 Produces、当前 seam 声明均一致，票据唯一 non-mutating selector 得到预期 No tests found。supervisor 还没细读所有机械迁移调用方的 helper body。请给出当前执行决定和最小 scope_ready 内容，不运行工具。",
+      "expected_output": "允许引用已验证票据章节给出 scope_ready，mode/lane明确，报告当前probe结果；无需全部helper分析，无新扫描/最终验收；orchestrator检查快照即放行，指标随后；对应代码修改前仍读调用者。",
+      "files": [],
+      "expectations": [
+        "允许引用已验证票据章节给出 scope_ready，mode/lane明确，报告当前probe结果；无需全部helper分析，无新扫描/最终验收；orchestrator检查快照即放行，指标随后；对应代码修改前仍读调用者。"
+      ]
+    },
+    {
+      "id": 59,
+      "prompt": "当前票的 source/check/witness 都可通过哈希匹配的章节引用解析，但直接 blocker 的当前 Produces 返回类型与票据 Consumes 不同，并且必须先通过的资源回收设备门禁没有完成证据。内部迁移方案很明确。请给执行决定，不运行工具。",
+      "expected_output": "阻塞前置完成与接口不一致，不因精简预检放行；诊断明确缺口并走原authority流程，不盲目重读无关历史或用编译替代门禁。",
+      "files": [],
+      "expectations": [
+        "阻塞前置完成与接口不一致，不因精简预检放行；诊断明确缺口并走原authority流程，不盲目重读无关历史或用编译替代门禁。"
+      ]
+    },
+    {
+      "id": 60,
+      "prompt": "Standards、Spec discovery 已完成并冻结 finding S1、P1，原两个 reviewer 可继续。修复快照已验证，需要非micro closure。执行者准备新开两位reviewer，再完整检查之前未变化的代码。请给执行决定，不运行工具。",
+      "expected_output": "复用两个原reviewer分别做新快照closure，提供冻结finding原oracle修复hunks与hash；不重新discovery、不复用旧PASS；不可用才替换且预算不重置。",
+      "files": [],
+      "expectations": [
+        "复用两个原reviewer分别做新快照closure，提供冻结finding原oracle修复hunks与hash；不重新discovery、不复用旧PASS；不可用才替换且预算不重置。"
+      ]
+    },
+    {
+      "id": 61,
+      "prompt": "final integration discovery 发现原已完成 ticket03 的两个同owner兼容 findings。high-risk targeted review 第一次失败，修复后第二次仍失败。有人要创建 03-final-fix-2 再审，或直接进入累计final closure。请给执行决定，不运行工具。",
+      "expected_output": "同轮失败final_review与原ticket03固定一个批次，两个findings合并；两轮耗尽阻塞，不造新ticket/batch、不改lane、不放行累计closure；保留报告与预算。",
+      "files": [],
+      "expectations": [
+        "同轮失败final_review与原ticket03固定一个批次，两个findings合并；两轮耗尽阻塞，不造新ticket/batch、不改lane、不放行累计closure；保留报告与预算。"
+      ]
+    },
+    {
+      "id": 62,
+      "prompt": "Final reviewer 看到已验收且字节未变化的 ticket-local schema validator，认为应更严格，标记为 integration P2；未指出producer/consumer冲突，spec也无更严格要求。集成边界和final gates均正常。请给处置决定，不运行工具。",
+      "expected_output": "没有具体跨票边界或authority的要求为review-drift；supervisor 保留 frozen report/hash，在既有 disposition 中对同一 candidate 记录 finding 撤回或修正，必要时取得原 reviewer 判断，不改写历史报告，不改代码/测试/开新审。真实但无关P2才backlog，不重审已验收语义。",
+      "files": [],
+      "expectations": [
+        "没有具体跨票边界或authority的要求为review-drift；保留 frozen report/hash，在既有 disposition 对同一 candidate 记录 finding 撤回或修正，不改写历史报告，不改代码/测试/开新审；真实但无关P2才backlog，不重审已验收语义。"
+      ]
+    },
+    {
+      "id": 63,
+      "prompt": "02 预检：blocker 的已验收 ModelConfig 构造函数删除已导致 compileDebugKotlin 失败，02 的 scope 和 Consumes 明确负责迁移全部调用方。另三个预检都依赖同一编译任务；还有独立的 source-policy 安全检查。现在如何继续？如果其中一项是未通过不得修改数据的显式前置安全门禁，处理是否相同？",
+      "expected_output": "记录直接依赖和一次失败证据，标记三个预检被遮蔽而非通过，继续独立检查和已授权调用方迁移；修复后执行必需检查。显式前置安全门禁不能被遮蔽规则豁免。",
+      "files": [],
+      "expectations": [
+        "Does not rerun commands that can only hit the proven same prerequisite failure",
+        "Records masked checks as unproved and executes them after migration",
+        "Does not defer explicit prerequisite safety gates"
+      ]
+    },
+    {
+      "id": 64,
+      "prompt": "02 的最终行为测试和精确 JUnit method 集合已验证。A2–A5 共享同一 runner，已有失败传播证据。随后删除了一处在同一锁内必然已执行的重复 phase=null，正常行为检查通过。旧票还字面要求对每个分支变异并重放。下一步是什么？",
+      "expected_output": "核对 producer/fixture/oracle/runner 的适用边界并复用未失效证据，不默认逐分支制造失败；旧票明确的变异重放要求先经有权威依据的合同修正，否则仍遵守或报告无法修正的边界。",
+      "files": [],
+      "expectations": [
+        "Separates execution integrity from behavioral assertions",
+        "Does not invalidate unrelated evidence merely because a redundant line changed",
+        "Does not silently waive an explicit legacy probe contract"
+      ]
+    },
+    {
+      "id": 65,
+      "prompt": "03 closure 只发现摘要把 source-policy 日志引用错了。完整原始日志、exit=0、hash 和候选都可信且未变。另一个版本只剩 compile 尾部，没有任何 policy 结果。分别如何关闭？公开源码仅改注释且 Gradle 返回 UP-TO-DATE 时又如何判断？",
+      "expected_output": "前者核对原始证据并在既有 disposition 更正，无 reviewer/测试/staging；后者先找原始证据，确实缺失则只补 policy 所需检查。注释和缓存按受影响输入、产物和契约判断，不机械全量 --rerun-tasks；保持 frozen artifact 完整性。",
+      "files": [],
+      "expectations": [
+        "Distinguishes incorrect summaries from missing execution evidence",
+        "Preserves frozen reports and logs",
+        "Does not reject valid build cache or bypass an explicit freshness contract"
+      ]
+    },
+    {
+      "id": 66,
+      "prompt": "下载模型的真机五场景回归在相同代码上失败两次，失败时只有 instrumentation 输出。改成预置模型后通过。01–03 都标 done，MLLM 推送已被用户明确豁免，另一个必需交付门禁仍没运行。请给出下一次运行安排和最终状态。",
+      "expected_output": "在已有权限内安排有问题、有界限并保留完整失败现场的诊断，不循环直到绿；预置模型结果不能证明下载路径，历史失败未关闭。分别报告实现、验收和交付，保留未运行门禁，引用用户豁免而不重新阻塞或记为PASS。",
+      "files": [],
+      "expectations": [
+        "Captures useful failure evidence before overwriting it and bounds diagnosis",
+        "Does not substitute a preseeded-model success for downloaded-model acceptance",
+        "Separates implementation acceptance and delivery and preserves exact waivers"
+      ]
+    },
+    {
+      "id": 67,
+      "prompt": "08 final gate 当前 authority 只要求一个 Customer 真机 class，07 PPA 是明确 Consumes 的已验收证据，LAN 有用户留置。旧命令选34个测试，从 route.log 找其实写在 instrumentation test-results.log 的 T4 marker，QI_SERIAL 尚未赋值。请给出下一步，不操作设备。若 authority 要求 fresh PPA 或完整34测试呢？",
+      "expected_output": "运行前核对 selector、参数来源、writer与parser并修正旧合同命令；按授权消费07，不重跑34测试或在错误日志找marker。fresh PPA/完整套件若被明确要求则不能缩小或用旧结果代替。",
+      "files": [],
+      "expectations": [
+        "Resolves required parameters and the real marker artifact before costly execution",
+        "Uses only authorized selectors and blocker evidence",
+        "Repairs a stale literal gate through authority repair; preserves fresh/full-suite requirements"
+      ]
+    },
+    {
+      "id": 68,
+      "prompt": "改动中的验收脚本只有两端各3个64hex的检查，registry由脚本常量输出；已启动后台instrumentation后，一个rg失败经set -e退出。已有日志和installed APK可读，真实真机运行尚未开始。如何最省成本完成这票？",
+      "expected_output": "在现有witness检查真实观察、比较和失败清理，修为需求要求的实际hash值/顺序/唯一性、installed role证据及现有cleanup owner；已有证据可离线使用，然后跑声明验收，不新增review轮、mutation矩阵或生产instrumentation。",
+      "files": [],
+      "expectations": [
+        "Rejects shape/count-only and self-reported-role oracles",
+        "Checks reachable early failure cleanup through the existing owner",
+        "Uses existing artifacts before runtime and still runs required acceptance"
+      ]
+    },
+    {
+      "id": 69,
+      "prompt": "Final discovery只留下INT-001，归已完成ticket05。之后唯一修复是05的published-consumer脚本，两个targeted reviewers均PASS并明确覆盖全部finding和影响边界。当前staged bytes与该候选完全一致，其他accepted内容不变，所有必需gate有效，index和hash一致。怎样结束？",
+      "expected_output": "orchestrator核对完整frozen set、所有修复、两轴报告和当前候选/门禁；在既有index记录closed-by-targeted-review及原final round/owner/evidence。不派累计closure，不篡改final FAIL或补造累计PASS event；resume用同一证据核对。",
+      "files": [],
+      "expectations": [
+        "Uses the single-owner closeout only after complete initial and targeted reviews",
+        "Retains historical final FAIL and actual targeted PASS events",
+        "Records a durable index disposition bound to current candidate and verifies it on resume"
+      ]
+    },
+    {
+      "id": 70,
+      "prompt": "同一final round里05的修复已targeted PASS，但06还改了另一个owner；另一种情况只有05，但targeted PASS后有人改了verifier命令；第三种情况没有initial integration review。能否省掉累计closure？",
+      "expected_output": "三种均不能凭05 PASS直接结束；多owner补齐各自assurance后保留正常累计closure；后改命令先修复/重验与必要assurance，旧targeted证据不足。若standard PASS后追加non-micro修复，既有预算不允许再targeted，必须blocked，不能用剩余累计轮次代替。未做initial review必须执行它；预算不因fallback或新batch重置。",
+      "files": [],
+      "expectations": [
+        "Rejects multiple actual owners despite a single ticket label",
+        "Rejects stale evidence after a verification-command change",
+        "Does not skip initial integration discovery or reset review budget",
+        "Blocks when a later non-micro repair invalidates targeted PASS and no legal targeted round remains, even if cumulative rounds remain"
+      ]
+    },
+    {
+      "id": 71,
+      "prompt": "包内 run-metrics.md 缺失。恢复基线、snapshot 和独立 review-budget 均有效；implementation_ready 的 checks 有 command/exit_code/result/log，duration_ms 缺失或为 null。随后另一已完成 owner 的首次 standard final targeted repair 已具备 failing final review 与 verified non-micro repair 证据。分别说明状态处理及 targeted 派发/记录工具，不实际运行。",
+      "expected_output": "统计说明和耗时缺失不阻塞或退回状态报告，按实际实现证据继续 snapshot/assurance，不为计时重跑检查。targeted round 使用独立 review_budget.py validate/record 与 review-budget.jsonl，核验两轴结果后记录预算；统计写入可跳过。真实预算或验收证据不足仍阻塞对应操作。",
+      "files": [],
+      "expectations": [
+        "Does not block on missing metrics instructions or absent/null check duration.",
+        "Does not rerun checks or request envelope repair solely for timing.",
+        "Uses review_budget.py for final_repair_review dispatch and verified results, never metrics_state.py.",
+        "Retains required evidence and review-budget checks independently of optional statistics."
+      ]
+    },
+    {
+      "id": 72,
+      "prompt": "Ticket 07 新增一个真机验收方法，并在发布测试 APK 入口声明了它。静态事实：fixture app/build.gradle 只声明 androidx.test:core:1.5.0 与 androidx.test.ext:junit:1.1.5；测试 APK manifest 声明 androidx.test.runner.AndroidJUnitRunner，但 host/test dex 都缺该类；真机 instrument 结果为 ClassNotFoundException、process crashed、0 tests。目标设备到后续 ticket 03 的依赖完成后才可用。执行者想用 host 编译成功证明入口可启动，并要求作者现在补齐整套设备矩阵。请给出本票完成前的执行决定。若该依赖直到 final 才满足呢？",
+      "expected_output": "本票可判定的接线/参数/断言缺陷由本票实现 owner 在 completion 前解决。启动实测与合法输入可达性交给具名最早可行 owner（后续 ticket 或 final owner）在依赖满足后、完整昂贵矩阵前做最小探测；不要求 author 提前实现整套设施，也不新增准备票。host 编译成功不是入口可启动或行为证据；最小探测只证明覆盖范围，显式票内检查与 final gates 仍按原合同执行。",
+      "files": [],
+      "expectations": [
+        "Names the earliest applicable later owner and its dependency condition instead of front-loading hardware",
+        "Keeps now-decidable runner/build-wiring/parameter/assertion fixes with the current ticket owner",
+        "Rejects compile success as startup or behavior evidence",
+        "Keeps the original ticket checks and final gates binding without adding a preparation ticket"
+      ]
+    },
+    {
+      "id": 73,
+      "prompt": "final gate 失败后的 R8 修复链：attempt-2 修掉 runner/lazy 初始化后，JUnit 已进入方法，随后在 PublishedSdkRuntimeInstrumentationTest.kt:26 的 configPath.isBlank() 因 R8 移除共享 host Kotlin 方法报 NoSuchMethodError；attempt-3 变为 ActivityScenario.<clinit> 无法解析 androidx.lifecycle.Lifecycle$State（target method line29，未加载模型、未到 JNI）。两次都只是同一 R8 启动链未通，且每轮都陪跑了与该失败无关的 input/LAN/Parcel selector（均 PASS），capacity 因模型 MTP unavailable 为 NOT RUN。已记录合同：G-PUBLISH 与 G-DEVICE 均 always-run（设备/模型/JNI/网络为外部状态，不允许以历史 runtime 证据替代本次门禁）；保留限制含 No review-budget reset。用户要求继续修复。请给出修复 owner 的下一步。若下一轮 R8 启动通过、其他组件尚未在该候选上执行呢？",
+      "expected_output": "中间候选只运行能回答当前失败的最小授权检查，不自动整套陪跑、不新增 review round、不重置诊断预算；显式先决门禁不延后。候选进入可验收状态后，由 final-gate supervisor 按原合同对该候选执行所需 gates 和 closure；局部 selector PASS 不构成整 gate PASS，always-run/reusable 与 fresh-runtime 保持原义。诊断超出 scope/授权/预算时走既有停止/报告流程，不能一直以“仍在诊断”绕过验收。",
+      "files": [],
+      "expectations": [
+        "Keeps intermediate repairs on the smallest authorized diagnostic instead of escorting unrelated selectors",
+        "Does not open a new review round or reset the diagnostic budget",
+        "Runs the candidate's required gates only when it is ready for acceptance, preserving explicit prerequisite order",
+        "Does not convert a localized selector PASS into a gate PASS or add prior-PASS retention"
+      ]
+    },
+    {
+      "id": 74,
+      "prompt": "04 的 blocker 记录：选定设备 ASQH015913000159 不在 adb（只见 AS6V015711000153，state device）；工单原定 LAN endpoint 无 18443 listener、服务未运行；一次凭据 GET 在自动审批阶段被拒绝、未发送任何凭据。恢复条件要求用户恢复该设备或在受控选择中记录替换设备/模型决定，再重新校验同一字节选择、模型/配置、live LAN server 与冻结 AAR 后才 scope_ready。随后用户决定：Android 测试设备换为 AS6V015711000153，LAN 目标换为 https://30.221.168.82:18443（另一台设备）；该选择记录中 readiness 为 not yet verified。orchestrator 现在要恢复 04。请给出重新派发前的核对与动作。若用户又报告设备已连接、新地址服务已启动并给出新的凭据使用确认呢？",
+      "expected_output": "先读准 blocker 记录的失败原因、目标、获准命令与恢复条件，只做权限内最小外部恢复检查；条件未恢复时保留阻塞与证据、继续独立 frontier，不反复派发 supervisor 读相同代码、不加轮询。凭据被拒时无新授权不重试、不换通道。用户换设备/地址时先按 authority 消费决定，再对新目标执行必要的最小恢复检查；决定不替代新目标实际可用性，未核对前不恢复完整准入。条件确已恢复才交对应 owner，并仍完成 checkpoint/authority/工作区与必要检查核验；外部探测成功不是行为验收 PASS，旧目标证据不能替代新目标证据，无已知阻塞的 run 不新增全局环境预检。",
+      "files": [],
+      "expectations": [
+        "Checks the recorded recovery condition with a minimal authorized probe before resuming full admission",
+        "Does not retry the rejected credential or use an alternate channel without new authorization",
+        "Treats external recovery as reachability evidence, not behavior acceptance",
+        "Consumes a user target change through authority and verifies the new target before resuming; the decision is not recovery and prior-target evidence cannot substitute"
+      ]
+    },
+    {
+      "id": 75,
+      "prompt": "final gate 阶段，真机上的门禁 G4 因一个已知原因失败：G4 依赖的采集前置在同一失败轮里已被 supervisor 完成失败归属，但用户还没处置，且按 ticket 声明的显式先决顺序 G4 必须先等 G3 通过。随后 repair owner 修好了另一个与本失败无关的子问题（G1 的一个过滤参数），并跑了自己的针对性检查通过。orchestrator 现在要不要把整套 final gate（含昂贵的 G4 真机门禁）重新派发跑一遍？其余没有阻塞的 ticket 还能继续吗？",
+      "expected_output": "不因修好一个无关子问题就重新派发整套验收：沿用同一失败轮已有的失败证据作为归属、保留原 FAIL，repair owner 只运行回答自己修复或归属所需的针对性检查（其 selector PASS 不等于门禁 PASS），这类针对性运行与其余独立且获准的工作照常推进、不被拦下；冲突走既有 execution authority repair 或用户处置。只有当该轮所有相关已知阻塞项都已修复或按原权限处置、且候选准备好后，final-gate supervisor 才按原 always-run/reusable/fresh-runtime 和显式先决门禁顺序执行含昂贵 G4 真机门禁在内的完整验收，不重置预算、不新增“保留旧 PASS”的资格，因此不是全局停工。",
+      "files": [],
+      "expectations": [
+        "Does not re-dispatch the entire final gate suite because one unrelated sub-problem was repaired",
+        "Keeps the same failed round's existing evidence as the attribution and preserves the original FAIL",
+        "Repair owner runs only the targeted check answering its own fix or attribution; a localized selector PASS is not a gate PASS",
+        "Routes the unresolved known blockers through existing execution authority repair or a user disposition",
+        "Runs the full acceptance, including the expensive real-device gate, only after all known blocking issues for that round are repaired or dispositioned under the original authority and the candidate is ready, under the original always-run/reusable/fresh-runtime and explicit prerequisite-gate order without resetting the budget",
+        "Continues independent authorized work and the targeted attribution/repair runs rather than stopping the whole run"
+      ]
+    },
+    {
+      "id": 76,
+      "prompt": "一张票新增了一个命名的集成测试入口，它需要客户端已连接才能独立跑起来，但入口内部才隐式要求一个已连接的 client，票里没有声明这个前置。ticket supervisor 在 scope / verification 阶段该怎么处理这个入口的可运行性？如果确认这个连接前置要等未来依赖才具备，又该如何安排？",
+      "expected_output": "命名入口独立启动所需的初始化、连接、参数属于“当前就能判定”的问题，由本票实现负责人在票内核对并写进既有 verification trace。缺少先决连接这类前置是当前就能发现的合同缺口：scope_accepted 前只识别该缺口；若要修正票据合同，走既有 execution authority repair、由既有 owner 执行，supervisor 不自行编辑票据或代码。入口的实际代码修正留在 scope_accepted 后、本票 completion 前由实现负责人完成，不留给首次真机失败才暴露。确实需要未来设备或未就绪依赖的启动实测与合法输入可达性，交给具名的最早合法负责人在依赖就绪后、完整昂贵矩阵开始前用最小必要探测确认；已有直接证据复用、不重复探测已知事实，新的失败仍按原诊断预算处理，也不要求作者提前建好整套 fixture 或每张票都上硬件。",
+      "files": [],
+      "expectations": [
+        "Treats a named entry's independent-startup initialization/connection/parameter preconditions as decidable-now items owned by this ticket's implementation owner before completion",
+        "Identifies the missing connected-client precondition before scope_accepted; when it requires a ticket contract correction, the existing owner applies it through the existing execution authority repair rather than the supervisor editing the ticket, and no code fix happens before scope_accepted",
+        "Assigns startup execution and legal-input reachability that need a future dependency to the earliest applicable named owner after the dependency is ready",
+        "Uses the smallest necessary probe in that stage and reuses valid direct evidence instead of re-probing known facts",
+        "Does not require building the whole fixture early or putting every ticket on hardware"
+      ]
+    },
+    {
+      "id": 77,
+      "prompt": "某张票修好了源码里的一处缺陷。真机上有一条设备测试 PASS 的日志，但它的时间戳早于这次源码修复；设备上装的仍是修复前构建并安装的旧 APK，而且现有构建产物到安装的记录里找不到把这次修复纳入已安装产物的对应关系。能把这条设备 PASS 当作本次修复的证据吗？正确的核对方式与重建边界是什么？",
+      "expected_output": "不能。源码已改、一条早于修复的旧 build succeeded 或设备 PASS 日志、以及设备上仍是修复前安装的旧 APK，都不证明“实际安装/运行的产物含此修复”。supervisor 要先把这次修复对应到设备上实际安装/运行的产物身份，才让该门禁结果代表这次修复：优先复用现有构建输入、产物与安装记录来建立该对应；只有对不上、且契约需要时，才只重建与本次修复相关的那个产物。边界：不要求每次 hash 必变、不强制全量重建、也不要求每张票都提前上设备。",
+      "files": [],
+      "expectations": [
+        "A source edit, a build-success or device-PASS log that predates the fix, and an old APK still installed from before the fix do not prove the installed/run artifact carries the fix",
+        "Confirms the artifact actually installed or run includes the repair before letting the gate result represent it",
+        "Binds the repair to the installed/run artifact identity from existing build, artifact, and install records before rebuilding",
+        "Rebuilds only the relevant artifact when those records cannot establish the correspondence",
+        "Does not require the hash to change every time, force a full rebuild, or move every ticket onto hardware early"
+      ]
+    }
+  ]
+}

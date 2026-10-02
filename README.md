@@ -4,8 +4,8 @@
 
 本文档记录本机（macOS）当前的 skill 全貌，分三层：仓库自建、全局安装、项目级。全局安装的 skill 由 [`skillctl`](#六用-skillctl-管理全局-skill) 按仓库根目录的 `skills.json` 安装，来源仓库以它为准。
 
-- 自建 skill：8 个（`skills/`）
-- 全局安装：35 个（`~/.agents/skills/`，`~/.claude/skills/` 下是指向它的软链接）
+- 自建 skill：14 个（`skills/`）
+- 全局安装：63 个（`~/.agents/skills/`，`~/.claude/skills/` 下是指向它的软链接）
 - 项目级：6 个（`personal_ai_infrastructure/.claude/skills/`）
 - 外部聚合：7 个仓库，共 200 个 skill（`third_party/`）
 
@@ -15,16 +15,24 @@
 
 | Skill | 用途 | 源仓库 | 全局已装 |
 |---|---|---|:---:|
+| `audit-docs-landscape` | 仓库级文档全景审计。找出文档缺口、导航与可发现性问题，梳理新人阅读路径；单篇文档的可读性交给 `optimize-docs-readability` | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ❌ |
 | `clarify-life-direction` | 人生方向澄清。回溯经历、澄清愿景、定义反愿景、倒推路径，把「不知道自己想要什么」变成可执行方向 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
 | `clarify-thought` | 命题分解与决策澄清。维特根斯坦 + 苏格拉底 + 波兰尼三层架构，把模糊想法拆成精准指令或清晰决策 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills)（原作者 riiiku） | ✅ |
 | `create-blueprint` | 生成工程蓝图风格技术图表，支持箭头、连线、关系标注，用于架构图与流程图 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
 | `creator-signal-digest` | 创作者信号雷达周报。扫描中文圈/英语圈 AI 创作者账号，筛选 AI 实操与副业信号 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ❌ |
+| `deep-research-with-verification` | 带独立事实核查的深度研究。完整复用 `hv-analysis` 的研究流程，初稿后追加独立核查与修复，以 Markdown 交付 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ❌ |
+| `execute-tickets` | 按依赖顺序执行已准备好的实现 ticket，逐张实现、验证、评审，支持多仓库和中断后续跑 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ❌ |
 | `explain-concept` | 概念通俗讲解与可视化。输出生活化例子、记忆方法，适合时按概念结构选 mermaid / SVG / HTML 出图 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ❌ |
+| `optimize-docs-readability` | 长文可读性优化。起草或大改面向人的长文后自动检查清晰度，保留事实、引用与必要限定；显式审阅时只给问题和改写建议 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ❌ |
 | `optimize-prompt` | 提示词优化。基于 57 个提示词框架选择合适结构，先澄清目标、受众、上下文再改写 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
 | `publish-site` | 管理个人 Vantage 站点，把已准备好的内容转成双主题编辑风格 HTML 报告并发布 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
 | `send-email` | 通过 SMTP 发送邮件，支持 Markdown 转 HTML、附件、多收件人与 CC/BCC | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
+| `write-implementation-tickets` | 把仓库里的规格拆成 agent 能独立执行的实现 ticket，写明边界、验证方式和依赖 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ❌ |
+| `write-okr` | 把工作方向、技术规划或草稿整理成简洁、可验收的 OKR，区分交付承诺、探索验证和采用门槛 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ❌ |
 
 > `clarify-thought` 迁移自独立仓库 `Viva5649/clarify-skill`，原作者 riiiku（MIT，署名保留在 `skills/clarify-thought/LICENSE`）。
+>
+> `docs/design/` 下是 `audit-docs-landscape` 等 6 个 skill 的设计说明，解释设计思路和边界，运行时行为以各自的 SKILL.md 为准。
 
 ---
 
@@ -53,13 +61,16 @@
 
 | Skill | 用途 | 源仓库 | `third_party/` 收录 |
 |---|---|---|:---:|
-| `agent-browser` | 浏览器自动化 CLI，导航、填表、截图、抓数据、测试 Web 与 Electron 应用 | [vercel-labs/agent-browser](https://github.com/vercel-labs/agent-browser) | ❌ |
 | `ego-browser` | ego lite 浏览器自动化，可复用用户已登录的网站与上下文，做网页操作、表单填写、截图、Web 应用测试 | [ego lite](https://lite.ego.app/)（随应用安装，非 GitHub） | ❌ |
 | `qiaomu-goal-meta-skill` | 把模糊任务转成结构化 Codex `/goal` 指令，含验收标准与边界条件 | [joeseesun/qiaomu-goal-meta-skill](https://github.com/joeseesun/qiaomu-goal-meta-skill) | ❌ |
 | `neat-freak` | 知识收尾。把项目文档、CLAUDE.md/AGENTS.md、agent 记忆和当前代码实际行为对齐 | [KKKKhazix/khazix-skills](https://github.com/KKKKhazix/khazix-skills) | ✅ |
 | `codebase-documenter` | 代码库文档撰写。README、架构说明、API 文档、上手指南 | [ailabs-393/ai-labs-claude-skills](https://github.com/ailabs-393/ai-labs-claude-skills) | ❌ |
 | `spec-miner` | 逆向工程。从无文档的遗留代码库里反推规格、依赖图与业务逻辑 | [jeffallan/claude-skills](https://github.com/jeffallan/claude-skills) | ❌ |
 | `smell` | 架构坏味道与复杂度热点检测，输出反模式违规的 markdown 报告 | [smallnest/goal-workflow](https://github.com/smallnest/goal-workflow) | ❌ |
+| `refactor` | 按 Martin Fowler 的重构目录改善代码，处理坏味道、提炼函数、简化条件，不改变行为 | [smallnest/goal-workflow](https://github.com/smallnest/goal-workflow) | ❌ |
+| `ce-code-review` | 审查指定 diff 或 PR 的 bug、回归、测试与规范问题，也能把审查结论直接改到本地 | [EveryInc/compound-engineering-plugin](https://github.com/EveryInc/compound-engineering-plugin) | ✅ |
+| `ce-doc-review` | 用多个角色视角审阅需求、计划或规格文档 | [EveryInc/compound-engineering-plugin](https://github.com/EveryInc/compound-engineering-plugin) | ✅ |
+| `ce-simplify-code` | 实现完成、评审之前，简化刚改动的代码，提升清晰度、复用与效率，不改变行为 | [EveryInc/compound-engineering-plugin](https://github.com/EveryInc/compound-engineering-plugin) | ✅ |
 
 ### 信息获取 / 研究
 
@@ -80,6 +91,8 @@
 | `huashu-design` | HTML 高保真原型、幻灯片、动画、可视化，新设计强制先出三稿供选 | [alchaincyf/huashu-design](https://github.com/alchaincyf/huashu-design) | ❌ |
 | `baoyu-article-illustrator` | 文章配图。分析结构定位需要插图的位置，按类型 × 风格 × 配色三维生成 | [JimLiu/baoyu-skills](https://github.com/JimLiu/baoyu-skills) | ✅ |
 | `baoyu-cover-image` | 文章封面图。类型、配色、渲染、文字、情绪五维组合，支持 2.35:1 / 16:9 / 1:1 | [JimLiu/baoyu-skills](https://github.com/JimLiu/baoyu-skills) | ✅ |
+| `apple-design` | Apple 式界面设计与流体动效的 Web 实现，手势、弹簧动画、材质层次、排版与减弱动效 | [emilkowalski/skills](https://github.com/emilkowalski/skills) | ❌ |
+| `emil-design-eng` | Emil Kowalski 的 UI 打磨理念，组件设计、动画取舍与让软件手感更好的细节 | [emilkowalski/skills](https://github.com/emilkowalski/skills) | ❌ |
 | `show-me` | 把当前话题讲成图。按内容挑最小够用的形式，伪代码、diff 草图、mermaid 或单页 HTML | [humanlayer/skills](https://github.com/humanlayer/skills) | ❌ |
 | `create-blueprint` | 工程蓝图风格技术图表 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | 本仓库 |
 | `publish-site` | Vantage 站点报告发布 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | 本仓库 |
@@ -114,6 +127,36 @@
 | `gstack-plan-eng-review` | 工程经理视角的方案评审，审架构与实施计划 | [garrytan/gstack](https://github.com/garrytan/gstack) | ✅ |
 
 > 上游共 61 个 skill，这里只装了需要的几个，装法见「六」的 gstack 小节。
+
+### mattpocock（选择性安装）
+
+| Skill | 用途 | 源仓库 | `third_party/` 收录 |
+|---|---|---|:---:|
+| `mattpocock-ask-matt` | 路由入口，按你当前的情况推荐该用这套里的哪个 skill 或流程 | [mattpocock/skills](https://github.com/mattpocock/skills) | ✅ |
+| `mattpocock-code-review` | 审查从某个提交点起的改动，按仓库编码规范和原始需求两条线并行评审 | [mattpocock/skills](https://github.com/mattpocock/skills) | ✅ |
+| `mattpocock-codebase-design` | 深模块设计的共享词汇，用于设计模块接口、找加深机会、决定接缝位置 | [mattpocock/skills](https://github.com/mattpocock/skills) | ✅ |
+| `mattpocock-diagnosing-bugs` | 疑难 bug 与性能回退的诊断循环 | [mattpocock/skills](https://github.com/mattpocock/skills) | ✅ |
+| `mattpocock-domain-modeling` | 构建和打磨项目领域模型，维护术语表 `GLOSSARY.md` 与 ADR | [mattpocock/skills](https://github.com/mattpocock/skills) | ✅ |
+| `mattpocock-grill-with-docs` | 连续追问打磨计划或设计，边问边产出 ADR 和术语表 | [mattpocock/skills](https://github.com/mattpocock/skills) | ✅ |
+| `mattpocock-improve-codebase-architecture` | 扫描代码库找加深机会，出可视化 HTML 报告，再就选中的一项追问 | [mattpocock/skills](https://github.com/mattpocock/skills) | ✅ |
+| `mattpocock-pr` | 撰写 PR 描述 | [mattpocock/skills](https://github.com/mattpocock/skills) | ✅ |
+| `mattpocock-prototype` | 做一次性原型回答设计问题，验证状态模型、逻辑或 UI 方向 | [mattpocock/skills](https://github.com/mattpocock/skills) | ✅ |
+| `mattpocock-research` | 对照高可信的一手来源调研问题，结论存成仓库里的 Markdown | [mattpocock/skills](https://github.com/mattpocock/skills) | ✅ |
+| `mattpocock-retro` | 对一次编码会话做复盘 | [mattpocock/skills](https://github.com/mattpocock/skills) | ✅ |
+| `mattpocock-setup-matt-pocock-skills` | 首次使用前配置仓库的 issue 跟踪、分诊标签和领域文档布局，其他工程类 skill 依赖它 | [mattpocock/skills](https://github.com/mattpocock/skills) | ✅ |
+| `mattpocock-tdd` | 测试驱动开发，红绿重构，偏向集成测试 | [mattpocock/skills](https://github.com/mattpocock/skills) | ✅ |
+| `mattpocock-to-spec` | 把当前对话整理成规格并发布到项目 issue 跟踪器，不再追问 | [mattpocock/skills](https://github.com/mattpocock/skills) | ✅ |
+| `mattpocock-triage` | 按分诊角色的状态机推进 issue 和外部 PR，分类、核实，写成可交给 agent 的任务说明 | [mattpocock/skills](https://github.com/mattpocock/skills) | ✅ |
+| `mattpocock-wayfinder` | 规划超出单次会话容量的大块工作，在 issue 跟踪器上建决策工单地图并逐个解决 | [mattpocock/skills](https://github.com/mattpocock/skills) | ✅ |
+| `mattpocock-grill-me` | 连续追问，打磨计划或设计 | [mattpocock/skills](https://github.com/mattpocock/skills) | ✅ |
+| `mattpocock-grilling` | 对计划、决策或想法做高强度追问，压力测试你的思路 | [mattpocock/skills](https://github.com/mattpocock/skills) | ✅ |
+| `mattpocock-handoff` | 把当前对话压缩成交接文档，交给另一个 agent 接手 | [mattpocock/skills](https://github.com/mattpocock/skills) | ✅ |
+| `mattpocock-teach` | 在当前工作区里教你一个新技能或概念 | [mattpocock/skills](https://github.com/mattpocock/skills) | ✅ |
+| `mattpocock-to-questionnaire` | 把自己答不全的决策转成问卷，交给别人填写 | [mattpocock/skills](https://github.com/mattpocock/skills) | ✅ |
+| `mattpocock-wait-what` | 上一条回复没讲明白时，让 agent 停下来换个方式重讲 | [mattpocock/skills](https://github.com/mattpocock/skills) | ✅ |
+| `mattpocock-writing-for-agents` | 给 agent 写文档，用于创建或修改 skill、`AGENTS.md`、`CLAUDE.md` | [mattpocock/skills](https://github.com/mattpocock/skills) | ✅ |
+
+> 上游 `skills/engineering` 有 20 个，`skills/productivity` 有 7 个。这里装了 engineering 的 16 个和 productivity 的全部 7 个，`misc`、`in-progress` 没装。统一加 `mattpocock-` 前缀，因为其中 `tdd`、`triage`、`teach`、`retro`、`research`、`code-review` 都是保留泛名。
 
 ---
 
@@ -154,7 +197,6 @@
 
 | 源仓库 | 涉及 skill |
 |---|---|
-| [vercel-labs/agent-browser](https://github.com/vercel-labs/agent-browser) | `agent-browser` |
 | [ego lite](https://lite.ego.app/)（应用内置，无公开仓库） | `ego-browser` |
 | [vercel-labs/skills](https://github.com/vercel-labs/skills) | `find-skills` |
 | [Panniantong/Agent-Reach](https://github.com/Panniantong/Agent-Reach) | `agent-reach` |
@@ -166,8 +208,9 @@
 | [joeseesun/qiaomu-goal-meta-skill](https://github.com/joeseesun/qiaomu-goal-meta-skill) | `qiaomu-goal-meta-skill` |
 | [ailabs-393/ai-labs-claude-skills](https://github.com/ailabs-393/ai-labs-claude-skills) | `codebase-documenter` |
 | [jeffallan/claude-skills](https://github.com/jeffallan/claude-skills) | `spec-miner` |
-| [smallnest/goal-workflow](https://github.com/smallnest/goal-workflow) | `smell` |
+| [smallnest/goal-workflow](https://github.com/smallnest/goal-workflow) | `smell`、`refactor` |
 | [humanlayer/skills](https://github.com/humanlayer/skills) | `show-me` |
+| [emilkowalski/skills](https://github.com/emilkowalski/skills) | `apple-design`、`emil-design-eng` |
 
 ### 拉取与更新
 

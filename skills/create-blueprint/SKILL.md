@@ -25,25 +25,46 @@ Precise, Objective, High Data-Ink Ratio, Relationships Made Visible.
 - Use 1px or 2px solid borders for structure
 - Use white backgrounds for content blocks
 
-### 3. Monochrome Base
+### 3. Monochrome Base (Apple System Palette)
 
 ```css
 :root {
-  --c-bg: #f8fafc;
+  --c-bg: #f5f5f7;
   --c-canvas: #ffffff;
-  --c-border: #cbd5e1;
-  --c-text-main: #0f172a;
-  --c-text-sub: #64748b;
-  --c-accent: #dc2626; /* Semantic red — errors, critical paths only */
+  --c-border: #d2d2d7;
+  --c-hairline: #e8e8ed;
+  --c-text-main: #1d1d1f;
+  --c-text-sub: #6e6e73;
+  --c-tint: #0071e3;      /* Key color — the ONE path or node the reader should look at first */
+  --c-warn: #ff9500;      /* Semantic orange — warnings, degraded / fallback / retry paths */
+  --c-warn-text: #b25000; /* Orange for text on white (#ff9500 is too light for text) */
+  --c-accent: #d70015;    /* Semantic red — errors, critical paths only */
   --font-ui: system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: 'SF Mono', Monaco, Consolas, monospace;
 }
 ```
 
-- Background: Light Gray (#f8fafc)
-- Canvas: White (#ffffff) with Slate Border (#cbd5e1)
-- Text: High contrast Black (#0f172a) and Slate Gray (#64748b)
-- Accent: Use BLACK or ONE semantic color (e.g., `--c-accent` for errors) sparingly. Never use accent color for decorative purposes.
+The palette follows Apple's neutral system grays: an off-white page, pure white surfaces, near-black label text instead of pure `#000`, and quiet separators.
+
+| Token           | Hex       | Role                                                       |
+| --------------- | --------- | ---------------------------------------------------------- |
+| `--c-bg`        | `#f5f5f7` | Page background (Apple light gray)                         |
+| `--c-canvas`    | `#ffffff` | Diagram canvas, nodes, label masks                         |
+| `--c-border`    | `#d2d2d7` | Node and canvas borders                                    |
+| `--c-hairline`  | `#e8e8ed` | Layer dividers and other low-priority separators           |
+| `--c-text-main` | `#1d1d1f` | Titles, primary connectors and arrowheads                  |
+| `--c-text-sub`  | `#6e6e73` | Descriptions, connector labels, secondary connectors       |
+| `--c-tint`      | `#0071e3` | Key color: one highlighted path, node or badge per diagram |
+| `--c-warn`      | `#ff9500` | Warning lines, markers and borders (Apple system orange)   |
+| `--c-warn-text` | `#b25000` | Warning text and labels on white                           |
+| `--c-accent`    | `#d70015` | Errors and critical paths only                             |
+
+- Everything structural stays in grays. Color carries meaning, never decoration.
+- Each color has exactly one meaning: blue = "look here first", orange = warning (still works, but degraded, retried, rate-limited or deprecated), red = error. Pick the meaning first; never pick orange because the diagram "needs warmth". If every path is colored, none stands out.
+- Orange and red sit close in hue, so the warning style also differs in shape: warning connectors are dashed, error connectors are solid.
+- Orange uses two values: `#ff9500` for strokes, markers and borders, `#b25000` for text. `#ff9500` text on white is only 2.2:1, and Apple's own accessible orange (`#c93400`) is too close to the red to tell apart at 10px.
+- `--c-text-sub` (#6e6e73) is the lightest gray allowed for text; lighter grays such as `#86868b` fall below readable contrast at 10–11px.
+- The red is Apple's accessible system red (`#d70015`), not the brighter `#ff3b30`, so small red labels stay legible on white.
 
 ### 4. Typography
 
@@ -93,7 +114,7 @@ Insert a `.layer-arrow` div between two layers to draw a downward arrow:
   display: block;
   width: 1.5px;
   height: 100%;
-  background: #0f172a;
+  background: #1d1d1f;
 }
 
 .layer-arrow::after {
@@ -104,7 +125,7 @@ Insert a `.layer-arrow` div between two layers to draw a downward arrow:
   transform: translateX(-50%);
   border-left: 5px solid transparent;
   border-right: 5px solid transparent;
-  border-top: 6px solid #0f172a;
+  border-top: 6px solid #1d1d1f;
 }
 
 .layer-arrow__label {
@@ -114,7 +135,7 @@ Insert a `.layer-arrow` div between two layers to draw a downward arrow:
   transform: translateY(-50%);
   font-size: 10px;
   font-family: var(--font-mono);
-  color: #64748b;
+  color: #6e6e73;
   white-space: nowrap;
   background: #ffffff;
   padding: 0 4px;
@@ -126,18 +147,30 @@ Insert a `.layer-arrow` div between two layers to draw a downward arrow:
 ```css
 /* Dashed arrow (dependency / async) */
 .layer-arrow--dashed::before {
-  background: repeating-linear-gradient(to bottom, #64748b 0, #64748b 4px, transparent 4px, transparent 8px);
+  background: repeating-linear-gradient(to bottom, #6e6e73 0, #6e6e73 4px, transparent 4px, transparent 8px);
 }
 .layer-arrow--dashed::after {
-  border-top-color: #64748b;
+  border-top-color: #6e6e73;
 }
 
 /* Dotted arrow (event / lazy load) */
 .layer-arrow--dotted::before {
-  background: repeating-linear-gradient(to bottom, #64748b 0, #64748b 2px, transparent 2px, transparent 6px);
+  background: repeating-linear-gradient(to bottom, #6e6e73 0, #6e6e73 2px, transparent 2px, transparent 6px);
 }
 .layer-arrow--dotted::after {
-  border-top-color: #64748b;
+  border-top-color: #6e6e73;
+}
+
+/* Warning arrow (degraded / fallback / retry between layers) */
+.layer-arrow--warn::before {
+  width: 2px;
+  background: repeating-linear-gradient(to bottom, #ff9500 0, #ff9500 4px, transparent 4px, transparent 8px);
+}
+.layer-arrow--warn::after {
+  border-top-color: #ff9500;
+}
+.layer-arrow--warn .layer-arrow__label {
+  color: #b25000;
 }
 ```
 
@@ -149,18 +182,19 @@ For routing from one layer to multiple targets below (e.g., Router → multiple 
 <div class="layer-split">
   <svg width="100%" height="36" viewBox="0 0 700 36" preserveAspectRatio="xMidYMid meet">
     <defs>
-      <marker id="split-arr" viewBox="0 0 10 10" refX="5" refY="10" markerWidth="6" markerHeight="6" orient="auto">
-        <path d="M 0 0 L 5 10 L 10 0" fill="none" stroke="#0f172a" stroke-width="1.5" />
+      <!-- Drawn pointing right (+x); orient="auto" rotates it to follow the line downward -->
+      <marker id="split-arr" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10" fill="none" stroke="#1d1d1f" stroke-width="1.5" />
       </marker>
     </defs>
     <!-- Trunk -->
-    <line x1="350" y1="0" x2="350" y2="10" stroke="#0f172a" stroke-width="1.5" />
+    <line x1="350" y1="0" x2="350" y2="10" stroke="#1d1d1f" stroke-width="1.5" />
     <!-- Horizontal bar -->
-    <line x1="150" y1="10" x2="550" y2="10" stroke="#0f172a" stroke-width="1.5" />
+    <line x1="150" y1="10" x2="550" y2="10" stroke="#1d1d1f" stroke-width="1.5" />
     <!-- Left branch -->
-    <line x1="150" y1="10" x2="150" y2="36" stroke="#0f172a" stroke-width="1.5" marker-end="url(#split-arr)" />
+    <line x1="150" y1="10" x2="150" y2="36" stroke="#1d1d1f" stroke-width="1.5" marker-end="url(#split-arr)" />
     <!-- Right branch -->
-    <line x1="550" y1="10" x2="550" y2="36" stroke="#0f172a" stroke-width="1.5" marker-end="url(#split-arr)" />
+    <line x1="550" y1="10" x2="550" y2="36" stroke="#1d1d1f" stroke-width="1.5" marker-end="url(#split-arr)" />
   </svg>
 </div>
 ```
@@ -187,7 +221,7 @@ For visual separation between architectural layers without arrows (e.g., between
 .layer-divider {
   margin: 18px 0;
   border: none;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid var(--c-hairline);
 }
 ```
 
@@ -198,6 +232,7 @@ For visual separation between architectural layers without arrows (e.g., between
 | Vertical flow between adjacent layers  | **CSS `.layer-arrow`**                                 |
 | One source splits to 2-3 targets below | **Inline SVG `.layer-split`** (self-contained viewBox) |
 | Dashed/dotted variant arrows           | **CSS `.layer-arrow--dashed` / `--dotted`**            |
+| Degraded / fallback between layers     | **CSS `.layer-arrow--warn`**                           |
 | Visual separation without arrow        | **CSS `.layer-divider`** (simple `<hr>`)               |
 
 ---
@@ -218,37 +253,47 @@ Place these in the `<defs>` block of every diagram SVG. They define reusable arr
 <defs>
   <!-- Standard arrow (for data flow, calls, dependencies) -->
   <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto">
-    <path d="M 0 1 L 10 5 L 0 9 z" fill="#0f172a" />
+    <path d="M 0 1 L 10 5 L 0 9 z" fill="#1d1d1f" />
   </marker>
 
   <!-- Subtle arrow (secondary relationships) -->
   <marker id="arrow-sub" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto">
-    <path d="M 0 1 L 10 5 L 0 9 z" fill="#64748b" />
+    <path d="M 0 1 L 10 5 L 0 9 z" fill="#6e6e73" />
   </marker>
 
   <!-- Open arrow (interface / abstract dependency) -->
   <marker id="arrow-open" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto">
-    <path d="M 0 1 L 10 5 L 0 9" fill="none" stroke="#0f172a" stroke-width="1.5" />
+    <path d="M 0 1 L 10 5 L 0 9" fill="none" stroke="#1d1d1f" stroke-width="1.5" />
   </marker>
 
   <!-- Diamond (composition / ownership) -->
   <marker id="diamond" viewBox="0 0 14 10" refX="13" refY="5" markerWidth="10" markerHeight="8" orient="auto">
-    <path d="M 0 5 L 7 0 L 14 5 L 7 10 z" fill="#0f172a" />
+    <path d="M 0 5 L 7 0 L 14 5 L 7 10 z" fill="#1d1d1f" />
   </marker>
 
   <!-- Empty diamond (aggregation) -->
   <marker id="diamond-open" viewBox="0 0 14 10" refX="13" refY="5" markerWidth="10" markerHeight="8" orient="auto">
-    <path d="M 0 5 L 7 0 L 14 5 L 7 10 z" fill="#ffffff" stroke="#0f172a" stroke-width="1.5" />
+    <path d="M 0 5 L 7 0 L 14 5 L 7 10 z" fill="#ffffff" stroke="#1d1d1f" stroke-width="1.5" />
   </marker>
 
   <!-- Circle dot (association endpoint) -->
   <marker id="dot" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-    <circle cx="5" cy="5" r="3.5" fill="#0f172a" />
+    <circle cx="5" cy="5" r="3.5" fill="#1d1d1f" />
+  </marker>
+
+  <!-- Tint arrow (highlighted key path) -->
+  <marker id="arrow-tint" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+    <path d="M 0 1 L 10 5 L 0 9 z" fill="#0071e3" />
+  </marker>
+
+  <!-- Warning arrow (degraded / fallback / retry path) -->
+  <marker id="arrow-warn" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+    <path d="M 0 1 L 10 5 L 0 9 z" fill="#ff9500" />
   </marker>
 
   <!-- Accent arrow (error / critical path) -->
   <marker id="arrow-accent" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto">
-    <path d="M 0 1 L 10 5 L 0 9 z" fill="#dc2626" />
+    <path d="M 0 1 L 10 5 L 0 9 z" fill="#d70015" />
   </marker>
 </defs>
 ```
@@ -267,67 +312,76 @@ Use the following semantic classes to express different types of relationships:
 | `.conn--impl`      | Dashed 1.5px | —               | `#arrow-open`   | Implements / Realizes             |
 | `.conn--assoc`     | Solid 1px    | `#dot`          | `#arrow-sub`    | Weak association                  |
 | `.conn--event`     | Dotted 1.5px | —               | `#arrow`        | Event / async message             |
+| `.conn--warn`      | Dashed 2px   | —               | `#arrow-warn`   | Degraded / fallback / retry path  |
 | `.conn--critical`  | Solid 2px    | —               | `#arrow-accent` | Error path / critical flow        |
+| `.conn--highlight` | Solid 2px    | —               | `#arrow-tint`   | Key path (tint, one per diagram)  |
 
 ```css
 /* Base connector */
 .conn {
   fill: none;
-  stroke: #cbd5e1;
+  stroke: #d2d2d7;
   stroke-width: 1.5;
 }
 
 /* Relationship modifiers — MUST set both stroke color and marker-end explicitly */
 .conn--flow {
-  stroke: #0f172a;
+  stroke: #1d1d1f;
   marker-end: url(#arrow);
 }
 .conn--dep {
-  stroke: #0f172a;
+  stroke: #1d1d1f;
   stroke-dasharray: 6 4;
   marker-end: url(#arrow);
 }
 .conn--bidi {
-  stroke: #0f172a;
+  stroke: #1d1d1f;
   marker-start: url(#arrow);
   marker-end: url(#arrow);
 }
 .conn--compose {
-  stroke: #0f172a;
+  stroke: #1d1d1f;
   marker-start: url(#diamond);
   marker-end: url(#arrow);
 }
 .conn--aggregate {
-  stroke: #0f172a;
+  stroke: #1d1d1f;
   marker-start: url(#diamond-open);
   marker-end: url(#arrow);
 }
 .conn--impl {
-  stroke: #0f172a;
+  stroke: #1d1d1f;
   stroke-dasharray: 6 4;
   marker-end: url(#arrow-open);
 }
 .conn--assoc {
-  stroke: #64748b;
+  stroke: #6e6e73;
   stroke-width: 1;
   marker-start: url(#dot);
   marker-end: url(#arrow-sub);
 }
 .conn--event {
-  stroke: #64748b;
+  stroke: #6e6e73;
   stroke-dasharray: 2 4;
   marker-end: url(#arrow-sub);
 }
+.conn--warn {
+  stroke: #ff9500;
+  stroke-width: 2;
+  stroke-dasharray: 6 4;
+  marker-end: url(#arrow-warn);
+}
 .conn--critical {
-  stroke: #dc2626;
+  stroke: #d70015;
   stroke-width: 2;
   marker-end: url(#arrow-accent);
 }
 
-/* Emphasis */
+/* Emphasis — the key path, in the tint color (one per diagram) */
 .conn--highlight {
-  stroke: #0f172a;
+  stroke: #0071e3;
   stroke-width: 2;
+  marker-end: url(#arrow-tint);
 }
 ```
 
@@ -368,10 +422,12 @@ Labels on connectors describe the relationship (protocol, method name, event typ
 .conn-label {
   font-family: var(--font-mono);
   font-size: 10px;
-  fill: #64748b;
+  fill: #6e6e73;
   pointer-events: none;
 }
 ```
+
+Labels on colored connectors take the matching text color: `#0071e3` on a highlight path, `#b25000` on a warning path, `#d70015` on an error path.
 
 Place labels at the visual midpoint of the connector. For polylines, place labels on the longest segment. For vertical connectors, place labels to the right of the line (`text-anchor: start`) to avoid overlapping. For Z-shaped connectors, place labels centered on the horizontal segment.
 
@@ -394,11 +450,11 @@ Copy-paste-runnable template for **non-layered** diagrams. Use this as your star
     <meta charset="UTF-8" />
     <style>
       :root {
-        --c-bg: #f8fafc;
+        --c-bg: #f5f5f7;
         --c-canvas: #ffffff;
-        --c-border: #cbd5e1;
-        --c-text-main: #0f172a;
-        --c-text-sub: #64748b;
+        --c-border: #d2d2d7;
+        --c-text-main: #1d1d1f;
+        --c-text-sub: #6e6e73;
         --font-ui: system-ui, -apple-system, sans-serif;
         --font-mono: 'SF Mono', Monaco, Consolas, monospace;
       }
@@ -439,9 +495,9 @@ Copy-paste-runnable template for **non-layered** diagrams. Use this as your star
       }
 
       .conn { fill: none; stroke-width: 1.5; }
-      .conn--flow { stroke: #0f172a; marker-end: url(#mwe-arrow); }
-      .conn--dep  { stroke: #0f172a; stroke-dasharray: 6 4; marker-end: url(#mwe-arrow); }
-      .conn-label { font-family: var(--font-mono); font-size: 10px; fill: #64748b; }
+      .conn--flow { stroke: #1d1d1f; marker-end: url(#mwe-arrow); }
+      .conn--dep  { stroke: #1d1d1f; stroke-dasharray: 6 4; marker-end: url(#mwe-arrow); }
+      .conn-label { font-family: var(--font-mono); font-size: 10px; fill: #6e6e73; }
     </style>
   </head>
   <body>
@@ -470,7 +526,7 @@ Copy-paste-runnable template for **non-layered** diagrams. Use this as your star
         <defs>
           <marker id="mwe-arrow" viewBox="0 0 10 10" refX="10" refY="5"
                   markerWidth="8" markerHeight="8" orient="auto">
-            <path d="M 0 1 L 10 5 L 0 9 z" fill="#0f172a" />
+            <path d="M 0 1 L 10 5 L 0 9 z" fill="#1d1d1f" />
           </marker>
         </defs>
 
@@ -583,6 +639,16 @@ For logical grouping (e.g., "Backend Services", "AWS Region"):
   color: var(--c-canvas);
 }
 
+.badge--tint {
+  border-color: var(--c-tint);
+  color: var(--c-tint);
+}
+
+.badge--warn {
+  border-color: var(--c-warn);
+  color: var(--c-warn-text);
+}
+
 .badge--accent {
   border-color: var(--c-accent);
   color: var(--c-accent);
@@ -612,10 +678,10 @@ Every diagram with 2+ relationship types MUST include a legend:
       <svg width="40" height="12">
         <defs>
           <marker id="lg-arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7" markerHeight="7" orient="auto">
-            <path d="M 0 1 L 10 5 L 0 9 z" fill="#0f172a" />
+            <path d="M 0 1 L 10 5 L 0 9 z" fill="#1d1d1f" />
           </marker>
         </defs>
-        <line x1="0" y1="6" x2="32" y2="6" stroke="#0f172a" stroke-width="1.5" marker-end="url(#lg-arrow)" />
+        <line x1="0" y1="6" x2="32" y2="6" stroke="#1d1d1f" stroke-width="1.5" marker-end="url(#lg-arrow)" />
       </svg>
       <span>Data Flow</span>
     </div>
@@ -623,10 +689,10 @@ Every diagram with 2+ relationship types MUST include a legend:
       <svg width="40" height="12">
         <defs>
           <marker id="lg-arrow-sub" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7" markerHeight="7" orient="auto">
-            <path d="M 0 1 L 10 5 L 0 9 z" fill="#64748b" />
+            <path d="M 0 1 L 10 5 L 0 9 z" fill="#6e6e73" />
           </marker>
         </defs>
-        <line x1="0" y1="6" x2="32" y2="6" stroke="#64748b" stroke-width="1.5" stroke-dasharray="6 4" marker-end="url(#lg-arrow-sub)" />
+        <line x1="0" y1="6" x2="32" y2="6" stroke="#6e6e73" stroke-width="1.5" stroke-dasharray="6 4" marker-end="url(#lg-arrow-sub)" />
       </svg>
       <span>Dependency</span>
     </div>
@@ -678,7 +744,7 @@ These are validated through real-world diagram generation failures. **Treat ever
 
 ### 1. CSS Variables Inside SVG `<marker>` Are Invisible
 
-`fill="var(--c-text-main)"` inside `<marker>` `<path>` will NOT render in most browsers. The arrowhead becomes transparent/invisible. **Always use hardcoded hex values** (e.g. `fill="#0f172a"`).
+`fill="var(--c-text-main)"` inside `<marker>` `<path>` will NOT render in most browsers. The arrowhead becomes transparent/invisible. **Always use hardcoded hex values** (e.g. `fill="#1d1d1f"`).
 
 This also applies to: `stroke`, `fill` on `<circle>`, `<rect>`, and any attribute inside `<marker>`, `<pattern>`, `<clipPath>`, etc.
 
@@ -708,7 +774,11 @@ Using `getBoundingClientRect()` to measure Flexbox/Grid node positions and then 
 
 ### 6. Connector CSS Classes Must Set Both `stroke` and `marker-end`
 
-The `.conn--flow` class must explicitly set `stroke: #0f172a; marker-end: url(#arrow);` — not just `marker-end` alone. Without an explicit `stroke`, the line inherits the base `.conn` stroke color which may be the border color, making the arrow direction hard to distinguish visually.
+The `.conn--flow` class must explicitly set `stroke: #1d1d1f; marker-end: url(#arrow);` — not just `marker-end` alone. Without an explicit `stroke`, the line inherits the base `.conn` stroke color which may be the border color, making the arrow direction hard to distinguish visually.
+
+### 7. Draw Every `orient="auto"` Marker Pointing Right
+
+With `orient="auto"`, the browser rotates the marker so its +x axis follows the line direction. A marker path must therefore point to the right (e.g. `M 0 1 L 10 5 L 0 9`) with `refX` on its tip, even when the line runs downward. A path drawn pointing down gets rotated a second time and renders sideways.
 
 ---
 
@@ -742,12 +812,16 @@ The `.conn--flow` class must explicitly set `stroke: #0f172a; marker-end: url(#a
     <title>[Diagram Title]</title>
     <style>
       :root {
-        --c-bg: #f8fafc;
+        --c-bg: #f5f5f7;
         --c-canvas: #ffffff;
-        --c-border: #cbd5e1;
-        --c-text-main: #0f172a;
-        --c-text-sub: #64748b;
-        --c-accent: #dc2626;
+        --c-border: #d2d2d7;
+        --c-hairline: #e8e8ed;
+        --c-text-main: #1d1d1f;
+        --c-text-sub: #6e6e73;
+        --c-tint: #0071e3;
+        --c-warn: #ff9500;
+        --c-warn-text: #b25000;
+        --c-accent: #d70015;
         --font-ui: system-ui, -apple-system, 'Segoe UI', sans-serif;
         --font-mono: 'SF Mono', Monaco, Consolas, monospace;
       }
@@ -814,7 +888,7 @@ The `.conn--flow` class must explicitly set `stroke: #0f172a; marker-end: url(#a
         display: block;
         width: 1.5px;
         height: 100%;
-        background: #0f172a;
+        background: #1d1d1f;
       }
       .layer-arrow::after {
         content: '';
@@ -824,7 +898,7 @@ The `.conn--flow` class must explicitly set `stroke: #0f172a; marker-end: url(#a
         transform: translateX(-50%);
         border-left: 5px solid transparent;
         border-right: 5px solid transparent;
-        border-top: 6px solid #0f172a;
+        border-top: 6px solid #1d1d1f;
       }
       .layer-arrow__label {
         position: absolute;
@@ -833,7 +907,7 @@ The `.conn--flow` class must explicitly set `stroke: #0f172a; marker-end: url(#a
         transform: translateY(-50%);
         font-size: 10px;
         font-family: var(--font-mono);
-        color: #64748b;
+        color: #6e6e73;
         white-space: nowrap;
         background: #ffffff;
         padding: 0 4px;
@@ -841,18 +915,30 @@ The `.conn--flow` class must explicitly set `stroke: #0f172a; marker-end: url(#a
 
       /* Dashed variant */
       .layer-arrow--dashed::before {
-        background: repeating-linear-gradient(to bottom, #64748b 0, #64748b 4px, transparent 4px, transparent 8px);
+        background: repeating-linear-gradient(to bottom, #6e6e73 0, #6e6e73 4px, transparent 4px, transparent 8px);
       }
       .layer-arrow--dashed::after {
-        border-top-color: #64748b;
+        border-top-color: #6e6e73;
       }
 
       /* Dotted variant */
       .layer-arrow--dotted::before {
-        background: repeating-linear-gradient(to bottom, #64748b 0, #64748b 2px, transparent 2px, transparent 6px);
+        background: repeating-linear-gradient(to bottom, #6e6e73 0, #6e6e73 2px, transparent 2px, transparent 6px);
       }
       .layer-arrow--dotted::after {
-        border-top-color: #64748b;
+        border-top-color: #6e6e73;
+      }
+
+      /* Warning variant */
+      .layer-arrow--warn::before {
+        width: 2px;
+        background: repeating-linear-gradient(to bottom, #ff9500 0, #ff9500 4px, transparent 4px, transparent 8px);
+      }
+      .layer-arrow--warn::after {
+        border-top-color: #ff9500;
+      }
+      .layer-arrow--warn .layer-arrow__label {
+        color: #b25000;
       }
 
       /* Branching split */
@@ -870,7 +956,7 @@ The `.conn--flow` class must explicitly set `stroke: #0f172a; marker-end: url(#a
       .layer-divider {
         margin: 18px 0;
         border: none;
-        border-top: 1px solid #e2e8f0;
+        border-top: 1px solid var(--c-hairline);
       }
 
       /* Node */
@@ -923,6 +1009,21 @@ The `.conn--flow` class must explicitly set `stroke: #0f172a; marker-end: url(#a
       .badge--filled {
         background: var(--c-text-main);
         color: var(--c-canvas);
+      }
+
+      .badge--tint {
+        border-color: var(--c-tint);
+        color: var(--c-tint);
+      }
+
+      .badge--warn {
+        border-color: var(--c-warn);
+        color: var(--c-warn-text);
+      }
+
+      .badge--accent {
+        border-color: var(--c-accent);
+        color: var(--c-accent);
       }
 
       /* Mono text */

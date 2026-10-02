@@ -1,5 +1,9 @@
 {
   "repos": {
+    "EveryInc/compound-engineering-plugin": {
+      "commit": "23c308a7b0cd0bc17bab7efd00ddb60fa6714cce",
+      "updated_at": "2026-10-01T11:39:09+08:00"
+    },
     "JimLiu/baoyu-skills": {
       "commit": "1567581c26ec29f4216c6e6835415bf30343b0e3",
       "updated_at": "2026-09-29T22:56:32+08:00"
@@ -32,6 +36,10 @@
       "commit": "2bc470fc08b47b63af8c1721058672ad0678ab78",
       "updated_at": "2026-09-29T22:56:32+08:00"
     },
+    "emilkowalski/skills": {
+      "commit": "d16ebe60d09a5ba2afcb7054ede9d0a10c9f6128",
+      "updated_at": "2026-10-01T11:43:46+08:00"
+    },
     "garrytan/gstack": {
       "commit": "96764e80a641e28141ec8297223768029f5bf483",
       "updated_at": "2026-09-30T08:17:58+08:00"
@@ -52,6 +60,10 @@
       "commit": "f29e0189f2ea03392c50b4f1c7230886bd838a13",
       "updated_at": "2026-09-29T22:56:33+08:00"
     },
+    "mattpocock/skills": {
+      "commit": "d81f3a183412e71a5b1e84ca21bc1a35eea03a60",
+      "updated_at": "2026-10-01T11:59:18+08:00"
+    },
     "op7418/guizang-ppt-skill": {
       "commit": "c91369c449d34755d320a8b81d0734000d99d1ab",
       "updated_at": "2026-09-29T22:56:33+08:00"
@@ -70,6 +82,21 @@
     }
   },
   "skills": {
+    "EveryInc/compound-engineering-plugin:skills/ce-code-review": {
+      "name": "ce-code-review",
+      "state": "present",
+      "updated_at": "2026-10-01T11:39:09+08:00"
+    },
+    "EveryInc/compound-engineering-plugin:skills/ce-doc-review": {
+      "name": "ce-doc-review",
+      "state": "present",
+      "updated_at": "2026-10-01T11:39:09+08:00"
+    },
+    "EveryInc/compound-engineering-plugin:skills/ce-simplify-code": {
+      "name": "ce-simplify-code",
+      "state": "present",
+      "updated_at": "2026-10-01T11:39:09+08:00"
+    },
     "JimLiu/baoyu-skills:skills/baoyu-article-illustrator": {
       "name": "baoyu-article-illustrator",
       "state": "present",
@@ -175,6 +202,16 @@
       "state": "present",
       "updated_at": "2026-09-28T23:41:08+08:00"
     },
+    "emilkowalski/skills:skills/apple-design": {
+      "name": "apple-design",
+      "state": "present",
+      "updated_at": "2026-10-01T11:43:46+08:00"
+    },
+    "emilkowalski/skills:skills/emil-design-eng": {
+      "name": "emil-design-eng",
+      "state": "present",
+      "updated_at": "2026-10-01T11:45:00+08:00"
+    },
     "garrytan/gstack:.": {
       "link": true,
       "name": "gstack",
@@ -216,6 +253,121 @@
       "state": "present",
       "updated_at": "2026-09-28T23:39:22+08:00"
     },
+    "mattpocock/skills:skills/engineering/ask-matt": {
+      "name": "mattpocock-ask-matt",
+      "state": "present",
+      "updated_at": "2026-10-01T11:59:18+08:00"
+    },
+    "mattpocock/skills:skills/engineering/code-review": {
+      "name": "mattpocock-code-review",
+      "state": "present",
+      "updated_at": "2026-10-01T11:59:18+08:00"
+    },
+    "mattpocock/skills:skills/engineering/codebase-design": {
+      "name": "mattpocock-codebase-design",
+      "state": "present",
+      "updated_at": "2026-10-01T11:59:18+08:00"
+    },
+    "mattpocock/skills:skills/engineering/diagnosing-bugs": {
+      "name": "mattpocock-diagnosing-bugs",
+      "state": "present",
+      "updated_at": "2026-10-01T11:59:18+08:00"
+    },
+    "mattpocock/skills:skills/engineering/domain-modeling": {
+      "name": "mattpocock-domain-modeling",
+      "state": "present",
+      "updated_at": "2026-10-01T11:59:18+08:00"
+    },
+    "mattpocock/skills:skills/engineering/grill-with-docs": {
+      "name": "mattpocock-grill-with-docs",
+      "state": "present",
+      "updated_at": "2026-10-01T11:59:18+08:00"
+    },
+    "mattpocock/skills:skills/engineering/improve-codebase-architecture": {
+      "name": "mattpocock-improve-codebase-architecture",
+      "state": "present",
+      "updated_at": "2026-10-01T11:59:18+08:00"
+    },
+    "mattpocock/skills:skills/engineering/pr": {
+      "name": "mattpocock-pr",
+      "state": "present",
+      "updated_at": "2026-10-01T11:59:18+08:00"
+    },
+    "mattpocock/skills:skills/engineering/prototype": {
+      "name": "mattpocock-prototype",
+      "state": "present",
+      "updated_at": "2026-10-01T11:59:18+08:00"
+    },
+    "mattpocock/skills:skills/engineering/research": {
+      "name": "mattpocock-research",
+      "state": "present",
+      "updated_at": "2026-10-01T11:59:18+08:00"
+    },
+    "mattpocock/skills:skills/engineering/retro": {
+      "name": "mattpocock-retro",
+      "state": "present",
+      "updated_at": "2026-10-01T11:59:18+08:00"
+    },
+    "mattpocock/skills:skills/engineering/setup-matt-pocock-skills": {
+      "name": "mattpocock-setup-matt-pocock-skills",
+      "state": "present",
+      "updated_at": "2026-10-01T11:59:18+08:00"
+    },
+    "mattpocock/skills:skills/engineering/tdd": {
+      "name": "mattpocock-tdd",
+      "state": "present",
+      "updated_at": "2026-10-01T11:59:18+08:00"
+    },
+    "mattpocock/skills:skills/engineering/to-spec": {
+      "name": "mattpocock-to-spec",
+      "state": "present",
+      "updated_at": "2026-10-01T11:59:18+08:00"
+    },
+    "mattpocock/skills:skills/engineering/triage": {
+      "name": "mattpocock-triage",
+      "state": "present",
+      "updated_at": "2026-10-01T11:59:18+08:00"
+    },
+    "mattpocock/skills:skills/engineering/wayfinder": {
+      "name": "mattpocock-wayfinder",
+      "state": "present",
+      "updated_at": "2026-10-01T11:59:18+08:00"
+    },
+    "mattpocock/skills:skills/productivity/grill-me": {
+      "name": "mattpocock-grill-me",
+      "state": "present",
+      "updated_at": "2026-10-01T11:59:18+08:00"
+    },
+    "mattpocock/skills:skills/productivity/grilling": {
+      "name": "mattpocock-grilling",
+      "state": "present",
+      "updated_at": "2026-10-01T11:59:18+08:00"
+    },
+    "mattpocock/skills:skills/productivity/handoff": {
+      "name": "mattpocock-handoff",
+      "state": "present",
+      "updated_at": "2026-10-01T11:59:18+08:00"
+    },
+    "mattpocock/skills:skills/productivity/teach": {
+      "name": "mattpocock-teach",
+      "state": "present",
+      "updated_at": "2026-10-01T11:59:18+08:00"
+    },
+    "mattpocock/skills:skills/productivity/to-questionnaire": {
+      "name": "mattpocock-to-questionnaire",
+      "state": "present",
+      "updated_at": "2026-10-01T11:59:18+08:00"
+    },
+    "mattpocock/skills:skills/productivity/wait-what": {
+      "name": "mattpocock-wait-what",
+      "state": "present",
+      "updated_at": "2026-10-01T11:59:18+08:00"
+    },
+    "mattpocock/skills:skills/productivity/writing-for-agents": {
+      "name": "mattpocock-writing-for-agents",
+      "state": "present",
+      "updated_at": "2026-10-01T11:59:18+08:00"
+    },
     "obra/superpowers:skills/brainstorming": {
       "name": "brainstorming",
       "state": "removed",
@@ -231,6 +383,11 @@
       "state": "present",
       "updated_at": "2026-09-28T23:37:34+08:00"
     },
+    "smallnest/goal-workflow:skills/refactor": {
+      "name": "refactor",
+      "state": "present",
+      "updated_at": "2026-10-01T11:34:36+08:00"
+    },
     "smallnest/goal-workflow:skills/smell": {
       "name": "smell",
       "state": "present",
@@ -238,8 +395,8 @@
     },
     "vercel-labs/agent-browser:skills/agent-browser": {
       "name": "agent-browser",
-      "state": "present",
-      "updated_at": "2026-09-28T23:36:20+08:00"
+      "state": "removed",
+      "updated_at": "2026-10-02T12:08:59+08:00"
     },
     "vercel-labs/skills:skills/find-skills": {
       "name": "find-skills",
