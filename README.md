@@ -263,6 +263,8 @@ git submodule update --remote --merge
 
 装哪些 skill、叫什么名字、每个上游仓库用哪个提交，都记在仓库根目录的 `skills.json` 里。它只通过命令修改，不要手工编辑。
 
+各命令的具体规则和设计取舍见 [`docs/design/skillctl-design.md`](docs/design/skillctl-design.md)。
+
 | 位置 | 内容 |
 |---|---|
 | `skills.json` | 清单，随本仓库分发 |
@@ -306,6 +308,8 @@ git submodule update --remote --merge
 每个上游仓库用哪个提交，记在 `skills.json` 的 `repos` 里。sync 按记录的提交安装，所以两台电脑装的是同一个版本；只有 update 会改这条记录。
 
 add 一个清单里还没有的仓库时，取默认分支的最新提交并记下来。同一仓库已经有 skill 在用时，沿用记录的提交，免得顺带升级已装的那些；想装最新的，先运行 `skillctl update owner/repo`。
+
+本仓库（agent_skills）例外：它同时放着清单，每次提交清单都会产生新提交。所以 check 和 update 对它只看在用的 skill 目录有没有变化，只改了清单或 README 的提交既不提示更新，也不改记录的版本。
 
 ### 命名规则
 

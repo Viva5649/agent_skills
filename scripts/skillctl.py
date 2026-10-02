@@ -456,6 +456,34 @@ def fetch_latest(d):
     return git(["rev-parse", "origin/HEAD"], cwd=d).stdout.strip()
 
 
+def self_repo(manifest):
+    """返回清单里和工作 clone 是同一个仓库的键，没有则返回 None。
+
+    这个仓库既放 skill 也放清单，每次提交清单都会让它出现新提交，
+    所以只看在用的 skill 目录有没有变化，不看提交号。
+    """
+    if git_dir() is None:
+        return None
+    url = git(["remote", "get-url", "origin"], cwd=WORK, check=False).stdout.strip()
+    m = re.search(r"([^/:]+)/([^/]+?)(?:\.git)?/?$", url)
+    if not m:
+        return None
+    key = f"{m.group(1)}/{m.group(2)}".lower()
+    return next((r for r in repos_in_use(manifest) if r.lower() == key), None)
+
+
+def paths_in_use(manifest, repo):
+    return sorted({split_id(sid)[1] for sid in present(manifest) if split_id(sid)[0] == repo})
+
+
+def skills_changed(d, old, new, paths):
+    """old 到 new 之间 paths 下有没有文件变化；在用整个仓库或无法比较时返回 None。"""
+    if "." in paths:
+        return None
+    r = git(["diff", "--quiet", old, new, "--"] + paths, cwd=d, check=False)
+    return {0: False, 1: True}.get(r.returncode)
+
+
 def prepare_repo(manifest, repo, report):
     """让仓库副本停在清单记录的提交；清单没记录时记下副本当前的提交。"""
     try:
@@ -1020,6 +1048,7 @@ def cmd_update(args):
         by_repo = {args.repo: by_repo[args.repo]}
 
     upgraded = 0
+    own = self_repo(manifest)
     local = [repo for repo in sorted(by_repo) if (repo_dir(repo) / ".git").exists()]
     latest = run_parallel(lambda repo: fetch_latest(repo_dir(repo)), local)
     for repo in local:
@@ -1047,6 +1076,9 @@ def cmd_update(args):
                 say(f"    {f}")
             if len(files) > 10:
                 say(f"    ... and {len(files) - 10} more")
+        if repo == own and skills_changed(rdir, old, new, paths_in_use(manifest, repo)) is False:
+            say(f"  no skill in use changed, keeping {old[:7]}")
+            continue
         try:
             checkout(rdir, new)
         except SkillctlError as e:
@@ -1157,6 +1189,7 @@ def unmanaged_skills():
 
 def check_issues():
     issues = []
+    up = None
     # 工作 clone
     if git_dir() is not None:
         if pending_path().exists():
@@ -1239,6 +1272,7 @@ def check_issues():
 
     # 仓库版本与上游更新；查询上游并发进行
     repos = sorted(repos_in_use(manifest))
+    own = self_repo(manifest)
     remotes = run_parallel(
         lambda repo: git(["ls-remote", f"{GIT_BASE}{repo}", "HEAD"], check=False, timeout=LS_REMOTE_TIMEOUT),
         [repo for repo in repos if pin_of(manifest, repo)])
@@ -1249,6 +1283,12 @@ def check_issues():
             continue
         if (rdir / ".git").exists() and head(rdir) != pin:
             issues.append(f"{repo}: repo copy is not at the pinned version; run skillctl sync")
+        if repo == own and up:
+            changed = skills_changed(WORK, pin, up, paths_in_use(manifest, repo))
+            if changed is not None:
+                if changed:
+                    issues.append(f"{repo}: skills in use changed upstream; run skillctl update {repo} to upgrade")
+                continue
         remote = remotes[repo][0]
         if remote.returncode != 0 or not remote.stdout.strip():
             issues.append(f"{repo}: failed to query upstream, cannot tell whether it has updates")

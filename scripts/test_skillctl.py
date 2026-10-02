@@ -561,5 +561,34 @@ class LinkTest(Base):
         self.assertTrue((self.m.home / ".local/share/agent-skills/repos/acme/kit/SKILL.md").exists())
 
 
+class SelfRepoTest(Base):
+    def test_manifest_commits_do_not_count_as_updates(self):
+        """agent_skills 自己的 skill：只改清单的提交不算上游更新，改了在用的 skill 才算。"""
+        own = self.m.work / "skills" / "own" / "SKILL.md"
+        own.parent.mkdir(parents=True)
+        own.write_text(skill_md("own"))
+        git(["add", "skills"], self.m.work)
+        git(["commit", "-q", "-m", "add own"], self.m.work)
+        git(["push", "-q"], self.m.work)
+        self.ok(self.m, "add", "me/agent_skills", "--skill", "own")
+        self.m.publish("install own")
+        pin = self.m.pin("me/agent_skills")
+        self.assertNotEqual(pin, self.env.tip("me/agent_skills"))
+        self.check_clean(self.m)
+        out = self.ok(self.m, "update", "me/agent_skills")
+        self.assertIn("no skill in use changed", out)
+        self.assertEqual(self.m.pin("me/agent_skills"), pin)
+        self.assertEqual(git(["status", "--porcelain"], self.m.work), "")
+
+        own.write_text(skill_md("own", "v2"))
+        git(["commit", "-q", "-am", "edit own"], self.m.work)
+        git(["push", "-q"], self.m.work)
+        rc, out = self.m.run("check")
+        self.assertIn("me/agent_skills: skills in use changed upstream", out)
+        self.ok(self.m, "update", "me/agent_skills")
+        self.assertEqual(self.m.pin("me/agent_skills"), self.env.tip("me/agent_skills"))
+        self.assertIn("v2", (self.m.agents / "own" / "SKILL.md").read_text())
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
