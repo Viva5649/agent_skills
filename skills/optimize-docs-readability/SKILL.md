@@ -90,6 +90,22 @@ files point at before you classify a file as human documentation. If a file genu
 serves both — instructions a model consumes and a human maintains — say so, treat the
 maintainer as the Reader, and leave the instruction semantics alone.
 
+## Chinese technical documents
+
+When `tech-doc-style-chinese` is available, this skill owns the document level and
+`tech-doc-style-chinese` owns sentence-level wording and typography for Chinese
+technical documents.
+
+- Writing mode: finish this skill's pass first, then apply `tech-doc-style-chinese` to
+  procedures, troubleshooting, runbooks, API descriptions and UI copy. A later structural
+  edit can invalidate an earlier sentence edit. Chinese rewrites follow its terminology
+  and typography rules unless the target project sets its own conventions.
+- Standalone reviews do not apply `tech-doc-style-chinese`; the user requests that check
+  separately.
+- Keep the two sets of findings apart. A wording-convention or typography issue that
+  transfers no work to the Reader is not a finding here, even when
+  `tech-doc-style-chinese` would flag it.
+
 ## Standalone review output
 
 Report findings and rewrites. Do not apply them. Apart from the review report and its output directory, do not
