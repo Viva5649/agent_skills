@@ -5,7 +5,7 @@
 本文档记录本机（macOS）当前的 skill 全貌，分三层：仓库自建、全局安装、项目级。全局安装的 skill 由 [`skillctl`](#六用-skillctl-管理全局-skill) 按仓库根目录的 `skills.json` 安装，来源仓库以它为准。
 
 - 自建 skill：14 个（`skills/`）
-- 全局安装：69 个（`~/.agents/skills/`，`~/.claude/skills/` 下是指向它的软链接）
+- 全局安装：70 个（`~/.agents/skills/`，`~/.claude/skills/` 下是指向它的软链接）
 - 项目级：6 个（`personal_ai_infrastructure/.claude/skills/`）
 - 外部聚合：7 个仓库，共 200 个 skill（`third_party/`）
 
@@ -91,6 +91,7 @@
 | Skill | 用途 | 源仓库 | `third_party/` 收录 |
 |---|---|---|:---:|
 | `humanizer` | 改写 AI 腔文本，去除套话、虚高措辞、重复结构，保持原意不变 | [blader/humanizer](https://github.com/blader/humanizer) | ❌ |
+| `tech-doc-style-chinese` | 中文技术写作规范。撰写、改写、校对技术文档、API 说明、界面文案与运维手册，克制、准确、可扫读 | [Fenng/Tech-Doc-Style-Chinese](https://github.com/Fenng/Tech-Doc-Style-Chinese) | ❌ |
 | `guizang-ppt-skill` | 横向翻页网页 PPT（单 HTML），含 WebGL 背景与演讲者视图，两种风格 | [op7418/guizang-ppt-skill](https://github.com/op7418/guizang-ppt-skill) | ❌ |
 | `huashu-design` | HTML 高保真原型、幻灯片、动画、可视化，新设计强制先出三稿供选 | [alchaincyf/huashu-design](https://github.com/alchaincyf/huashu-design) | ❌ |
 | `baoyu-article-illustrator` | 文章配图。分析结构定位需要插图的位置，按类型 × 风格 × 配色三维生成 | [JimLiu/baoyu-skills](https://github.com/JimLiu/baoyu-skills) | ✅ |
@@ -217,6 +218,7 @@
 | [smallnest/goal-workflow](https://github.com/smallnest/goal-workflow) | `smell`、`refactor` |
 | [humanlayer/skills](https://github.com/humanlayer/skills) | `show-me` |
 | [emilkowalski/skills](https://github.com/emilkowalski/skills) | `apple-design`、`emil-design-eng` |
+| [Fenng/Tech-Doc-Style-Chinese](https://github.com/Fenng/Tech-Doc-Style-Chinese) | `tech-doc-style-chinese` |
 
 ### 拉取与更新
 
@@ -253,7 +255,7 @@ git submodule update --remote --merge
 
 全局层以 `skills.json` 里在装的条目为准，再加上脚本里登记的非托管 skill（`agent-reach`、`ego-browser`），不扫描本机目录，所以在哪台电脑上校验结果都一样。本机实际装的和清单是否一致，由 `skillctl check` 负责。项目级默认读 `~/Desktop/personal_ai_infrastructure`，可用 `PAI_ROOT` 覆盖，目录不存在时跳过并打印提示。
 
-不校验也不生成用途描述和分类分组，这两项是人工撰写的。脚本只读，发现漂移时逐条打印并以退出码 1 结束。personal_ai_infrastructure 仓库的 `run-maintenance` 每天会调一次。
+不校验也不生成用途描述和分类分组。脚本只读，发现漂移时逐条打印并以退出码 1 结束。personal_ai_infrastructure 仓库的 `run-maintenance` 每天会调一次，发现漂移时直接改 README，包括按 skill 的 `description` 补写用途、挑选分类，改完重跑到通过为止，不提交。
 
 ---
 

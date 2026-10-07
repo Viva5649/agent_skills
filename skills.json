@@ -4,6 +4,10 @@
       "commit": "23c308a7b0cd0bc17bab7efd00ddb60fa6714cce",
       "updated_at": "2026-10-01T11:39:09+08:00"
     },
+    "Fenng/Tech-Doc-Style-Chinese": {
+      "commit": "b119d01c9bb7cd132b3c62fafdff34227c4410d1",
+      "updated_at": "2026-10-07T11:34:27+08:00"
+    },
     "JimLiu/baoyu-skills": {
       "commit": "1567581c26ec29f4216c6e6835415bf30343b0e3",
       "updated_at": "2026-09-29T22:56:32+08:00"
@@ -96,6 +100,11 @@
       "name": "ce-simplify-code",
       "state": "present",
       "updated_at": "2026-10-01T11:39:09+08:00"
+    },
+    "Fenng/Tech-Doc-Style-Chinese:.": {
+      "name": "tech-doc-style-chinese",
+      "state": "present",
+      "updated_at": "2026-10-07T11:34:27+08:00"
     },
     "JimLiu/baoyu-skills:skills/baoyu-article-illustrator": {
       "name": "baoyu-article-illustrator",
