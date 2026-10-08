@@ -5,39 +5,79 @@ description: >-
   human readers, before final delivery, even without an explicit readability request.
   Covers research reports, articles, proposals, guides, design documents, READMEs,
   and multi-section explanations, whether saved in files or written in chat.
-  In writing tasks, improve the current draft's readability while preserving
-  factual meaning, citations, and necessary limits. Also use for explicit readability
-  reviews; those return findings and concrete rewrites without editing the source.
-  Reviews clarity, not requirement or design correctness. Short replies and
+  Also use when the user asks to optimize, polish, tidy up, or fix the readability,
+  wording, or typography of existing documents ("优化一下这篇文档", "把这个 README
+  改得好读一点", "润色", "排版和用词也一起改"). Both cases fix the text directly,
+  including Chinese wording and typography through tech-doc-style-chinese, then list
+  the problems fixed. For requests only to review ("审阅", "检查一下可读性",
+  "看看有什么问题", "出个报告"), return findings and concrete rewrites without editing
+  the source. Preserves factual meaning, citations, and necessary limits. Not for requirement or design correctness (ce-doc-review),
+  repository-wide documentation gaps or navigation (audit-docs-landscape), or writing
+  missing documents from scratch (codebase-documenter). Short replies and
   agent-directed instructions do not trigger the automatic pass.
 ---
 
 # Optimize Docs Readability
 
-Reduce work a document makes its human Reader perform. In a writing task, use the
-workflow below on the current draft. For a standalone readability review, report
-findings and concrete rewrites without editing the reviewed files.
+Reduce work a document makes its human Reader perform. Choose the mode from the request:
 
-## Before delivering long-form writing
+| Mode | When | Output |
+| --- | --- | --- |
+| Optimize | Automatically after the agent drafts or substantially revises long-form text; or when the user asks to optimize, improve, polish, tidy up, fix or rewrite named existing documents (优化、改、润色、修), or invokes this skill on documents without saying review | The fixed text, then a list of the problems fixed |
+| Standalone review | The user asks only to review, audit or check documents, or to list their problems or write a report (审阅、审查、检查、看看问题、出报告) | A read-only report |
 
-After drafting or substantially revising long-form text, perform one readability pass
-before delivery, even when the user did not ask for one. The current authorized draft
-is the target, including prose in chat or outside a repository; no filename or diff base
-is needed. Ordinary short replies and the exclusions under Scope do not trigger this pass.
+A request that asks both to find problems and to fix them ("检查一下顺便改掉") is
+optimize mode. A user who asks to optimize a document wants it fixed, not a report they
+still have to apply; standalone review exists for the user who wants to decide which
+changes land.
 
-1. Establish Reader/Purpose from the writing request, then the draft's evidence in step 2.
-   If evidence is insufficient, follow the existing stop condition rather than inventing it.
-2. Apply the eight criteria in step 3 and correct supported findings directly in the
-   current draft. This permits readability edits only within the existing writing task.
-   Preserve factual meaning, citations, and necessary limits; do not fill missing facts or
-   requirements through rewriting.
-3. Perform step 5's evidence and information-preservation checks, then deliver the revised
-   text in the original task's format. State any unresolved checks honestly. Do not load
-   the report template or create a separate review report unless the user requests one.
-   Do not restart the pass merely because it changed wording.
+## Optimize mode
 
-The report-only output and scope-selection rules below apply to standalone reviews.
-A request only to review an existing document remains read-only.
+The target is either the long-form draft the agent has just written or substantially
+revised, or the existing documents the user named. A draft needs no filename or diff
+base and may be prose in chat or outside a repository; ordinary short replies do not
+trigger the automatic pass. For named documents, fix the scope with step 1 of
+[Process](#process). In both cases the exclusions under Scope and the stop conditions
+apply: an excluded or generated document is reported, not edited.
+
+The request authorizes readability edits and, for Chinese documents in scope of
+[Chinese technical documents](#chinese-technical-documents), wording and typography
+edits, in the target only. Named documents are edited in place.
+
+1. Establish each document's Reader and Purpose with Process step 2, starting from the
+   writing request when the target is a draft. When the evidence does not support a
+   Reader, leave that document unchanged and report that it does not identify its Reader.
+2. Apply the eight criteria in Process step 3 and fix supported findings directly.
+   Build each edit as Process step 4 describes for rewrites, and respect
+   [What not to change](#what-not-to-change). Preserve factual meaning, citations, and
+   necessary limits. Information that was never written down is a Documentation gap:
+   list it for the author or `audit-docs-landscape` and do not write it.
+3. Run the Chinese style pass for Chinese documents in scope.
+4. Perform Process step 5's checks against the pre-edit text. For tracked files use
+   `git diff`; otherwise keep the original text from your first read. Fix what the
+   checks find. Do not restart the pass merely because it changed wording.
+5. Deliver the fixed text: a draft in the original task's format, named documents as the
+   edited files. Then give the problem list described below. Do not load the report
+   template or save a report file unless the user requests one.
+
+### Problem list
+
+After the fix, list per document the problems that were fixed, so the user can see what
+changed and why without reading a diff:
+
+| Location | Problem | Fix |
+| --- | --- | --- |
+| `file:line`, `file § heading`, or the draft's section | The Reader loss and its criterion, or the `tech-doc-style-chinese` rule | What changed, in a few words |
+
+Readability problems come first, then Chinese style problems; merge repeated instances
+of one problem into a single row that names where it occurs. After the table, list what
+remains for the author: Documentation gaps, decisions the source cannot settle, documents
+left unchanged and why, and unverified checks. When nothing was fixed, say so and give
+the reason instead of an empty table.
+
+Scope selection in step 1 applies to named documents in optimize mode and to standalone
+review. The report-only output rules apply to standalone review only. A request only to
+review an existing document remains read-only.
 
 ## The single defect
 
@@ -64,9 +104,10 @@ was never written down anywhere in the repository, that is a Documentation gap �
 
 ## Scope
 
-Standalone reviews cover a `README` at any level, Markdown under `docs/`, architecture
-notes, onboarding guides, runbooks, ADRs, and repository-root design documents. The writing
-workflow above also covers human-facing long-form drafts outside a repository.
+Optimize mode and standalone review cover a `README` at any level, Markdown under `docs/`,
+architecture notes, onboarding guides, runbooks, ADRs, repository-root design documents,
+and other human-facing long-form documents the user names. Optimize mode also covers
+the agent's own human-facing long-form drafts, including those outside a repository.
 
 For requirements, plans, specs, and design documents, review whether a Reader can
 understand the writing. Leave requirement and design correctness, completeness, and
@@ -78,7 +119,7 @@ Do not review:
 | Excluded | Why | What to do instead |
 | --- | --- | --- |
 | Agent-directed files — **test by reader, not by filename** | Their reader is a model, not a human. Human reading criteria such as narrative flow and gradual build-up actively harm agent performance | Skip and say so. Include only if the user explicitly asks; then the Reader is "the person who maintains this instruction file", and no rewrite may change what the file instructs the model to do |
-| Output regenerated by a script or template | Any rewrite is overwritten on the next generation | Report that the generator or template is the real subject, and stop. An editable prose draft the agent is writing is eligible for the writing workflow above |
+| Output regenerated by a script or template | Any rewrite is overwritten on the next generation | Report that the generator or template is the real subject, and stop. An editable prose draft the agent is writing is eligible for optimize mode |
 | Code comments, docstrings, identifier names | Not repository documentation | Out of scope entirely |
 | LICENSE and legal notices | Wording has legal consequence | Leave untouched |
 
@@ -92,24 +133,36 @@ maintainer as the Reader, and leave the instruction semantics alone.
 
 ## Chinese technical documents
 
-When `tech-doc-style-chinese` is available, this skill owns the document level and
-`tech-doc-style-chinese` owns sentence-level wording and typography for Chinese
-technical documents.
+For Chinese documents, this skill owns the document level and `tech-doc-style-chinese`
+owns sentence-level wording and typography. The Chinese style pass covers the technical
+documents and product copy that `tech-doc-style-chinese`'s description names, including
+READMEs, guides, design documents, technical reports, API descriptions, procedures,
+troubleshooting, runbooks, and UI copy. Narrative articles, brand copy, fixed quotations,
+and documents the target project routes to its own writing workflow are out of scope.
 
-- Writing mode: finish this skill's pass first, then apply `tech-doc-style-chinese` to
-  procedures, troubleshooting, runbooks, API descriptions and UI copy. A later structural
-  edit can invalidate an earlier sentence edit. Chinese rewrites follow its terminology
-  and typography rules unless the target project sets its own conventions.
-- Standalone reviews do not apply `tech-doc-style-chinese`; the user requests that check
-  separately.
+For a Chinese document in that scope, invoke `tech-doc-style-chinese` and read its
+`SKILL.md` before applying any of its rules, then read the references its routing
+section names for the content type. Knowing the skill's name is not applying it. If
+the skill is not installed, state that the Chinese style pass did not run.
+
+- Optimize mode: finish this skill's pass first, then apply
+  `tech-doc-style-chinese` in its rewrite mode to the same text. A later structural edit can invalidate an earlier
+  sentence edit. Chinese rewrites follow its terminology and typography rules unless the
+  target project sets its own conventions.
+- Standalone review: after step 5, run `tech-doc-style-chinese` in its review mode on
+  the same documents and record its findings in the report's Chinese style section.
+  Both checks stay read-only. Chinese rewrites in readability findings also follow its
+  rules.
 - Keep the two sets of findings apart. A wording-convention or typography issue that
-  transfers no work to the Reader is not a finding here, even when
-  `tech-doc-style-chinese` would flag it.
+  transfers no work to the Reader is not a readability finding; it belongs in the Chinese
+  style section. The four-field format, the no-ranking rule and criteria coverage apply
+  only to readability findings; the Chinese style section follows
+  `tech-doc-style-chinese`'s own review rules.
 
 ## Standalone review output
 
 Report findings and rewrites. Do not apply them. Apart from the review report and its output directory, do not
-create, edit, move, or delete any file. The user decides which rewrites land; `codebase-documenter` applies them.
+create, edit, move, or delete any file. The user decides which rewrites land; to have them applied, the user can ask for optimize mode.
 
 By default, save the full report to `.scratch/docs-review/<date>-readability-<target>.md`, relative
 to the reviewed repository's root (or the workspace root when there is no Git repository).
@@ -518,11 +571,11 @@ verification pass. Check the source documents, not just the draft's wording:
   outside the emphasis is one possible repair, which still needs preview verification.
   Syntax validity alone is not visual verification; report unavailable rendering as
   unverified. A wording edit does not require unrelated visual checks.
-- When the task identifies multiple maintained formats, such as HTML and Markdown, compare
-  the edited headings, order, terminology, references and visual meaning across in-scope
-  versions. Synchronize authorized versions in writing mode; report divergence in review
-  mode. Allow useful format-specific layouts; do not require pixel-identical output or
-  discover and edit unrelated copies.
+- When the task identifies multiple maintained formats, such as HTML and Markdown,
+  compare the edited headings, order, terminology, references and visual meaning across
+  in-scope versions. Synchronize authorized versions in optimize mode; report
+  divergence in standalone review. Allow useful format-specific layouts; do not require
+  pixel-identical output or discover and edit unrelated copies.
 - Account for all eight criteria per reviewed document, including no-finding outcomes
   and stopped checks. An unperformed check is not a pass, even in a report with no findings.
 
@@ -530,7 +583,9 @@ Remove false positives and correct unsupported conclusions or rewrites. If evide
 cannot be checked, move the affected claim to unverified coverage rather than present it
 as a confirmed finding. Verify any corrected finding against its evidence before retaining it.
 Record the verification method, evidence checked, corrections made (or none), and remaining
-unverified items in the template. Then save and deliver under the output rules above.
+unverified items in the template. For a Chinese document in scope, complete the Chinese
+style section as described under [Chinese technical documents](#chinese-technical-documents).
+Then save and deliver under the output rules above.
 This is self-verification, not independent review or a guarantee that nothing was missed.
 Do not add a second reviewer by default.
 
@@ -551,7 +606,7 @@ Do not add a second reviewer by default.
 
 ## Stop conditions
 
-- **Scope undetermined** — no named documents, diff base, or current writing draft. Ask; do not guess.
+- **Scope undetermined** — no named documents, diff base, or current draft to optimize. Ask; do not guess.
 - **Subject is regenerated by a script or template** — report that the generator or template is the real subject,
   and stop.
 - **Subject is an Agent-directed file** and the user did not explicitly ask for it —

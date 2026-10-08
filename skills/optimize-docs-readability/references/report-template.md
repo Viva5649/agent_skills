@@ -60,3 +60,16 @@ issues were missed.
 
 Include every criterion that produced no finding. Checks that could not run belong in
 the preceding section, not among successful checks.
+
+## Chinese style review
+
+Findings from `tech-doc-style-chinese` in its review mode, ordered by its own rules.
+For a document outside its scope, or when the skill is not installed, write "Not run"
+with the reason.
+
+- Scope: <documents checked, and the `tech-doc-style-chinese` references read>
+- Project conventions: <target project's style rules that override the defaults, or none>
+
+| Location | Original text | Issue | Suggested text |
+| --- | --- | --- | --- |
+| <file:line or file § heading> | <quoted original> | <rule violated and its effect> | <replacement text> |

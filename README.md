@@ -23,7 +23,7 @@
 | `deep-research-with-verification` | 带独立事实核查的深度研究。完整复用 `hv-analysis` 的研究流程，初稿后追加独立核查与修复，以 Markdown 交付 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
 | `execute-tickets` | 按依赖顺序执行已准备好的实现 ticket，逐张实现、验证、评审，支持多仓库和中断后续跑 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
 | `explain-concept` | 概念通俗讲解与可视化。输出生活化例子、记忆方法，适合时按概念结构选 mermaid / SVG / HTML 出图 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ❌ |
-| `optimize-docs-readability` | 长文可读性优化。起草或大改面向人的长文后自动检查清晰度，保留事实、引用与必要限定；显式审阅时只给问题和改写建议 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
+| `optimize-docs-readability` | 长文可读性优化。起草或大改面向人的长文后，或要求优化已有文档时，直接修复并列出问题清单，中文文档的用词和排版交给 `tech-doc-style-chinese`；只要求审阅时只给问题和改写建议 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
 | `optimize-prompt` | 提示词优化。基于 57 个提示词框架选择合适结构，先澄清目标、受众、上下文再改写 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
 | `publish-site` | 管理个人 Vantage 站点，把已准备好的内容转成双主题编辑风格 HTML 报告并发布 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
 | `send-email` | 通过 SMTP 发送邮件，支持 Markdown 转 HTML、附件、多收件人与 CC/BCC | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
