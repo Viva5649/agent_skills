@@ -3,9 +3,9 @@
 
 只读，不修改任何文件。发现漂移时逐条打印并以退出码 1 结束。
 
-README 里的用途描述和分类分组是人工撰写的，本脚本不生成、不改写，
-只负责把「名单、计数、源仓库、两个标记列」这些可机械推导的部分对齐，
-把需要人写的那一行精确指出来。
+README 里的用途描述和分类分组由人或 skillctl update-readme 调用的 opencode 撰写，
+本脚本不生成、不改写，只负责把「名单、计数、源仓库、两个标记列」这些可机械推导的部分对齐，
+把需要补写的那一行精确指出来。
 
 全局层以仓库根目录 skills.json 里 present 的条目为准，加上不归 skillctl 管的
 UNMANAGED，不扫描本机目录，所以这一层在哪台电脑上校验结果都一样。
@@ -268,7 +268,7 @@ if problems:
     print(f"\nREADME sync check found {len(problems)} drift(s):\n")
     for p in problems:
         print(f"  {p}")
-    print("\nPurpose descriptions and category grouping are written by hand; this script does not rewrite README.")
+    print("\nThis script does not rewrite README; run skillctl update-readme to fix it with opencode, or edit it by hand.")
     raise SystemExit(1)
 
 print("README sync check passed.")

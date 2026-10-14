@@ -7,12 +7,17 @@ skill 实体装在 ~/.agents/skills/<安装名>/（Codex 读取），
 ~/.claude/skills/<安装名> 是指向它的软链接（Claude Code 读取）。
 上游仓库浅 clone 在 ~/.local/share/agent-skills/repos/<owner>/<repo>/。
 
-只依赖 git 和 Python 3.9 标准库。
+只依赖 git 和 Python 3.9 标准库。README 有漂移时，设置了 SKILLCTL_UPDATE_README 的机器
+用 opencode 按 .opencode/agents/sync-readme.md 改 README，其余机器只提醒。
 设计原则见仓库 README「设计原则」一节，改动行为前先对照。
 
-环境变量（测试用）：
+环境变量：
+  SKILLCTL_UPDATE_README  设为 1 时，清单变化后自动调用 opencode 改 README；只在主力机设置
+
+测试用：
   SKILLCTL_GIT_BASE   上游仓库地址前缀，默认 https://github.com/
   SKILLCTL_FORCE_TTY  设为 1 时把标准输入当作终端，走交互流程
+  SKILLCTL_OPENCODE   opencode 可执行文件路径，设为空表示没有 opencode
 """
 
 import argparse
@@ -22,6 +27,7 @@ import json
 import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor
@@ -59,6 +65,9 @@ CLAUDE_DIR = HOME / ".claude" / "skills"
 CODEX_DIR = HOME / ".codex" / "skills"
 CODEX_SYSTEM = CODEX_DIR / ".system"
 BIN_LINK = HOME / ".local" / "bin" / "skillctl"
+README_AGENT = "sync-readme"
+README_AGENT_FILE = WORK / ".opencode" / "agents" / f"{README_AGENT}.md"
+OPENCODE_TIMEOUT = 300
 
 GIT_BASE = os.environ.get("SKILLCTL_GIT_BASE", "https://github.com/")
 GIT_ENV = dict(os.environ, GIT_TERMINAL_PROMPT="0")
@@ -310,7 +319,7 @@ def pull_work():
 # ---------- skill 文件 ----------
 
 def read_frontmatter(skill_md):
-    """返回 (name, 描述第一行)。"""
+    """返回 (name, 描述)。多行描述合并成一行。"""
     try:
         text = skill_md.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError):
@@ -329,10 +338,13 @@ def read_frontmatter(skill_md):
         if m and not desc:
             desc = m.group(1).strip().strip("'\"")
             if desc in ("", ">", "|", ">-", "|-"):
+                block = []
                 for nxt in lines[i + 1:]:
-                    if nxt.strip() and nxt.startswith((" ", "\t")):
-                        desc = nxt.strip()
+                    if nxt.strip() and not nxt.startswith((" ", "\t")):
                         break
+                    if nxt.strip():
+                        block.append(nxt.strip())
+                desc = " ".join(block)
     return name, desc
 
 
@@ -809,22 +821,125 @@ def reconcile(manifest, report):
             install_entry(sid, e, report)
 
 
-# ---------- 命令 ----------
+# ---------- README ----------
 
-def remind_readme():
-    """清单变化后运行仓库自带的 README 校验，有漂移就提醒，不影响退出码。"""
+def readme_drift():
+    """运行仓库自带的 README 校验，返回漂移行；校验通过返回空列表，没有校验脚本返回 None。"""
     checker = WORK / "scripts" / "check-readme-sync.py"
     if not checker.is_file():
-        return
+        return None
     proc = subprocess.run([sys.executable, str(checker)], cwd=str(WORK),
                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
     if proc.returncode == 0:
-        return
+        return []
     drift = [l.strip() for l in proc.stdout.splitlines() if l.strip().startswith("[")]
-    say("Note: README is out of sync with the manifest; update it on the main Mac (purpose and category are written by hand):")
-    for line in drift or proc.stdout.strip().splitlines():
+    return drift or proc.stdout.strip().splitlines()
+
+
+def opencode_bin():
+    if "SKILLCTL_OPENCODE" in os.environ:
+        return os.environ["SKILLCTL_OPENCODE"] or None
+    found = shutil.which("opencode")
+    if found:
+        return found
+    fallback = HOME / ".opencode" / "bin" / "opencode"
+    return str(fallback) if fallback.is_file() else None
+
+
+def readme_message(drift):
+    """给 opencode 的消息：校验报告，加上缺失 skill 的描述（模型读不到仓库外的 SKILL.md）。"""
+    lines = ["skills.json 有变化，README 校验报告如下：", ""] + [f"  {d}" for d in drift]
+    descs = []
+    for d in drift:
+        m = re.search(r"missing from README: ([A-Za-z0-9._-]+)", d)
+        if not m:
+            continue
+        name = m.group(1)
+        for base in (WORK / "skills", AGENTS_DIR):
+            desc = read_frontmatter(base / name / "SKILL.md")[1]
+            if desc:
+                descs.append(f"- {name}：{desc}")
+                break
+    if descs:
+        lines += ["", "缺失 skill 的描述（取自 SKILL.md 的 description）：", ""] + descs
+    return "\n".join(lines)
+
+
+def dirty_files():
+    """工作 clone 里有改动或未跟踪的文件，返回 {路径: 内容哈希}，已删除的文件哈希为 None。"""
+    if git_dir() is None:
+        return {}
+    out = git(["-c", "core.quotePath=false", "status", "--porcelain", "-uall"], cwd=WORK, check=False).stdout
+    files = {}
+    for line in out.splitlines():
+        rel = line[3:].split(" -> ")[-1].strip('"')
+        p = WORK / rel
+        files[rel] = hashlib.sha256(p.read_bytes()).hexdigest() if p.is_file() else None
+    return files
+
+
+def run_opencode(exe, message):
+    """返回 (输出, 失败原因或 None)。"""
+    try:
+        # opencode run 在 stdin 不是终端时会读到 EOF 并拼进消息，不关掉就一直等
+        proc = subprocess.Popen([exe, "run", "--agent", README_AGENT, message], cwd=str(WORK),
+                                stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                universal_newlines=True, start_new_session=True)
+    except OSError as e:
+        return "", str(e)
+    try:
+        output, _ = proc.communicate(timeout=OPENCODE_TIMEOUT)
+    except subprocess.TimeoutExpired:
+        os.killpg(proc.pid, signal.SIGKILL)
+        output, _ = proc.communicate()
+        return output, f"timed out after {OPENCODE_TIMEOUT}s"
+    return output, (f"exit code {proc.returncode}" if proc.returncode else None)
+
+
+def update_readme(drift):
+    """调用 opencode 按漂移修改 README，不提交；返回改完后剩下的漂移，找不到 opencode 或 agent 定义时返回 None。"""
+    exe = opencode_bin()
+    if not exe or not README_AGENT_FILE.is_file():
+        return None
+    say(f"README is out of sync with the manifest ({len(drift)} drift(s)); asking opencode to update it, this can take a few minutes...")
+    before = dirty_files()
+    output, failure = run_opencode(exe, readme_message(drift))
+    log = DATA / "update-readme.log"
+    log.parent.mkdir(parents=True, exist_ok=True)
+    log.write_text(output, encoding="utf-8")
+    if failure:
+        warn(f"Note: opencode did not finish ({failure}); its output is in {log}")
+    after = dirty_files()
+    others = sorted(p for p in set(before) | set(after) if p != "README.md" and before.get(p) != after.get(p))
+    if others:
+        warn("Warning: opencode changed files other than README.md, review them: " + ", ".join(others))
+    left = readme_drift() or []
+    if left:
+        say("README is still out of sync; fix these by hand or run skillctl update-readme again:")
+        for line in left:
+            say(f"  {line}")
+    else:
+        say("README updated and the check passes; review it with git diff README.md before committing")
+    return left
+
+
+def remind_readme():
+    """清单变化后运行 README 校验。设置了 SKILLCTL_UPDATE_README 就调用 opencode 修改，
+    否则只提醒；README 只在主力机维护，副机改了也推不出去。不影响退出码。"""
+    drift = readme_drift()
+    if not drift:
+        return
+    if os.environ.get("SKILLCTL_UPDATE_README") != "1":
+        say("Note: README is out of sync with the manifest; on the main Mac, run skillctl update-readme or edit it by hand:")
+    elif update_readme(drift) is None:
+        say("Note: README is out of sync with the manifest and opencode was not found; update it by hand:")
+    else:
+        return
+    for line in drift:
         say(f"  {line}")
 
+
+# ---------- 命令 ----------
 
 def ensure_bin_link():
     target = SCRIPT
@@ -1297,6 +1412,19 @@ def check_issues():
     return issues
 
 
+def cmd_update_readme(args):
+    drift = readme_drift()
+    if drift is None:
+        raise SkillctlError(f"{WORK / 'scripts' / 'check-readme-sync.py'} not found")
+    if not drift:
+        say("README is in sync with the manifest")
+        return 0
+    left = update_readme(drift)
+    if left is None:
+        raise SkillctlError(f"opencode not found, or {README_AGENT_FILE} is missing")
+    return 1 if left else 0
+
+
 def cmd_check(args):
     issues = check_issues()
     for i in issues:
@@ -1324,12 +1452,14 @@ def main(argv=None):
     p.add_argument("repo", nargs="?")
     sub.add_parser("list", help="list managed and unmanaged skills")
     sub.add_parser("check", help="read-only health check")
+    sub.add_parser("update-readme", help="have opencode fix README drift from the manifest, without committing")
     args = parser.parse_args(argv)
     if not args.command:
         parser.print_help()
         return 0
     handlers = {"add": cmd_add, "remove": cmd_remove, "sync": cmd_sync, "merge": cmd_merge,
-                "update": cmd_update, "list": cmd_list, "check": cmd_check}
+                "update": cmd_update, "list": cmd_list, "check": cmd_check,
+                "update-readme": cmd_update_readme}
     try:
         ensure_bin_link()
         return handlers[args.command](args)

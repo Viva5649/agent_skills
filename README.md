@@ -5,7 +5,7 @@
 本文档记录本机（macOS）当前的 skill 全貌，分三层：仓库自建、全局安装、项目级。全局安装的 skill 由 [`skillctl`](#六用-skillctl-管理全局-skill) 按仓库根目录的 `skills.json` 安装，来源仓库以它为准。
 
 - 自建 skill：14 个（`skills/`）
-- 全局安装：70 个（`~/.agents/skills/`，`~/.claude/skills/` 下是指向它的软链接）
+- 全局安装：72 个（`~/.agents/skills/`，`~/.claude/skills/` 下是指向它的软链接）
 - 项目级：6 个（`personal_ai_infrastructure/.claude/skills/`）
 - 外部聚合：7 个仓库，共 200 个 skill（`third_party/`）
 
@@ -66,6 +66,7 @@
 | `neat-freak` | 知识收尾。把项目文档、CLAUDE.md/AGENTS.md、agent 记忆和当前代码实际行为对齐 | [KKKKhazix/khazix-skills](https://github.com/KKKKhazix/khazix-skills) | ✅ |
 | `codebase-documenter` | 代码库文档撰写。README、架构说明、API 文档、上手指南 | [ailabs-393/ai-labs-claude-skills](https://github.com/ailabs-393/ai-labs-claude-skills) | ❌ |
 | `spec-miner` | 逆向工程。从无文档的遗留代码库里反推规格、依赖图与业务逻辑 | [jeffallan/claude-skills](https://github.com/jeffallan/claude-skills) | ❌ |
+| `reverse-engineer-anything` | 逆向工程。从成品或运行时证据分析原生、托管、Electron、固件与浏览器目标，可反编译代码、比对版本或指导重建 | [morluto/rea](https://github.com/morluto/rea) | ❌ |
 | `smell` | 架构坏味道与复杂度热点检测，输出反模式违规的 markdown 报告 | [smallnest/goal-workflow](https://github.com/smallnest/goal-workflow) | ❌ |
 | `refactor` | 按 Martin Fowler 的重构目录改善代码，处理坏味道、提炼函数、简化条件，不改变行为 | [smallnest/goal-workflow](https://github.com/smallnest/goal-workflow) | ❌ |
 | `ce-code-review` | 审查指定 diff 或 PR 的 bug、回归、测试与规范问题，也能把审查结论直接改到本地 | [EveryInc/compound-engineering-plugin](https://github.com/EveryInc/compound-engineering-plugin) | ✅ |
@@ -94,6 +95,7 @@
 | `tech-doc-style-chinese` | 中文技术写作规范。撰写、改写、校对技术文档、API 说明、界面文案与运维手册，克制、准确、可扫读 | [Fenng/Tech-Doc-Style-Chinese](https://github.com/Fenng/Tech-Doc-Style-Chinese) | ❌ |
 | `guizang-ppt-skill` | 横向翻页网页 PPT（单 HTML），含 WebGL 背景与演讲者视图，两种风格 | [op7418/guizang-ppt-skill](https://github.com/op7418/guizang-ppt-skill) | ❌ |
 | `huashu-design` | HTML 高保真原型、幻灯片、动画、可视化，新设计强制先出三稿供选 | [alchaincyf/huashu-design](https://github.com/alchaincyf/huashu-design) | ❌ |
+| `huashu-art-motion` | 艺术与视频动画。拆解复刻动画，用代码生成 36 种艺术风格并让画活起来，含 9 种解说动画语法与口播整片参考代码 | [alchaincyf/huashu-art-motion](https://github.com/alchaincyf/huashu-art-motion) | ❌ |
 | `baoyu-article-illustrator` | 文章配图。分析结构定位需要插图的位置，按类型 × 风格 × 配色三维生成 | [JimLiu/baoyu-skills](https://github.com/JimLiu/baoyu-skills) | ✅ |
 | `baoyu-cover-image` | 文章封面图。类型、配色、渲染、文字、情绪五维组合，支持 2.35:1 / 16:9 / 1:1 | [JimLiu/baoyu-skills](https://github.com/JimLiu/baoyu-skills) | ✅ |
 | `apple-design` | Apple 式界面设计与流体动效的 Web 实现，手势、弹簧动画、材质层次、排版与减弱动效 | [emilkowalski/skills](https://github.com/emilkowalski/skills) | ❌ |
@@ -219,6 +221,8 @@
 | [humanlayer/skills](https://github.com/humanlayer/skills) | `show-me` |
 | [emilkowalski/skills](https://github.com/emilkowalski/skills) | `apple-design`、`emil-design-eng` |
 | [Fenng/Tech-Doc-Style-Chinese](https://github.com/Fenng/Tech-Doc-Style-Chinese) | `tech-doc-style-chinese` |
+| [alchaincyf/huashu-art-motion](https://github.com/alchaincyf/huashu-art-motion) | `huashu-art-motion` |
+| [morluto/rea](https://github.com/morluto/rea) | `reverse-engineer-anything` |
 
 ### 拉取与更新
 
@@ -255,7 +259,13 @@ git submodule update --remote --merge
 
 全局层以 `skills.json` 里在装的条目为准，再加上脚本里登记的非托管 skill（`agent-reach`、`ego-browser`），不扫描本机目录，所以在哪台电脑上校验结果都一样。本机实际装的和清单是否一致，由 `skillctl check` 负责。项目级默认读 `~/Desktop/personal_ai_infrastructure`，可用 `PAI_ROOT` 覆盖，目录不存在时跳过并打印提示。
 
-不校验也不生成用途描述和分类分组。脚本只读，发现漂移时逐条打印并以退出码 1 结束。personal_ai_infrastructure 仓库的 `run-maintenance` 每天会调一次，发现漂移时直接改 README，包括按 skill 的 `description` 补写用途、挑选分类，改完重跑到通过为止，不提交。
+脚本只读，不校验也不生成用途描述和分类分组，发现漂移时逐条打印并以退出码 1 结束。
+
+补写由 skillctl 调 opencode 完成，用 opencode 的默认模型。add、remove 和有改动的 merge 结束后，校验发现漂移就运行 `opencode run --agent sync-readme`，按 skill 的 `description` 写用途、挑选分组，改完重跑校验到通过为止。提示词和权限在 [`.opencode/agents/sync-readme.md`](.opencode/agents/sync-readme.md)，只允许编辑 README 和运行校验脚本。skillctl 不提交，结束时提示你用 `git diff README.md` 审阅。要手动重跑，运行 `skillctl update-readme`。
+
+自动执行只在主力机上打开：在 shell 配置里加一行 `export SKILLCTL_UPDATE_README=1`。副机不设，因为副机改了 README 推不出去，还会挡住之后的快进；没设这个变量或没装 opencode 的机器只打印漂移。
+
+personal_ai_infrastructure 仓库的 `run-maintenance` 每天也会调一次校验，发现漂移时直接改 README，不提交。
 
 ---
 
@@ -288,7 +298,7 @@ git submodule update --remote --merge
 6. **版本可复现。** 清单为每个上游仓库记录一个提交，两台电脑装同一版本。只有 update 会升级已用的仓库；add 一个新仓库时取默认分支的最新提交。
 7. **合并不丢改动。** skill 条目和仓库版本分开逐条合并，取 `updated_at` 较晚的一条，删除留下 `removed` 记录。只有主力机推送，副机靠拷文件把清单传回。
 8. **失败只影响出问题的那一项。** 单个 skill 或仓库出错只报告它自己，其余照常完成；网络卡住时会超时退出，不会一直挂着。
-9. **依赖最少。** 单个 Python 文件，只需要 git 和 Python 3.9 标准库。
+9. **依赖最少。** 单个 Python 文件，只需要 git 和 Python 3.9 标准库。README 自动更新要用 opencode，只在主力机打开，没装时只提醒，其他功能不受影响。
 
 ### 常用命令
 
@@ -302,6 +312,7 @@ git submodule update --remote --merge
 | `skillctl update [owner/repo]` | 拉取上游最新版本，列出有变化的文件，重装有变化的 skill，并把新版本记进清单 |
 | `skillctl list` | 列出托管的 skill，以及两个全局目录里未托管的 skill；能查到来源的会给出纳入管理的 add 命令 |
 | `skillctl check` | 只读检查：清单与安装是否一致、重名、手改、失效软链接、上游更新 |
+| `skillctl update-readme` | 让 opencode 按 README 校验结果修改 README，不提交。主力机设置 `SKILLCTL_UPDATE_README=1` 后，add、remove 和有改动的 merge 结束时会自动执行这一步 |
 
 `add`、`remove`、`update`、`merge` 执行前都会先做一次 `sync`。
 

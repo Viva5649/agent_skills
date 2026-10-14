@@ -10,6 +10,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -91,10 +92,14 @@ class Machine:
         self.agents = self.home / ".agents" / "skills"
         self.claude = self.home / ".claude" / "skills"
 
-    def run(self, *args, stdin=None, tty=False):
+    def run(self, *args, stdin=None, tty=False, opencode="", update_readme=False):
         # 用 file:// 地址，git 才会真的浅 clone（本地路径会忽略 --depth）
-        env = dict(GIT_ENV, HOME=str(self.home), SKILLCTL_GIT_BASE=self.env.remotes.as_uri() + "/")
+        env = dict(GIT_ENV, HOME=str(self.home), SKILLCTL_GIT_BASE=self.env.remotes.as_uri() + "/",
+                   SKILLCTL_OPENCODE=opencode)
         env.pop("SKILLCTL_FORCE_TTY", None)
+        env.pop("SKILLCTL_UPDATE_README", None)
+        if update_readme:
+            env["SKILLCTL_UPDATE_README"] = "1"
         if tty:
             env["SKILLCTL_FORCE_TTY"] = "1"
         proc = subprocess.run([sys.executable, str(self.work / "scripts" / "skillctl.py")] + list(args),
@@ -588,6 +593,103 @@ class SelfRepoTest(Base):
         self.ok(self.m, "update", "me/agent_skills")
         self.assertEqual(self.m.pin("me/agent_skills"), self.env.tip("me/agent_skills"))
         self.assertIn("v2", (self.m.agents / "own" / "SKILL.md").read_text())
+
+
+
+# 11. README 自动更新
+
+FAKE_CHECKER = """#!/usr/bin/env python3
+import json, sys
+from pathlib import Path
+root = Path(__file__).resolve().parent.parent
+readme = (root / "README.md").read_text()
+names = [e["name"] for e in json.loads((root / "skills.json").read_text())["skills"].values()]
+missing = [n for n in names if n not in readme]
+for n in missing:
+    print(f"  [global] exists but missing from README: {n}, source acme/tools")
+sys.exit(1 if missing else 0)
+"""
+
+# 假的 opencode：把消息和 stdin 记下来，按消息里的名字补进 README
+FAKE_OPENCODE = """#!/usr/bin/env python3
+import re, sys
+from pathlib import Path
+msg = sys.argv[-1]
+Path(__file__).with_name("opencode-call.txt").write_text(msg + "\\n--stdin--\\n" + sys.stdin.read())
+with open("README.md", "a") as f:
+    for name in re.findall(r"missing from README: ([a-z0-9-]+)", msg):
+        f.write(f"| `{name}` |\\n")
+if "--touch-other" in Path("mode").read_text():
+    Path("skills.json").write_text(Path("skills.json").read_text() + " ")
+"""
+
+
+class ReadmeTest(Base):
+    def setUp(self):
+        super().setUp()
+        scripts = self.m.work / "scripts"
+        (scripts / "check-readme-sync.py").write_text(FAKE_CHECKER)
+        agents = self.m.work / ".opencode" / "agents"
+        agents.mkdir(parents=True)
+        (agents / "sync-readme.md").write_text("---\ndescription: test\n---\n")
+        self.fake = self.env.root / "opencode"
+        self.fake.write_text(FAKE_OPENCODE)
+        self.fake.chmod(0o755)
+        (self.m.work / "mode").write_text("")
+
+    def test_add_updates_readme_through_opencode(self):
+        out = self.ok(self.m, "add", "acme/tools", "--skill", "alpha", opencode=str(self.fake), update_readme=True)
+        self.assertIn("README updated and the check passes", out)
+        self.assertIn("| `alpha` |", (self.m.work / "README.md").read_text())
+        self.assertNotIn("changed files other than README.md", out)
+        call = (self.env.root / "opencode-call.txt").read_text()
+        self.assertIn("- alpha：alpha 的描述", call)
+        self.assertTrue(call.endswith("--stdin--\n"), call)
+        out = self.ok(self.m, "update-readme", opencode=str(self.fake))
+        self.assertIn("README is in sync", out)
+
+    def test_changes_outside_readme_are_reported(self):
+        (self.m.work / "mode").write_text("--touch-other")
+        out = self.ok(self.m, "add", "acme/tools", "--skill", "alpha", opencode=str(self.fake), update_readme=True)
+        self.assertIn("changed files other than README.md, review them: skills.json", out)
+
+    def test_only_machines_with_the_switch_call_opencode(self):
+        """没设置 SKILLCTL_UPDATE_README 的机器（副机）只提醒，手动 update-readme 照常可用。"""
+        out = self.ok(self.m, "add", "acme/tools", "--skill", "alpha", opencode=str(self.fake))
+        self.assertIn("on the main Mac, run skillctl update-readme", out)
+        self.assertFalse((self.env.root / "opencode-call.txt").exists())
+        self.assertNotIn("alpha", (self.m.work / "README.md").read_text())
+        out = self.ok(self.m, "update-readme", opencode=str(self.fake))
+        self.assertIn("README updated and the check passes", out)
+
+    def test_without_opencode_only_reminds(self):
+        out = self.ok(self.m, "add", "acme/tools", "--skill", "alpha", update_readme=True)
+        self.assertIn("opencode was not found; update it by hand", out)
+        self.assertIn("missing from README: alpha", out)
+        self.assertNotIn("alpha", (self.m.work / "README.md").read_text())
+        rc, out = self.m.run("update-readme")
+        self.assertEqual(rc, 1, out)
+        self.assertIn("opencode not found", out)
+
+    def test_timeout_kills_the_whole_process_group(self):
+        """超时后连同 opencode 派生的子进程一起结束，不会因为子进程占着输出管道而卡住。"""
+        slow = self.env.root / "slow"
+        slow.write_text("#!/bin/sh\nsleep 30 &\nsleep 30\n")
+        slow.chmod(0o755)
+        old = sk.OPENCODE_TIMEOUT
+        sk.OPENCODE_TIMEOUT = 1
+        try:
+            started = time.monotonic()
+            _, failure = sk.run_opencode(str(slow), "msg")
+        finally:
+            sk.OPENCODE_TIMEOUT = old
+        self.assertIn("timed out", failure)
+        self.assertLess(time.monotonic() - started, 10)
+
+    def test_multiline_description(self):
+        p = self.env.root / "SKILL.md"
+        p.write_text("---\nname: x\ndescription: >\n  第一行\n  第二行\nlicense: MIT\n---\n")
+        self.assertEqual(sk.read_frontmatter(p), ("x", "第一行 第二行"))
 
 
 if __name__ == "__main__":

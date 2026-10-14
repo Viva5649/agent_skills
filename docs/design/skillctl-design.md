@@ -81,6 +81,8 @@
 | `~/.agents/skills/<安装名>/` | skill 实体和标记文件 `.skillctl.json` | 不同步 | skillctl |
 | `~/.claude/skills/<安装名>` | 指向上一行目录的软链接 | 不同步 | skillctl |
 | `~/.local/bin/skillctl` | 指向工作 clone 里 `skillctl.py` 的软链接 | 不同步 | skillctl 首次运行时自动创建 |
+| `<工作 clone>/.opencode/agents/sync-readme.md` | README 自动更新用的 opencode agent：提示词和权限，模型用 opencode 的默认设置 | 经 GitHub 单向分发 | 主力机 |
+| `~/.local/share/agent-skills/update-readme.log` | 最近一次 opencode 运行的输出 | 不同步 | skillctl |
 
 skillctl 解析自身的真实路径来找到工作 clone，所以 `~/.local/bin/skillctl` 必须指向工作 clone 里的那个 `skillctl.py`。
 
@@ -142,9 +144,10 @@ skillctl 解析自身的真实路径来找到工作 clone，所以 `~/.local/bin
 | `skillctl merge <文件> [--yes]` | 把另一台的清单逐条合并进本机清单，先列出有变化的条目并等你确认，再执行 sync 的安装步骤 | 清单、仓库副本、安装目录 |
 | `skillctl update [<owner/repo>]` | 拉取上游最新提交，列出有变化的 skill 和改动的文件，重装它们，并把新版本记进清单 | 清单、仓库副本、安装目录 |
 | `skillctl list` | 列出托管 skill 的安装名、标识、提交号和状态；再列出两个全局目录里未托管的 skill，能从 `.openskills.json` 查到来源的给出纳入管理的 add 命令。sync 不会把这些 skill 自动写进清单 | 不写入 |
+| `skillctl update-readme` | 运行 README 校验，有漂移时调用 opencode 修改 README（见"README 自动更新"一节），还有漂移时退出码为 1 | README |
 | `skillctl check` | 只读检查（见"检查"一节），发现问题时退出码为 1 | 只通过 fetch 更新工作 clone 的远端引用；上游有没有更新用 `git ls-remote` 查询，agent_skills 自己用工作 clone 比较 |
 
-`add`、`remove`、`update`、`merge` 在执行前都会先做一次完整的 `sync`，所以无论在哪台 Mac 上使用 skillctl，都会先把仓库里的最新清单带过来。add、remove 和有改动的 merge 完成后，会运行仓库自带的 README 校验，有漂移就提醒你补 README；README 里的用途和分类要人工写，工具不自动改。
+`add`、`remove`、`update`、`merge` 在执行前都会先做一次完整的 `sync`，所以无论在哪台 Mac 上使用 skillctl，都会先把仓库里的最新清单带过来。add、remove 和有改动的 merge 完成后，会运行仓库自带的 README 校验，有漂移时，主力机调用 opencode 修改 README，其余机器只提醒，见"README 自动更新"一节。
 
 ### 交互勾选
 
@@ -268,6 +271,18 @@ agent_skills 自己（工作 clone 的 origin 对应的仓库）例外：在用�
 只要发现任意一项，退出码就是 1。
 
 各仓库的上游查询并发进行，最多 16 个同时查，每个最多等 30 秒。update 拉取上游、新电脑第一次 sync 时 clone 仓库副本，也按同样的方式并发。网络卡住时尽快失败：SSH 连接和保活各等 15 秒；HTTPS 传输连续 30 秒低于 1KB/s 就放弃。clone 和拉取不设总时长上限，慢但一直在传的大仓库照样能完成。
+
+### README 自动更新
+
+README 里的名单、计数和标记列由校验脚本 `scripts/check-readme-sync.py` 核对，用途和分组要按 skill 的描述来写，交给 opencode 调用的模型。
+
+- **触发时机。** 设置了 `SKILLCTL_UPDATE_README=1` 的机器，在 add、remove 和有改动的 merge 结束后自动执行；任何机器都可以手动运行 `skillctl update-readme`。update 不触发，因为 README 不记录版本。
+- **只在主力机自动执行。** README 只在主力机维护。副机改了 README 推不出去，主力机之后推送了对 README 的修改，副机的工作 clone 还会因为这份本地改动无法快进。所以开关只在主力机的 shell 配置里设置，副机只提醒。
+- **输入。** 消息由 skillctl 拼好：校验脚本列出的漂移，加上 README 里缺失的 skill 的 description，从 `skills/<名字>` 或 `~/.agents/skills/<名字>` 的 SKILL.md 读取。agent 不能读仓库外的目录，所以描述要由 skillctl 先读出来。
+- **调用。** 在工作 clone 里运行 `opencode run --agent sync-readme <消息>`，stdin 接 `/dev/null`。stdin 不是终端时，`opencode run` 会一直读到 EOF，再把读到的内容拼进消息，不关掉 stdin 就会卡住。5 分钟超时，超时后结束整个进程组。输出写进 `~/.local/share/agent-skills/update-readme.log`。
+- **权限。** `.opencode/agents/sync-readme.md` 只放行读取仓库、编辑 `README.md` 和运行校验脚本，其余一律拒绝，包括读仓库外的目录和执行 git。skillctl 在运行前后各记一次工作 clone 里有改动的文件和内容哈希，`README.md` 以外有变化就发出警告。
+- **结果。** skillctl 自己重跑校验：通过就提示用 `git diff README.md` 审阅，没通过就列出剩下的漂移。不提交；自动执行时不影响命令的退出码。
+- **没有 opencode 时。** 开关打开了，但 PATH 里和 `~/.opencode/bin/opencode` 都找不到 opencode，或者缺少 agent 定义，就只打印漂移。
 
 ## 命名与冲突规则
 

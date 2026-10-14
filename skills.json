@@ -24,6 +24,10 @@
       "commit": "1a12bc7aadcc7b211f77a7455db454b77a71f827",
       "updated_at": "2026-09-29T22:56:32+08:00"
     },
+    "alchaincyf/huashu-art-motion": {
+      "commit": "2571ee0a9a0467c4d99e935ea9e0fadda19210b0",
+      "updated_at": "2026-10-14T23:19:01+08:00"
+    },
     "alchaincyf/huashu-design": {
       "commit": "0830494ecb1c117e25b313a8114fe55a6bf2b125",
       "updated_at": "2026-09-29T22:56:32+08:00"
@@ -67,6 +71,10 @@
     "mattpocock/skills": {
       "commit": "d81f3a183412e71a5b1e84ca21bc1a35eea03a60",
       "updated_at": "2026-10-01T11:59:18+08:00"
+    },
+    "morluto/rea": {
+      "commit": "eb44921c4c3682e33c78508285629926e8ef241e",
+      "updated_at": "2026-10-14T23:20:20+08:00"
     },
     "op7418/guizang-ppt-skill": {
       "commit": "c91369c449d34755d320a8b81d0734000d99d1ab",
@@ -195,6 +203,11 @@
       "name": "codebase-documenter",
       "state": "present",
       "updated_at": "2026-09-28T23:37:13+08:00"
+    },
+    "alchaincyf/huashu-art-motion:.": {
+      "name": "huashu-art-motion",
+      "state": "present",
+      "updated_at": "2026-10-14T23:19:01+08:00"
     },
     "alchaincyf/huashu-design:.": {
       "name": "huashu-design",
@@ -406,6 +419,11 @@
       "name": "mattpocock-writing-for-agents",
       "state": "present",
       "updated_at": "2026-10-01T11:59:18+08:00"
+    },
+    "morluto/rea:.agents/skills/reverse-engineer-anything": {
+      "name": "reverse-engineer-anything",
+      "state": "present",
+      "updated_at": "2026-10-14T23:20:20+08:00"
     },
     "obra/superpowers:skills/brainstorming": {
       "name": "brainstorming",
