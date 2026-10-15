@@ -612,10 +612,13 @@ sys.exit(1 if missing else 0)
 
 # 假的 opencode：把消息和 stdin 记下来，按消息里的名字补进 README
 FAKE_OPENCODE = """#!/usr/bin/env python3
-import re, sys
+import os, re, sys
 from pathlib import Path
 msg = sys.argv[-1]
-Path(__file__).with_name("opencode-call.txt").write_text(msg + "\\n--stdin--\\n" + sys.stdin.read())
+args = sys.argv[1:-1]
+Path(__file__).with_name("opencode-call.txt").write_text(
+    msg + "\\n--dir " + args[args.index("--dir") + 1] + "\\n--pwd " + os.environ["PWD"]
+    + "\\n--stdin--\\n" + sys.stdin.read())
 with open("README.md", "a") as f:
     for name in re.findall(r"missing from README: ([a-z0-9-]+)", msg):
         f.write(f"| `{name}` |\\n")
@@ -645,6 +648,9 @@ class ReadmeTest(Base):
         call = (self.env.root / "opencode-call.txt").read_text()
         self.assertIn("- alpha：alpha 的描述", call)
         self.assertTrue(call.endswith("--stdin--\n"), call)
+        # skillctl 在 HOME 下运行，opencode 仍要以工作 clone 为项目目录
+        work = self.m.work.resolve()
+        self.assertIn(f"--dir {work}\n--pwd {work}\n", call)
         out = self.ok(self.m, "update-readme", opencode=str(self.fake))
         self.assertIn("README is in sync", out)
 

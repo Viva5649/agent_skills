@@ -279,7 +279,7 @@ README 里的名单、计数和标记列由校验脚本 `scripts/check-readme-sy
 - **触发时机。** 设置了 `SKILLCTL_UPDATE_README=1` 的机器，在 add、remove 和有改动的 merge 结束后自动执行；任何机器都可以手动运行 `skillctl update-readme`。update 不触发，因为 README 不记录版本。
 - **只在主力机自动执行。** README 只在主力机维护。副机改了 README 推不出去，主力机之后推送了对 README 的修改，副机的工作 clone 还会因为这份本地改动无法快进。所以开关只在主力机的 shell 配置里设置，副机只提醒。
 - **输入。** 消息由 skillctl 拼好：校验脚本列出的漂移，加上 README 里缺失的 skill 的 description，从 `skills/<名字>` 或 `~/.agents/skills/<名字>` 的 SKILL.md 读取。agent 不能读仓库外的目录，所以描述要由 skillctl 先读出来。
-- **调用。** 在工作 clone 里运行 `opencode run --agent sync-readme <消息>`，stdin 接 `/dev/null`。stdin 不是终端时，`opencode run` 会一直读到 EOF，再把读到的内容拼进消息，不关掉 stdin 就会卡住。5 分钟超时，超时后结束整个进程组。输出写进 `~/.local/share/agent-skills/update-readme.log`。
+- **调用。** 运行 `opencode run --dir <工作 clone> --agent sync-readme <消息>`，stdin 接 `/dev/null`。opencode 按环境变量 `PWD` 定位项目，不看进程的工作目录，不传 `--dir` 的话，在别的目录运行 skillctl 时它找不到这个 agent。stdin 不是终端时，`opencode run` 会一直读到 EOF，再把读到的内容拼进消息，不关掉 stdin 就会卡住。5 分钟超时，超时后结束整个进程组。输出写进 `~/.local/share/agent-skills/update-readme.log`。
 - **权限。** `.opencode/agents/sync-readme.md` 只放行读取仓库、编辑 `README.md` 和运行校验脚本，其余一律拒绝，包括读仓库外的目录和执行 git。skillctl 在运行前后各记一次工作 clone 里有改动的文件和内容哈希，`README.md` 以外有变化就发出警告。
 - **结果。** skillctl 自己重跑校验：通过就提示用 `git diff README.md` 审阅，没通过就列出剩下的漂移。不提交；自动执行时不影响命令的退出码。
 - **没有 opencode 时。** 开关打开了，但 PATH 里和 `~/.opencode/bin/opencode` 都找不到 opencode，或者缺少 agent 定义，就只打印漂移。

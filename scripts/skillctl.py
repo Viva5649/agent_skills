@@ -881,8 +881,10 @@ def dirty_files():
 def run_opencode(exe, message):
     """返回 (输出, 失败原因或 None)。"""
     try:
-        # opencode run 在 stdin 不是终端时会读到 EOF 并拼进消息，不关掉就一直等
-        proc = subprocess.Popen([exe, "run", "--agent", README_AGENT, message], cwd=str(WORK),
+        # opencode run 在 stdin 不是终端时会读到 EOF 并拼进消息，不关掉就一直等。
+        # 它按 PWD 而不是进程的工作目录定位项目，所以用 --dir 指明，否则在别处运行时找不到 agent
+        proc = subprocess.Popen([exe, "run", "--dir", str(WORK), "--agent", README_AGENT, message],
+                                cwd=str(WORK), env=dict(os.environ, PWD=str(WORK)),
                                 stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                 universal_newlines=True, start_new_session=True)
     except OSError as e:

@@ -5,7 +5,7 @@
 本文档记录本机（macOS）当前的 skill 全貌，分三层：仓库自建、全局安装、项目级。全局安装的 skill 由 [`skillctl`](#六用-skillctl-管理全局-skill) 按仓库根目录的 `skills.json` 安装，来源仓库以它为准。
 
 - 自建 skill：14 个（`skills/`）
-- 全局安装：72 个（`~/.agents/skills/`，`~/.claude/skills/` 下是指向它的软链接）
+- 全局安装：71 个（`~/.agents/skills/`，`~/.claude/skills/` 下是指向它的软链接）
 - 项目级：6 个（`personal_ai_infrastructure/.claude/skills/`）
 - 外部聚合：7 个仓库，共 200 个 skill（`third_party/`）
 
@@ -24,7 +24,7 @@
 | `execute-tickets` | 按依赖顺序执行已准备好的实现 ticket，逐张实现、验证、评审，支持多仓库和中断后续跑 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
 | `explain-concept` | 概念通俗讲解与可视化。输出生活化例子、记忆方法，适合时按概念结构选 mermaid / SVG / HTML 出图 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ❌ |
 | `optimize-docs-readability` | 长文可读性优化。起草或大改面向人的长文后，或要求优化已有文档时，直接修复并列出问题清单，中文文档的用词和排版交给 `tech-doc-style-chinese`；只要求审阅时只给问题和改写建议 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
-| `optimize-prompt` | 提示词优化。基于 57 个提示词框架选择合适结构，先澄清目标、受众、上下文再改写 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
+| `optimize-prompt` | 提示词优化。基于 57 个提示词框架选择合适结构，先澄清目标、受众、上下文再改写 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ❌ |
 | `publish-site` | 管理个人 Vantage 站点，把已准备好的内容转成双主题编辑风格 HTML 报告并发布 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
 | `send-email` | 通过 SMTP 发送邮件，支持 Markdown 转 HTML、附件、多收件人与 CC/BCC | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
 | `write-implementation-tickets` | 把仓库里的规格拆成 agent 能独立执行的实现 ticket，写明边界、验证方式和依赖 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
@@ -111,7 +111,6 @@
 |---|---|---|:---:|
 | `clarify-thought` | 命题分解与决策澄清 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | 本仓库 |
 | `clarify-life-direction` | 人生方向澄清 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | 本仓库 |
-| `optimize-prompt` | 提示词优化 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | 本仓库 |
 
 ### Skill 管理自身
 

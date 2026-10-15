@@ -176,8 +176,8 @@
     },
     "Viva5649/agent_skills:skills/optimize-prompt": {
       "name": "optimize-prompt",
-      "state": "present",
-      "updated_at": "2026-09-28T23:33:06+08:00"
+      "state": "removed",
+      "updated_at": "2026-10-15T08:28:18+08:00"
     },
     "Viva5649/agent_skills:skills/publish-site": {
       "name": "publish-site",
