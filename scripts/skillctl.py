@@ -65,6 +65,7 @@ CLAUDE_DIR = HOME / ".claude" / "skills"
 CODEX_DIR = HOME / ".codex" / "skills"
 CODEX_SYSTEM = CODEX_DIR / ".system"
 BIN_LINK = HOME / ".local" / "bin" / "skillctl"
+EMPTY_GIT = DATA / "empty.git"
 README_AGENT = "sync-readme"
 README_AGENT_FILE = WORK / ".opencode" / "agents" / f"{README_AGENT}.md"
 OPENCODE_TIMEOUT = 300
@@ -321,9 +322,18 @@ def pull_work():
 def read_frontmatter(skill_md):
     """返回 (name, 描述)。多行描述合并成一行。"""
     try:
-        text = skill_md.read_text(encoding="utf-8")
+        return parse_frontmatter(skill_md.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError):
         return "", ""
+
+
+def description_at(d, commit, path):
+    """仓库副本里某个提交的 SKILL.md 描述，取不到时返回空字符串。"""
+    out = git(["show", f"{commit}:{'' if path == '.' else path + '/'}SKILL.md"], cwd=d, check=False)
+    return parse_frontmatter(out.stdout)[1] if out.returncode == 0 else ""
+
+
+def parse_frontmatter(text):
     lines = text.splitlines()
     if not lines or lines[0].strip() != "---":
         return "", ""
@@ -366,17 +376,36 @@ def rewrite_name(skill_md, new_name):
     skill_md.write_text("\n".join(lines), encoding="utf-8")
 
 
+def gitignored(directory):
+    """skill 自带的 .gitignore 忽略的路径，目录以 / 结尾。
+
+    这些多是 skill 运行时生成的文件（缓存、下载的二进制、更新检查记录），上游自己也不跟踪，
+    不算手改。安装目录不是 git 仓库，借一个空的裸仓库让 git 按 .gitignore 规则判断。
+    """
+    if not EMPTY_GIT.is_dir():
+        EMPTY_GIT.parent.mkdir(parents=True, exist_ok=True)
+        git(["init", "-q", "--bare", str(EMPTY_GIT)], check=False)
+    out = git(["--git-dir", str(EMPTY_GIT), "--work-tree", str(directory), "ls-files", "-z", "--others",
+               "--ignored", "--directory", "--exclude-per-directory=.gitignore"], check=False)
+    return set(filter(None, out.stdout.split("\0"))) if out.returncode == 0 else set()
+
+
 def content_hash(directory):
     h = hashlib.sha256()
-    files = []
+    files, has_gitignore = [], False
     for root, dirs, names in os.walk(directory):
         dirs[:] = sorted(d for d in dirs if d not in IGNORED)
         for n in names:
             if n in IGNORED or (root == str(directory) and n == MARKER):
                 continue
-            files.append(Path(root, n))
-    for f in sorted(files, key=lambda p: p.relative_to(directory).as_posix()):
-        rel = f.relative_to(directory).as_posix()
+            has_gitignore = has_gitignore or n == ".gitignore"
+            files.append(Path(root, n).relative_to(directory).as_posix())
+    if has_gitignore:
+        skip = gitignored(directory)
+        skip_dirs = tuple(s for s in skip if s.endswith("/"))
+        files = [rel for rel in files if rel not in skip and not rel.startswith(skip_dirs)]
+    for rel in sorted(files):
+        f = Path(directory, rel)
         h.update(rel.encode() + b"\0")
         h.update(f.read_bytes() if not f.is_symlink() else os.readlink(f).encode())
         h.update(b"\0")
@@ -846,9 +875,16 @@ def opencode_bin():
     return str(fallback) if fallback.is_file() else None
 
 
-def readme_message(drift):
-    """给 opencode 的消息：校验报告，加上缺失 skill 的描述（模型读不到仓库外的 SKILL.md）。"""
-    lines = ["skills.json 有变化，README 校验报告如下：", ""] + [f"  {d}" for d in drift]
+def readme_message(drift, desc_changes=()):
+    """给 opencode 的消息：校验报告和缺失 skill 的描述，update 时再加上描述有变化的 skill。
+    描述由 skillctl 读好放进来，模型读不到仓库外的 SKILL.md。"""
+    lines = []
+    if drift:
+        lines += ["skills.json 有变化，README 校验报告如下：", ""] + [f"  {d}" for d in drift]
+    if desc_changes:
+        lines += ([""] if lines else []) + ["以下 skill 升级后，上游 SKILL.md 的 description 有变化：", ""]
+        for name, old, new in desc_changes:
+            lines += [f"- {name}", f"  旧：{old or '（无）'}", f"  新：{new or '（无）'}"]
     descs = []
     for d in drift:
         m = re.search(r"missing from README: ([A-Za-z0-9._-]+)", d)
@@ -898,14 +934,17 @@ def run_opencode(exe, message):
     return output, (f"exit code {proc.returncode}" if proc.returncode else None)
 
 
-def update_readme(drift):
-    """调用 opencode 按漂移修改 README，不提交；返回改完后剩下的漂移，找不到 opencode 或 agent 定义时返回 None。"""
+def update_readme(drift, desc_changes=()):
+    """调用 opencode 按漂移和描述变化修改 README，不提交；返回改完后剩下的漂移，
+    找不到 opencode 或 agent 定义时返回 None。"""
     exe = opencode_bin()
     if not exe or not README_AGENT_FILE.is_file():
         return None
-    say(f"README is out of sync with the manifest ({len(drift)} drift(s)); asking opencode to update it, this can take a few minutes...")
+    reasons = ([f"{len(drift)} drift(s)"] if drift else []) + \
+        ([f"{len(desc_changes)} upstream description change(s)"] if desc_changes else [])
+    say(f"README needs updating ({', '.join(reasons)}); asking opencode to update it, this can take a few minutes...")
     before = dirty_files()
-    output, failure = run_opencode(exe, readme_message(drift))
+    output, failure = run_opencode(exe, readme_message(drift, desc_changes))
     log = DATA / "update-readme.log"
     log.parent.mkdir(parents=True, exist_ok=True)
     log.write_text(output, encoding="utf-8")
@@ -920,25 +959,30 @@ def update_readme(drift):
         say("README is still out of sync; fix these by hand or run skillctl update-readme again:")
         for line in left:
             say(f"  {line}")
+    elif before.get("README.md") == after.get("README.md"):
+        say("opencode left README unchanged and the check passes")
     else:
         say("README updated and the check passes; review it with git diff README.md before committing")
     return left
 
 
-def remind_readme():
-    """清单变化后运行 README 校验。设置了 SKILLCTL_UPDATE_README 就调用 opencode 修改，
+def remind_readme(desc_changes=()):
+    """清单变化或 update 升级后检查 README：校验有漂移，或有 skill 的上游描述变了（desc_changes，
+    元素为 (安装名, 旧描述, 新描述)）。设置了 SKILLCTL_UPDATE_README 就调用 opencode 修改，
     否则只提醒；README 只在主力机维护，副机改了也推不出去。不影响退出码。"""
     drift = readme_drift()
-    if not drift:
+    if drift is None or not (drift or desc_changes):
         return
     if os.environ.get("SKILLCTL_UPDATE_README") != "1":
-        say("Note: README is out of sync with the manifest; on the main Mac, run skillctl update-readme or edit it by hand:")
-    elif update_readme(drift) is None:
-        say("Note: README is out of sync with the manifest and opencode was not found; update it by hand:")
+        say("Note: README may be out of date; on the main Mac, update it by hand or let skillctl do it with opencode:")
+    elif update_readme(drift, desc_changes) is None:
+        say("Note: README may be out of date and opencode was not found; update it by hand:")
     else:
         return
     for line in drift:
         say(f"  {line}")
+    for name, _, _ in desc_changes:
+        say(f"  [description] {name}: upstream description changed, check its purpose in README")
 
 
 # ---------- 命令 ----------
@@ -1165,6 +1209,7 @@ def cmd_update(args):
         by_repo = {args.repo: by_repo[args.repo]}
 
     upgraded = 0
+    desc_changes = []
     own = self_repo(manifest)
     local = [repo for repo in sorted(by_repo) if (repo_dir(repo) / ".git").exists()]
     latest = run_parallel(lambda repo: fetch_latest(repo_dir(repo)), local)
@@ -1178,7 +1223,7 @@ def cmd_update(args):
         if old == new:
             continue
         say(f"{repo}: {old[:7]} -> {new[:7]}")
-        changed_ids = set()
+        changed_ids, descs = set(), []
         for sid, e in sorted(by_repo[repo]):
             path = split_id(sid)[1]
             spec = [] if path == "." else ["--", path]
@@ -1189,6 +1234,9 @@ def cmd_update(args):
             gone = git(["cat-file", "-e", f"{new}:{'' if path == '.' else path + '/'}SKILL.md"],
                        cwd=rdir, check=False).returncode != 0
             say(f"  {e['name']}: {len(files)} file(s) changed" + (", the skill was deleted upstream" if gone else ""))
+            old_desc, new_desc = description_at(rdir, old, path), description_at(rdir, new, path)
+            if not gone and old_desc != new_desc:
+                descs.append((e["name"], old_desc, new_desc))
             for f in files[:10]:
                 say(f"    {f}")
             if len(files) > 10:
@@ -1204,6 +1252,7 @@ def cmd_update(args):
         set_pin(manifest, repo, new)
         save_manifest(manifest)
         upgraded += 1
+        desc_changes += descs
         for sid, e in by_repo[repo]:
             t = AGENTS_DIR / e["name"]
             mk = read_marker(t)
@@ -1213,6 +1262,8 @@ def cmd_update(args):
                 write_marker(t, sid, new)
     if upgraded:
         say(f"Pinned new versions of {upgraded} repo(s) in the manifest; commit and push it, and the other Mac installs the same versions on sync")
+    if desc_changes:
+        remind_readme(sorted(desc_changes))
     return 1 if report.problems else 0
 
 

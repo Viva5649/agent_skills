@@ -303,6 +303,23 @@ class ProtectTest(Base):
         self.assertIn("not removed", out)
         self.assertEqual(self.m.manifest()["skills"]["acme/tools:skills/alpha"]["state"], "removed")
 
+    def test_gitignored_files_are_not_local_edits(self):
+        """skill 运行时生成、被它自己的 .gitignore 忽略的文件不算手改，update 照常升级。"""
+        self.env.upstream("acme/tools", {"skills/alpha/.gitignore": ".last-check\nbin/\n"})
+        self.ok(self.m, "add", "acme/tools", "--skill", "alpha")
+        d = self.m.agents / "alpha"
+        (d / ".last-check").write_text("2026-10-31\n")
+        (d / "bin").mkdir()
+        (d / "bin" / "tool").write_text("binary\n")
+        self.assertRegex(self.ok(self.m, "list"), r"alpha\s+\w+\s+ok\s")
+        self.check_clean(self.m)
+        self.env.upstream("acme/tools", {"skills/alpha/ref.md": "upstream v2\n"})
+        self.ok(self.m, "update")
+        self.assertEqual((d / "ref.md").read_text(), "upstream v2\n")
+
+        (d / "ref.md").write_text("my edit\n")
+        self.assertRegex(self.ok(self.m, "list"), r"alpha\s+\w+\s+modified\s")
+
 
 # 4. 冲突拒绝
 
@@ -662,11 +679,32 @@ class ReadmeTest(Base):
     def test_only_machines_with_the_switch_call_opencode(self):
         """没设置 SKILLCTL_UPDATE_README 的机器（副机）只提醒，手动 update-readme 照常可用。"""
         out = self.ok(self.m, "add", "acme/tools", "--skill", "alpha", opencode=str(self.fake))
-        self.assertIn("on the main Mac, run skillctl update-readme", out)
+        self.assertIn("README may be out of date; on the main Mac", out)
         self.assertFalse((self.env.root / "opencode-call.txt").exists())
         self.assertNotIn("alpha", (self.m.work / "README.md").read_text())
         out = self.ok(self.m, "update-readme", opencode=str(self.fake))
         self.assertIn("README updated and the check passes", out)
+
+    def test_update_hands_description_changes_to_opencode(self):
+        """update 升级后上游描述变了才调用 opencode；只改了别的文件不调用。"""
+        self.ok(self.m, "add", "acme/tools", "--skill", "alpha,beta", opencode=str(self.fake), update_readme=True)
+        call = self.env.root / "opencode-call.txt"
+        call.unlink()
+        self.env.upstream("acme/tools", {"skills/alpha/ref.md": "v2\n"})
+        out = self.ok(self.m, "update", opencode=str(self.fake), update_readme=True)
+        self.assertFalse(call.exists(), out)
+
+        self.env.upstream("acme/tools", {"skills/beta/SKILL.md": skill_md("beta").replace("beta 的描述", "beta 的新描述")})
+        out = self.ok(self.m, "update", opencode=str(self.fake), update_readme=True)
+        self.assertIn("1 upstream description change(s)", out)
+        self.assertIn("opencode left README unchanged", out)
+        text = call.read_text()
+        self.assertIn("- beta\n  旧：beta 的描述\n  新：beta 的新描述", text)
+        self.assertNotIn("alpha", text)
+
+        self.env.upstream("acme/tools", {"skills/beta/SKILL.md": skill_md("beta").replace("beta 的描述", "第三版")})
+        out = self.ok(self.m, "update", opencode=str(self.fake))
+        self.assertIn("[description] beta: upstream description changed", out)
 
     def test_without_opencode_only_reminds(self):
         out = self.ok(self.m, "add", "acme/tools", "--skill", "alpha", update_readme=True)

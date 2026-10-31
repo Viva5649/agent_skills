@@ -260,7 +260,7 @@ git submodule update --remote --merge
 
 脚本只读，不校验也不生成用途描述和分类分组，发现漂移时逐条打印并以退出码 1 结束。
 
-补写由 skillctl 调 opencode 完成，用 opencode 的默认模型。add、remove 和有改动的 merge 结束后，校验发现漂移就运行 `opencode run --agent sync-readme`，按 skill 的 `description` 写用途、挑选分组，改完重跑校验到通过为止。提示词和权限在 [`.opencode/agents/sync-readme.md`](.opencode/agents/sync-readme.md)，只允许编辑 README 和运行校验脚本。skillctl 不提交，结束时提示你用 `git diff README.md` 审阅。要手动重跑，运行 `skillctl update-readme`。
+补写由 skillctl 调 opencode 完成，用 opencode 的默认模型。add、remove 和有改动的 merge 结束后，校验发现漂移就运行 `opencode run --agent sync-readme`，按 skill 的 `description` 写用途、挑选分组，改完重跑校验到通过为止。update 升级后，如果在用的 skill 上游改了 `description`，也会把新旧描述交给它，由它判断用途要不要改写；描述没变时不调用。提示词和权限在 [`.opencode/agents/sync-readme.md`](.opencode/agents/sync-readme.md)，只允许编辑 README 和运行校验脚本。skillctl 不提交，结束时提示你用 `git diff README.md` 审阅。要手动重跑，运行 `skillctl update-readme`。
 
 自动执行只在主力机上打开：在 shell 配置里加一行 `export SKILLCTL_UPDATE_README=1`。副机不设，因为副机改了 README 推不出去，还会挡住之后的快进；没设这个变量或没装 opencode 的机器只打印漂移。
 
@@ -311,7 +311,7 @@ personal_ai_infrastructure 仓库的 `run-maintenance` 每天也会调一次校�
 | `skillctl update [owner/repo]` | 拉取上游最新版本，列出有变化的文件，重装有变化的 skill，并把新版本记进清单 |
 | `skillctl list` | 列出托管的 skill，以及两个全局目录里未托管的 skill；能查到来源的会给出纳入管理的 add 命令 |
 | `skillctl check` | 只读检查：清单与安装是否一致、重名、手改、失效软链接、上游更新 |
-| `skillctl update-readme` | 让 opencode 按 README 校验结果修改 README，不提交。主力机设置 `SKILLCTL_UPDATE_README=1` 后，add、remove 和有改动的 merge 结束时会自动执行这一步 |
+| `skillctl update-readme` | 让 opencode 按 README 校验结果修改 README，不提交。主力机设置 `SKILLCTL_UPDATE_README=1` 后，add、remove 和有改动的 merge 结束时会自动执行这一步，update 升级后有 skill 的上游描述变了也会执行 |
 
 `add`、`remove`、`update`、`merge` 执行前都会先做一次 `sync`。
 
@@ -328,7 +328,7 @@ add 一个清单里还没有的仓库时，取默认分支的最新提交并记�
 - 默认沿用上游的 name。安装时会拦截四种情况：和清单里的 skill 重名；和本机已有目录重名，`~/.agents/skills`、`~/.claude/skills`、`~/.codex/skills` 和当前项目的 skill 目录都算，清单之外的也算；命中保留名（常见泛名、Claude Code 和 Codex 自带的 skill 名）；不符合 Agent Skills 命名规范。
 - 遇到重名时用 `--as` 起别名，或用 `--prefix` 加前缀，前缀优先用项目名。交互安装一次选了多个时，先问要不要统一加前缀，加完仍冲突的逐个提示输入别名，直接回车跳过这一个；非交互安装跳过冲突的那个，其余照装。
 - 已经装上的 skill 不会因为后来者改名；安装名写进 SKILL.md 的 `name:`，所以两个工具里看到的名字一致。
-- 手改过的 skill 不会被 sync、update、remove 覆盖或删除，只会被报告。
+- 手改过的 skill 不会被 sync、update、remove 覆盖或删除，只会被报告，`skillctl list` 里显示为 `modified`。skill 自己的 `.gitignore` 忽略的文件不算手改，比如它运行时生成的缓存和下载的二进制。
 - sync 新装清单里的 skill 时做同样的检查：命名规范、保留名，以及 `~/.agents/skills`、`~/.claude/skills`、`~/.codex/skills` 里的同名目录。任何一项不过就两处都不装，只报告冲突，你自己的 skill 保持原样。当前项目的 skill 目录只在 add 时检查，sync 不看，免得装不装取决于在哪个目录运行。已经装上的 skill 不再重新检查，之后出现的同名目录由 `skillctl check` 报告。
 
 ### 在新电脑上安装

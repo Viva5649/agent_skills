@@ -83,6 +83,7 @@
 | `~/.local/bin/skillctl` | 指向工作 clone 里 `skillctl.py` 的软链接 | 不同步 | skillctl 首次运行时自动创建 |
 | `<工作 clone>/.opencode/agents/sync-readme.md` | README 自动更新用的 opencode agent：提示词和权限，模型用 opencode 的默认设置 | 经 GitHub 单向分发 | 主力机 |
 | `~/.local/share/agent-skills/update-readme.log` | 最近一次 opencode 运行的输出 | 不同步 | skillctl |
+| `~/.local/share/agent-skills/empty.git` | 空的裸仓库，计算哈希时借它按 skill 的 `.gitignore` 判断哪些文件不计入 | 不同步 | skillctl 首次需要时自动创建 |
 
 skillctl 解析自身的真实路径来找到工作 clone，所以 `~/.local/bin/skillctl` 必须指向工作 clone 里的那个 `skillctl.py`。
 
@@ -147,7 +148,7 @@ skillctl 解析自身的真实路径来找到工作 clone，所以 `~/.local/bin
 | `skillctl update-readme` | 运行 README 校验，有漂移时调用 opencode 修改 README（见"README 自动更新"一节），还有漂移时退出码为 1 | README |
 | `skillctl check` | 只读检查（见"检查"一节），发现问题时退出码为 1 | 只通过 fetch 更新工作 clone 的远端引用；上游有没有更新用 `git ls-remote` 查询，agent_skills 自己用工作 clone 比较 |
 
-`add`、`remove`、`update`、`merge` 在执行前都会先做一次完整的 `sync`，所以无论在哪台 Mac 上使用 skillctl，都会先把仓库里的最新清单带过来。add、remove 和有改动的 merge 完成后，会运行仓库自带的 README 校验，有漂移时，主力机调用 opencode 修改 README，其余机器只提醒，见"README 自动更新"一节。
+`add`、`remove`、`update`、`merge` 在执行前都会先做一次完整的 `sync`，所以无论在哪台 Mac 上使用 skillctl，都会先把仓库里的最新清单带过来。add、remove 和有改动的 merge 完成后，会运行仓库自带的 README 校验；update 升级后，还会看在用的 skill 上游描述有没有变。需要改 README 时，主力机调用 opencode 修改，其余机器只提醒，见"README 自动更新"一节。
 
 ### 交互勾选
 
@@ -240,6 +241,8 @@ skill 条目和仓库版本分开记录时间，是为了让改名和升级互�
 
 标记文件 `.skillctl.json` 记录三项内容：skill 标识、安装时的提交号，以及安装完成后目录内容的哈希。哈希用 SHA-256 计算：先按相对路径排序，再依次计入每个文件的路径和内容，计算时排除标记文件本身，以及 `.git`、`.DS_Store`、`node_modules`。新增、删除文件都会改变哈希。
 
+skill 自带 `.gitignore` 忽略的文件也不计入。这些多是 skill 运行时生成的，比如更新检查记录、下载的二进制，上游自己也不跟踪，算作手改的话，这个 skill 就再也升级不了。安装目录不是 git 仓库，skillctl 借一个空的裸仓库 `~/.local/share/agent-skills/empty.git`，用 `git ls-files --others --ignored --exclude-per-directory=.gitignore` 按 `.gitignore` 规则找出这些文件，只读 skill 自己的 `.gitignore`，不读本机的全局忽略规则。代价是：上游跟踪了、却又被它的 `.gitignore` 匹配到的文件，改了也查不出来。目录里没有 `.gitignore` 时不调用 git。
+
 一个仓库的最后一个 skill 被删除后，它的仓库版本记录保留，仓库副本也留在本机，但 sync、update、check 都不再处理这个仓库。以后再 add 它的 skill 时，按新仓库对待，取默认分支的最新提交。副本可以手动删除，需要时会重新 clone。
 
 ### 更新
@@ -276,9 +279,9 @@ agent_skills 自己（工作 clone 的 origin 对应的仓库）例外：在用�
 
 README 里的名单、计数和标记列由校验脚本 `scripts/check-readme-sync.py` 核对，用途和分组要按 skill 的描述来写，交给 opencode 调用的模型。
 
-- **触发时机。** 设置了 `SKILLCTL_UPDATE_README=1` 的机器，在 add、remove 和有改动的 merge 结束后自动执行；任何机器都可以手动运行 `skillctl update-readme`。update 不触发，因为 README 不记录版本。
+- **触发时机。** 设置了 `SKILLCTL_UPDATE_README=1` 的机器，在 add、remove 和有改动的 merge 结束后，校验有漂移时自动执行；update 升级了仓库、其中在用的 skill 的 SKILL.md `description` 在新旧提交之间有变化时，也会自动执行。update 不会让校验报出漂移，因为安装名和来源都不变，README 也不记录版本；它可能让用途那一列过时，而校验脚本不比对用途，所以单独比较描述。任何机器都可以手动运行 `skillctl update-readme`，它只处理校验报出的漂移。
 - **只在主力机自动执行。** README 只在主力机维护。副机改了 README 推不出去，主力机之后推送了对 README 的修改，副机的工作 clone 还会因为这份本地改动无法快进。所以开关只在主力机的 shell 配置里设置，副机只提醒。
-- **输入。** 消息由 skillctl 拼好：校验脚本列出的漂移，加上 README 里缺失的 skill 的 description，从 `skills/<名字>` 或 `~/.agents/skills/<名字>` 的 SKILL.md 读取。agent 不能读仓库外的目录，所以描述要由 skillctl 先读出来。
+- **输入。** 消息由 skillctl 拼好：校验脚本列出的漂移，加上 README 里缺失的 skill 的 description，从 `skills/<名字>` 或 `~/.agents/skills/<名字>` 的 SKILL.md 读取；update 触发时，再加上描述有变化的 skill 及其新旧描述，从仓库副本的新旧提交里读取。提示词要求模型只在能力或适用场景有实质变化时改写用途，措辞调整不改。agent 不能读仓库外的目录，所以描述要由 skillctl 先读出来。
 - **调用。** 运行 `opencode run --dir <工作 clone> --agent sync-readme <消息>`，stdin 接 `/dev/null`。opencode 按环境变量 `PWD` 定位项目，不看进程的工作目录，不传 `--dir` 的话，在别的目录运行 skillctl 时它找不到这个 agent。stdin 不是终端时，`opencode run` 会一直读到 EOF，再把读到的内容拼进消息，不关掉 stdin 就会卡住。5 分钟超时，超时后结束整个进程组。输出写进 `~/.local/share/agent-skills/update-readme.log`。
 - **权限。** `.opencode/agents/sync-readme.md` 只放行读取仓库、编辑 `README.md` 和运行校验脚本，其余一律拒绝，包括读仓库外的目录和执行 git。skillctl 在运行前后各记一次工作 clone 里有改动的文件和内容哈希，`README.md` 以外有变化就发出警告。
 - **结果。** skillctl 自己重跑校验：通过就提示用 `git diff README.md` 审阅，没通过就列出剩下的漂移。不提交；自动执行时不影响命令的退出码。
