@@ -17,8 +17,8 @@
       "updated_at": "2026-10-31T14:53:18+08:00"
     },
     "Viva5649/agent_skills": {
-      "commit": "3d95c58d07dfa887b038c0109a85b7dd4cc26f0f",
-      "updated_at": "2026-10-08T22:46:57+08:00"
+      "commit": "46fdf3a42eafcdb7f707aaec3fc7b9b2287e3a1f",
+      "updated_at": "2026-10-31T22:00:55+08:00"
     },
     "ailabs-393/ai-labs-claude-skills": {
       "commit": "1a12bc7aadcc7b211f77a7455db454b77a71f827",
@@ -159,6 +159,11 @@
       "state": "removed",
       "updated_at": "2026-10-31T16:46:12+08:00"
     },
+    "Viva5649/agent_skills:skills/create-system-diagram": {
+      "name": "create-system-diagram",
+      "state": "present",
+      "updated_at": "2026-10-31T22:02:45+08:00"
+    },
     "Viva5649/agent_skills:skills/deep-research-with-verification": {
       "name": "deep-research-with-verification",
       "state": "present",
@@ -198,6 +203,11 @@
       "name": "write-okr",
       "state": "present",
       "updated_at": "2026-10-02T12:32:40+08:00"
+    },
+    "Viva5649/agent_skills:skills/write-work-summary": {
+      "name": "write-work-summary",
+      "state": "present",
+      "updated_at": "2026-10-31T22:02:45+08:00"
     },
     "ailabs-393/ai-labs-claude-skills:packages/skills/codebase-documenter": {
       "name": "codebase-documenter",

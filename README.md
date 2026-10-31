@@ -5,7 +5,7 @@
 本文档记录本机（macOS）当前的 skill 全貌，分三层：仓库自建、全局安装、项目级。全局安装的 skill 由 [`skillctl`](#六用-skillctl-管理全局-skill) 按仓库根目录的 `skills.json` 安装，来源仓库以它为准。
 
 - 自建 skill：16 个（`skills/`）
-- 全局安装：70 个（`~/.agents/skills/`，`~/.claude/skills/` 下是指向它的软链接）
+- 全局安装：72 个（`~/.agents/skills/`，`~/.claude/skills/` 下是指向它的软链接）
 - 项目级：6 个（`personal_ai_infrastructure/.claude/skills/`）
 - 外部聚合：7 个仓库，共 200 个 skill（`third_party/`）
 
@@ -19,7 +19,7 @@
 | `clarify-life-direction` | 人生方向澄清。回溯经历、澄清愿景、定义反愿景、倒推路径，把「不知道自己想要什么」变成可执行方向 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
 | `clarify-thought` | 命题分解与决策澄清。维特根斯坦 + 苏格拉底 + 波兰尼三层架构，把模糊想法拆成精准指令或清晰决策 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills)（原作者 riiiku） | ✅ |
 | `create-blueprint` | 生成工程蓝图风格技术图表，支持箭头、连线、关系标注，用于架构图与流程图 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ❌ |
-| `create-system-diagram` | 创建、更新和检查 HTML/SVG 系统图，覆盖架构分层、模块职责、局部流程与数据流，使用固定配色和布局规范 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ❌ |
+| `create-system-diagram` | 创建、更新和检查 HTML/SVG 系统图，覆盖架构分层、模块职责、局部流程与数据流，使用固定配色和布局规范 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
 | `creator-signal-digest` | 创作者信号雷达周报。扫描中文圈/英语圈 AI 创作者账号，筛选 AI 实操与副业信号 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ❌ |
 | `deep-research-with-verification` | 带独立事实核查的深度研究。完整复用 `hv-analysis` 的研究流程，初稿后追加独立核查与修复，以 Markdown 交付 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
 | `execute-tickets` | 按依赖顺序执行已准备好的实现 ticket，逐张实现、验证、评审，支持多仓库和中断后续跑 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
@@ -30,7 +30,7 @@
 | `send-email` | 通过 SMTP 发送邮件，支持 Markdown 转 HTML、附件、多收件人与 CC/BCC | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
 | `write-implementation-tickets` | 把仓库里的规格拆成 agent 能独立执行的实现 ticket，写明边界、验证方式和依赖 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
 | `write-okr` | 把工作方向、技术规划或草稿整理成简洁、可验收的 OKR，区分交付承诺、探索验证和采用门槛 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
-| `write-work-summary` | 撰写、改写或审阅季度与阶段工作总结，把零散记录整理成主题成果并与已有 OKR 对应，保留性能数据和文档链接 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ❌ |
+| `write-work-summary` | 撰写、改写或审阅季度与阶段工作总结，把零散记录整理成主题成果并与已有 OKR 对应，保留性能数据和文档链接 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
 
 > `clarify-thought` 迁移自独立仓库 `Viva5649/clarify-skill`，原作者 riiiku（MIT，署名保留在 `skills/clarify-thought/LICENSE`）。
 >
@@ -77,6 +77,7 @@
 | `audit-docs-landscape` | 仓库级文档全景审计 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | 本仓库 |
 | `write-implementation-tickets` | 把规格拆成可独立执行的实现 ticket | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | 本仓库 |
 | `execute-tickets` | 按依赖顺序执行实现 ticket | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | 本仓库 |
+| `create-system-diagram` | 创建、更新和检查 HTML/SVG 系统图，覆盖架构分层、模块关系与数据流 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | 本仓库 |
 
 ### 信息获取 / 研究
 
@@ -105,6 +106,7 @@
 | `show-me` | 把当前话题讲成图。按内容挑最小够用的形式，伪代码、diff 草图、mermaid 或单页 HTML | [humanlayer/skills](https://github.com/humanlayer/skills) | ❌ |
 | `publish-site` | Vantage 站点报告发布 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | 本仓库 |
 | `optimize-docs-readability` | 长文可读性优化 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | 本仓库 |
+| `write-work-summary` | 撰写、改写或审阅季度与阶段工作总结，把零散记录整理成主题成果并与已有 OKR 对应 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | 本仓库 |
 
 ### 个人决策 / 思考
 
