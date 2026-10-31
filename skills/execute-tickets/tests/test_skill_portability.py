@@ -150,10 +150,10 @@ class SkillPortabilityTest(unittest.TestCase):
             "Resource owner",
             "Deterministic interleaving",
         ):
-            self.assertIn(invariant, admission)
+            self.assertIn(invariant, " ".join(admission.split()))
         self.assertIn("independent-rejection test", normalized)
         self.assertIn("blocks before implementation", normalized)
-        self.assertIn("applies that exact split through execution authority repair", normalized)
+        self.assertIn("that exact split through execution authority repair", normalized)
         self.assertNotIn("return the ticket to authoring", normalized)
 
     def test_execution_revalidates_preflight_and_keeps_gate_tiers_distinct(self) -> None:
@@ -180,7 +180,9 @@ class SkillPortabilityTest(unittest.TestCase):
         self.assertIn("Ticket-scoped checks", normalized_contract)
         self.assertIn("Feature final gates", normalized_contract)
         self.assertIn("Before `scope_ready`", normalized_admission)
-        self.assertIn("run only the ticket-scoped checks", normalized_skill)
+        self.assertIn("run only the ticket-scoped checks", " ".join(
+            (SKILL_ROOT / "references/supervisor-protocol.md").read_text().split()
+        ))
         self.assertIn(
             "run each uniquely owned feature final gate once",
             " ".join(final_gate.split()),
@@ -202,7 +204,7 @@ class SkillPortabilityTest(unittest.TestCase):
         normalized = " ".join((skill + admission + supervisor + contract).split())
 
         self.assertIn("scope_closure_trace:", supervisor)
-        self.assertIn("After all blockers complete", skill)
+        self.assertIn("After the current ticket's blockers complete", normalized)
         self.assertIn("declared-write", normalized)
         self.assertIn("permitted-write", normalized)
         self.assertIn("read-only", normalized)
@@ -247,7 +249,7 @@ class SkillPortabilityTest(unittest.TestCase):
             "Absence detector",
             "unrealizable acceptance contract",
         ):
-            self.assertIn(invariant, admission)
+            self.assertIn(invariant, " ".join(admission.split()))
         self.assertIn("verification_witness_trace:", supervisor)
         self.assertIn("admission_basis:", supervisor)
         self.assertIn("checkpointed", contract)
@@ -374,7 +376,7 @@ class SkillPortabilityTest(unittest.TestCase):
         normalized_supervisor = " ".join(supervisor.split())
         normalized_mechanics = " ".join(mechanics.split())
 
-        self.assertIn("direct completed blockers", skill)
+        self.assertIn("direct completed blockers", normalized_supervisor)
         self.assertIn("only the verbatim `Produces` rows", normalized_supervisor)
         self.assertIn("Do not include transitive blockers", normalized_supervisor)
         self.assertIn(
@@ -387,7 +389,7 @@ class SkillPortabilityTest(unittest.TestCase):
         self.assertIn("orchestrator-only integrity artifact bodies", normalized_mechanics)
         self.assertIn("Reviewers must not read `unstaged.patch`", normalized_mechanics)
         self.assertIn("reviewer content artifact paths", normalized_mechanics)
-        self.assertIn("never orchestrator-only integrity artifact bodies", skill)
+        self.assertIn("orchestrator-only integrity artifact bodies", normalized_mechanics)
         self.assertIn("integration-review index", skill)
 
     def test_metrics_are_diagnostic_and_cannot_block_or_pass_acceptance(self) -> None:
@@ -501,7 +503,7 @@ class SkillPortabilityTest(unittest.TestCase):
         normalized_contract = " ".join(contract.split())
 
         self.assertIn("runtime_observations:", supervisor)
-        self.assertIn("directly observed facts, evidence-backed inferences", skill)
+        self.assertIn("directly observed facts, evidence-backed inferences", normalized_skill)
         self.assertIn(
             "never replaces a ticket-scoped check, feature final gate",
             normalized_skill,

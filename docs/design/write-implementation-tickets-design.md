@@ -30,7 +30,7 @@
 8. **仓库漂移**：ticket 起草时引用的路径、符号或测试 seam 在发布前已经变化。
 9. **因果假设固化**：日志只证明症状时，author 仍可能把一个未经证伪的候选原因写成 production owner 和 write scope。
 10. **替代性验收**：build、单元测试、日志或截图可能全绿，却没有证明 spec 要求的真实 UI、设备或 live-app 路径。
-11. **语义 Epic 伪装成 ticket**：跨 API、wire、lifecycle、consumer 和 delivery 的多个可独立验收结果被放进一个 fresh-supervisor 上下文。
+11. **ticket 边界失衡**：必须分别交接的 owner、迁移状态或结果被塞进一个 fresh-supervisor 上下文；另一方向则把同一不变量按字段、检查或文件拆成多票，增加交接却没有收益。
 12. **并发语义后置**：state/resource owner、linearization point 和跨 wire 顺序事实留给实现者边写边猜，导致 repair regression。
 13. **验证冲突后置**：命令没有在 baseline 上自检，误伤保留接口或依赖缺失直到实现结束才暴露。
 14. **门禁层级混淆**：focused ticket check 与 cumulative feature gate 混在一起，使每张 ticket 和每次小修都重复整仓构建。
@@ -46,8 +46,8 @@
     流程没有任何机制承认"字节变了、但触达不到任何 ticket 的权威引用"，于是语义判断只能加严、永远不能省。
 21. **review 自我续命**：纯文字精确化修完后继续找下一批措辞问题，或者 delta 预算耗尽后换一个
     `review-N`/`epoch-N` 自动重开 exhaustive，使成本上限只约束目录名而不约束 feature lineage。
-22. **交付粒度后置变更**：拆票前未确认用户对交付/发布粒度的偏好（哪些产物可独立交付、哪些必须同批），
-    票据审完后用户才要求合并或拆分，构成 user-authority change，迫使受影响票据全套 exhaustive 重审。
+22. **交付范围与拆票混淆**：用户要求完整实现，author 却只生成预检票；或者把同批发布误解为只能写一票，
+    把可独立测试误解为必须拆票。author 先复用已确认的交付决定，只询问会改变行为或交付范围的未决选择。
 23. **验证输入替换未声明**：ticket 只声明生产 write scope，执行时却需要临时替换或覆盖验证输入
     （native 库、asset、构建脚本、ABI/baseline 文件），只能靠 authority-gap repair 事后发现，
     触发 blocked→repair→重捕获循环。
@@ -68,6 +68,12 @@
 | 下游 | 可交给 `execute-tickets`，但作者 skill 不依赖后者必须安装 |
 | 失败策略 | 权威来源、owner、接口、公共行为或 review 证据不确定时停止，不用推断补齐 |
 | 完成含义 | 当前 `spec.md` authority body 与全部 ticket bytes 已被 `admitted-by-review` 或 `admitted-by-user` receipt 精确覆盖并可交给 fresh executor；不等于 feature 已实现、运行时验证、stage、commit 或部署 |
+
+首份方案和最终 handoff 都说明覆盖完整实现，还是只覆盖前置证据。默认覆盖用户要求的完整实现；
+已有有效可行性证据直接消费，获准的有界实验由 author 用于消除具体未知，不自动形成一组预检票。
+只有前置结果会改变设计、owner 或执行条件，且确有交接需要时，才单独安排证据票。
+尚不能确定实现合同时，author 明示受影响要求、剩余实现工作及恢复条件，不将研究图称为完整实现图。
+明确的安全与前置证据门禁仍按 authority 执行。
 
 author 在读取 feature 文件前，先读取目标仓库的 `docs/agents/issue-tracker.md`。tracker 决定
 spec 目录 `<spec-dir>` 与 ticket 目录 `<tickets-dir>` 的放置位置和嵌套结构；ticket 不必位于
@@ -188,12 +194,12 @@ author 不实现生产代码，也不能用自己的 self-review 替代独立 re
 
 reviewer 负责从磁盘重新读取最终 ticket、权威文档和 live working tree，验证：
 
-- 行为覆盖与权威来源；
+- 本次声明交付范围的行为覆盖与权威来源。完整实现图覆盖所有需求；获准的前置证据图覆盖本次全部证据要求，并逐项列出剩余实现需求的前置条件、decision owner 和恢复条件，不要求提前猜定实现合同；
 - 路径、符号、owner、caller、测试和构建命令是否真实存在且描述准确；
 - scope、`Consumes`/`Produces` 和 DAG 是否一致；
 - 每条 permitted discovery 是否在 live working tree 上重放，实际结果是否全部落入 declared write、read-only
   或命名 false positive，且没有未处置路径；
-- 每张票是否只有一个可独立验收单元，是否把 expand、migrate、contract 或多个 state owner 错塞在一起；
+- 每张票是否是一个有界验收单元，拆分是否有实际交接收益，相邻票能否合并且保留必要的迁移状态、独立 owner 和前置证据门禁；
 - ordering/ownership table 是否命名 actor/thread、state/resource owner、linearization point、failure owner 和确定性交错；
 - baseline preflight 是否真实执行，以及 ticket-scoped checks 和 feature final gates 是否分层且没有重复 owner；
 - 每个 acceptance 是否有稳定 seam、确定性 direct check 或完整的 target-runtime interaction protocol；
@@ -336,6 +342,8 @@ resume 时，author 先加载 portable contract 并用 durable evidence 判断�
 这次拆分只改变内容进入上下文的时机和权威文件位置；review 次数、finding 分类、correction continuity、
 admission 决策和 handoff 语义仍由上表对应合同唯一规定。
 §5 作者自审的检查点仅在已加载合同内引用完整定义，不因自审提前加载后续阶段合同。
+拆票、scope closure、验证可行性和 reviewer 操作细则分别只在 owning reference 维护；
+入口给出行动及读取时点，不复制整套规则。修改 owner 位置时，portability test 随合同位置调整，保留原不变量。
 
 ### 7.2 核心阶段耗时
 
@@ -364,6 +372,12 @@ author 在正式 ticket 之前维护一份私有 implementation map，每个 req
 | `Evidence status` | 区分直接事实、证据支持的推断和未知；关键推断附决定性证伪检查 |
 | `Failure model` | 仅对 bug/regression 记录 reproduction、causal owner、falsifier 和 re-diagnosis condition |
 
+涉及业务层与 engine/provider 边界时，author 沿真实调用方、能力接口、Adapter、SDK 检查职责和类型。检查覆盖请求、结果、callback、错误及可达的嵌套类型，结论写入现有 owner/interface 行。用一个合理替代实现检验哪些调用方会受影响，不要求实现第二个 provider 或注册表。
+
+author 和现有独立 reviewer 都要检查设计本身是否符合架构约束。spec 中的接口设计与架构 authority 冲突时，需求负责人先决定，不能只靠「工单符合 spec」发布。同进程、内部、未发布或暂时没有调用方，不能单独证明 SDK 耦合合理；明确批准并记录的例外则继续有效，不因风格偏好反复阻塞。
+
+必要的类型转换属于封装职责，不能只为减少行数删除。SDK 类型留在负责适配的 Adapter 内是合法的；不同能力不必拥有相同层数，也不因此增加转发 facade 或重复 DTO。
+
 implementation map 保持私有，是因为它是 author 的推理工具，不是执行者应依赖的隐藏输入。
 最终需要执行的信息必须落入对应 ticket；reviewer 也不会收到这份私有 map，
 从而能检验 ticket 是否真的自包含。
@@ -379,8 +393,9 @@ implementation map 保持私有，是因为它是 author 的推理工具，不�
 每张 ticket 应交付一个穿过所需层次的完整结果。配置、生产代码、测试和文档只要共同支撑同一结果，
 就应归入同一张票，而不是按技术层拆成四张横向票。
 
-判断能否拆开的标准是：reviewer 能否接受其中一张并拒绝另一张，同时让已接受仓库保持一致。
-如果不能独立接受，就不应拆开。
+先判断 reviewer 能否接受其中一张并拒绝另一张，同时让已接受仓库保持一致。
+这个 independent-rejection test 证明可以拆分，不代表必须拆分；author 还要说明独立交付、前置设计证据、
+必要迁移状态或独立 lifecycle/state/cleanup owner 带来的实际交接收益。单独编译、单独运行一个测试不算收益。
 
 author 先确认结果对应最终产品行为、被后续 ticket 消费的必要接口、明确要求的迁移兼容性或前置证据，
 再应用 independent-rejection test。临时 codec 形状、占位实现或尚未接线的状态仅仅可以编译，不能成为
@@ -388,17 +403,19 @@ author 先确认结果对应最终产品行为、被后续 ticket 消费的必�
 
 ### 9.2 semantic ticket admission
 
-跨层不是拆票理由，同一用户功能也不是保留巨票的理由。author 对候选票应用
-independent-rejection test：如果其中两个结果可以被 reviewer 分别接受或拒绝，且已接受仓库仍保持一致，
-它们就不是同一 acceptance unit。以下任一情况通常要求拆分：
+跨层不是拆票理由，同一用户功能也不是保留巨票的理由。author 结合 independent-rejection test
+和实际交接收益判断边界。以下情况需要分别处理：
 
-- 多个可独立验收的 observable result；
-- 可分离的 lifecycle/state/cleanup owner；
-- public contract choice 与实现迁移混在一起；
-- expand、migrate、contract 三阶段混在一起；
+- authority 要求分别交付的结果；
+- 能独立变更且需要交接的 lifecycle/state/cleanup owner；
+- 前置证据会决定后续设计，或迁移要求保留独立的 expand、migrate、contract 兼容状态；
+- 未决 public contract 或 owner 选择，先交决定 owner 解决，不能留给实现者；
 - 权威、scope、ordering 和 verification 无法在一个 fresh supervisor 上下文中冷启动执行。
 
 author 仍保留真正的 vertical slice：为一个结果必须同时改 API、adapter、storage 和 test 时，这些层属于同一票。
+review 前逐对检查相邻票：若共同维护一个有界结果，合并后能在一个 fresh context 内完成，且不丢失必要边界，
+则合并并保留全部 acceptance，每项检查只定义一次。例如，同一 Runtime 的任务绑定与加载模型匹配可共同维护
+一个加载不变量；原生计算与公共请求生命周期若有独立资源 owner 和消费接口，仍可分别交接。
 
 ### 9.3 blocking edge 必须有消费关系
 
@@ -495,8 +512,8 @@ ticket 才能使用 `whole-document`，并引用该 authority；“清理过时�
 
 ### 10.4 `Slice boundary`
 
-这一节记录唯一 acceptance unit、会变化的 lifecycle/state/cleanup owner、independent-rejection 结论、
-fresh-context fit 和 split trigger。它使 `execute-tickets` 能在实现前重新拒绝 semantic epic，
+这一节记录唯一 acceptance unit、会变化的 lifecycle/state/cleanup owner、independent-rejection 结论与交接理由、
+相邻票不能合并的必要边界、fresh-context fit 和 split trigger。它使 `execute-tickets` 能在实现前拒绝 semantic epic，
 而不是把“字段齐全”误当成“ticket 足够小”。
 
 ### 10.5 `Interfaces`
@@ -570,6 +587,12 @@ author 与 reviewer 先检查验收对象是否有上述合同依据，再要求
 - `Observation`：直接证明 value、identity、count、ordering、artifact 或 side effect，而不是较弱代理；
 - `Absence detector`：关键测试、操作、artifact 或 assertion 缺失时，检查必须失败。
 
+变更经过数据保真边界时，author 用具体的截断、替换或重排风险检查 oracle 是否能辨别错误。
+预期值来自输入或独立参考，不能从被测结果本身计算；正数计数、有限向量或合法形状不证明原始内容保留。
+选择合同允许的边界输入和足够的既有证据，不因此增加通用变异矩阵。
+异步操作还区分计算完成、结果送达和调用方终态。对真实 transport/callback 边界可产生的失败，
+写明谁让 pending 请求完成及如何观察；不凭异常类型发明重试、cleanup owner 或生产不可达的失败。
+
 如果按生产代码的防护条件（guard），合法输入不可能走到某个待验证分支，票据作者（author）要写明
 为什么到不了这个分支，以及哪些公开行为仍要验证。排除只对已证明到不了的那一个具体分支成立。
 作者应分别说明以下内容：
@@ -603,6 +626,9 @@ build、测试、日志和截图可以支持验收，但不能代替 authority �
 
 author 在既有 check/gate 定义中给出最小必需 target/selector、结果实际输出的位置与解析条件，
 并区分本次必需运行、按明确接口消费的前序证据及用户已豁免项；这些分类不授权复用 fresh-runtime gate。
+输入可读、结果可写和结果可取回都按实际进程身份核对：shell 能读模型不代表 app 能读，
+app 能写私有文件也不代表 verifier 能取回。author 把结果访问放入现有 witness；
+依赖设备的最小启动与取回探测由最早获准的验证 owner 执行，不代替完整验收。
 当 verifier 涉及哈希/顺序、角色或后台进程时，author 写明真实观察来源、所需比较关系及现有 cleanup owner。
 实现 owner 在昂贵运行前只核对这些已声明内容与当前脚本/fixture，复用已有直接证据；不提前跑整套 gate，
 不制造一轮 pre-review 或通用变异矩阵。缺口通过既有 authority/scope repair 纠正。
@@ -619,6 +645,9 @@ author 在同一 witness 区分产品结果、必要环境前提和补充指标/
 每个会阻塞验收的项，按其 A-id 或权威出处核对适用范围：仓库里已有一个大脚本，
 不代表它的每一条检查都自动进入本功能的验收范围。
 spec 明确要求的行为必须保留；代码或模型能力与要求冲突时，交需求负责人决定，作者不得自行豁免。
+
+旧 fixture 中的固定 hash、token 上限或依赖下载的探针也要追溯要求来源。历史常量本身不是产品合同；作者可按已有规则修正已证实过时的 fixture，但不能用预置模型替代明确要求的真实下载或缓存复用验收。
+
 环境前提按所需能力表述（解释器与版本、JDK/SDK/NDK、依赖解析、设备、模型来源等）；操作系统、
 镜像、offline/在线解析这类运行载体，只有权威来源点名或确有生产边界/工具兼容性需要时才属于验收条件，
 否则只是作者的执行选择；两者都无依据时不得固化为唯一阻塞条件。存在已满足条件的既有环境（本机或
@@ -645,6 +674,8 @@ baseline 就与权威行为冲突的 scan、regex、fixture 或 command 必须�
 命令引用了现有接口、目标或保留边界时，作者先读取所引内容的真实声明、相关调用或既有验证程序，再写检查。
 引用了不存在的接口、或误伤明确保留接口的检查，都是编写票据阶段（authoring）可判定的错误，由作者直接纠正。
 
+author 在现有预检记录中写清已证明与未证明的事实。dry-run 不证明编译通过，设备在线不证明应用身份可访问模型或结果，脚本自测不证明真实网络与模型前提。当前可判定的缺口使用最小决定性探针；确实依赖未来实现的观察写明最早验证负责人和恢复条件。无关的 baseline 编译失败不能归入未来实现，无依赖的检查可继续，但不能据此宣称全图可执行。
+
 这一步只证明 verification contract；它不承担 scope closure。scope closure preflight 必须更早独立完成，
 即使模块编译和全部 baseline verification command 都成功，也不能覆盖一个未归类的真实 caller。
 
@@ -669,6 +700,8 @@ pipeline 必须保留上游非零退出；identity/history 与 exact-once cleanu
 - 如果允许新增状态，具体预算和生产理由是什么。
 
 ### 10.13 `Stop conditions`
+
+作者默认安排首败留证、有界诊断、已授权修复与定向复验，不自行生成「第一次新失败就停」的规则。用户明确要求首败停止时保留该要求。同一未解决问题的诊断预算跨恢复、文件修改与运行目录累计；需要新决定或权限、预算耗尽、重复失败不再产生区分性证据时，才停止受影响步骤，独立获准工作继续。
 
 stop condition 必须指出：哪个 actor 在什么条件下、在哪个动作之前停止、把什么证据返回给谁。
 这让缺失 authority、owner、interface、scope 或 seam 时的行为成为合同的一部分，而不是执行者临场发挥。
@@ -933,6 +966,7 @@ bundled scripts 要求 Python 3.10+。
 `SKILL.md` 与每个 reference 只写仓库中立的协议规则。宿主仓库特有的约定属于宿主仓库自己的 instructions；
 协议层要么写成由 spec 或 ticket 自己声明的通用条件式，要么不写。
 portability test 固定验证协议层不出现以宿主仓库为限定语的条款。
+包内示例、测试和 eval 使用虚构的项目与模块名称，不保留具体工作项目名称；替换名称时保持原场景的职责、边界和验收含义。
 
 ## 16. 测试与 eval 策略
 
@@ -965,12 +999,16 @@ portability test 固定验证协议层不出现以宿主仓库为限定语的条
 
 eval 使用更接近真实对话的判断场景，包括：
 
+- spec 暴露 SDK 类型与架构约束冲突时阻止发布，已批准的耦合例外则不重复阻塞；
+- Adapter 已完成封装时，不为能力之间的层数一致增加 facade 或 DTO；
+- dry-run、设备在线与未来 writer 的证据边界，以及无关编译失败和独立检查的处置；
+- 旧 fixture 的 hash 或下载前提与真实产品要求区分，明确要求的下载和缓存复用不被预置模型替代；
 - 无 repository overlay 时正常拆票；
 - 聊天中未落盘的 retry 需求必须停止；
 - tracker 生命周期冲突必须停止；
 - blocker completion evidence 与行为 authority 的区分；
 - deterministic gate 可复用与 device/network gate 不可复用；
-- semantic epic 必须按 acceptance/ownership 拆分，同时保留真正的 vertical slice；
+- semantic epic 按必要交接边界拆分，同一不变量不因可分别测试就被拆开，并检查相邻合并；
 - cross-facade/cross-wire concurrency 在 ordering authority 缺失时必须先 prototype/ADR；
 - baseline scan 误伤保留接口必须在发布前发现；
 - permitted discovery 找到未声明 caller 时必须停止发布；命名 read-only/false-positive 后才可闭包；
@@ -994,6 +1032,11 @@ eval 使用更接近真实对话的判断场景，包括：
 - 只改 `display_title` 不得触发任何 review：author 先 `verify` 并据此收工，而不是重跑一次冷启动 review；
 - authority 确实变化时，触达面必须由 delta reviewer 界定；author 不能用"这只是改名"收窄审查面；
   reviewer 界定不了或 delta 预算耗尽时结束当前请求，不能自动升回 exhaustive 或新建 chain。
+
+`evals/fixtures/embedding-replay/` 提供已确认交付范围、可行性证据和最小代码边界。
+旧版与候选版分别读取同一原始输入，回放方案生成；核对完整实现覆盖、证据复用、拆分理由和共享层职责，
+不把练习中的给定证据称为实际设备验收。另用未解决前置证据的场景检查局部输出是否明确标注及显式门禁是否保留。
+回放只评估所选场景的决策，不据此宣称整个执行工作流更快或全面通过。
 
 ## 17. 关键取舍
 

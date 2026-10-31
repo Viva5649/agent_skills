@@ -160,7 +160,13 @@ Review the ticket graph as one unit:
 
 1. **Authority and coverage:** every behavior, acceptance item, constraint, and
    non-goal traces to the spec, ADR, completed blocker, or recorded approved
-   source; every observable spec requirement is covered. No ticket treats the
+   source. For full implementation delivery, every observable spec requirement
+   is covered. For an explicitly declared prerequisite-only delivery allowed by
+   `ticket-boundaries-and-verification-preflight.md`, every evidence requirement
+   in that delivery is covered; each remaining implementation requirement names
+   its prerequisite, decision owner, and condition for completing its tickets.
+   Do not require speculative implementation contracts before that evidence or
+   treat the partial graph as full implementation coverage. No ticket treats the
    spec presentation block's `display_title` as an authoritative source — every
    observable requirement must come from the authority body.
 2. **Repository alignment:** every claim about an existing path, symbol,
@@ -184,13 +190,23 @@ Review the ticket graph as one unit:
    superseded. Negative scans and write permission are not preservation proof.
 5. **Slice boundary:** each ticket has one acceptance unit, names every changed
    lifecycle/state/cleanup owner, passes the independent-rejection test, and
-   fits one fresh supervisor context. Reject a semantic epic; do not split one
-   invariant merely because it crosses technical layers.
+   fits one fresh supervisor context. Apply the handoff-benefit and adjacent-merge
+   rules in `ticket-boundaries-and-verification-preflight.md`: independently
+   testable steps do not alone require separate tickets. Reject a semantic epic;
+   preserve independent owners, required migration states and prerequisite gates.
    First apply the product-contract boundary: reject temporary-state acceptance
    and per-step red → green obligations without a distinct stable behavior.
 6. **Interfaces and graph:** every `Consumes` entry matches its `Produces`
    contract; every blocking edge is real; numbering is blockers-first and the
-   graph is acyclic.
+   graph is acyclic. Independently trace the affected caller/interface/adapter/SDK
+   path against applicable architecture authority, including reachable request,
+   result, callback and error types. Check the proposed design, not just whether
+   tickets copy the spec. Internal or unpublished status alone does not justify
+   leaking provider details; a spec/architecture conflict needs an authority
+   decision under the existing finding rules. Honor an explicit approved
+   coupling exception. Keep necessary boundary conversions without requiring
+   symmetric layers, forwarding facades, duplicate DTOs or an extra provider;
+   SDK use within its owning adapter is not a violation.
 7. **Ordering and ownership:** every applicable lifecycle/concurrency contract
    cites durable authority and resolves actor/thread, state and resource owners,
    linearization point, competing operations, failure owner, observable result,

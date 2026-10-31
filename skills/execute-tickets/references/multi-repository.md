@@ -20,8 +20,8 @@ The spec, admission receipt, and tickets may remain in one repository. Admission
 still runs there; do not copy authority documents or create a receipt per code
 repository. A repository being readable does not authorize writes. Every scope
 entry names its repository and exact file as `NAME:path`, such as
-`QIFramework:app/build.gradle` and `MLLM:src/engine.py`. Do not write
-`QIFramework:MLLM/src/engine.py` for a file owned by the registered MLLM root.
+`service:app/build.gradle` and `library:src/engine.py`. Do not write
+`service:library/src/engine.py` for a file owned by the registered library root.
 An empty scope for a member protects all of its existing content; it does not
 authorize arbitrary changes in that repository. Keep all run members registered
 even when the current ticket writes only one of them.
@@ -45,21 +45,21 @@ another member. Replace example roots with the user's actual roots.
 
 ```bash
 python3 <execute-tickets-skill-root>/scripts/review_state.py capture \
-  --repository QIFramework=/absolute/QIFramework \
-  --repository MLLM=/absolute/MLLM \
-  --receipt 'QIFramework:<spec-dir>/implementation-ticket-admission.json' \
+  --repository service=/absolute/service \
+  --repository library=/absolute/library \
+  --receipt 'service:<spec-dir>/implementation-ticket-admission.json' \
   --output .execute-tickets/<feature>/run-start
 
 python3 <execute-tickets-skill-root>/scripts/review_state.py assess \
-  --repository QIFramework=/absolute/QIFramework \
-  --repository MLLM=/absolute/MLLM \
-  --scope-path QIFramework:app/build.gradle \
-  --scope-path MLLM:src/engine.py
+  --repository service=/absolute/service \
+  --repository library=/absolute/library \
+  --scope-path service:app/build.gradle \
+  --scope-path library:src/engine.py
 
 python3 <execute-tickets-skill-root>/scripts/review_state.py capture \
   --handoff .execute-tickets/<feature>/run-start \
-  --scope-path QIFramework:app/build.gradle \
-  --scope-path MLLM:src/engine.py \
+  --scope-path service:app/build.gradle \
+  --scope-path library:src/engine.py \
   --drift-output .execute-tickets/<feature>/<ticket>/handoff-drift \
   --output .execute-tickets/<feature>/<ticket>/pre
 
@@ -106,7 +106,7 @@ Use the existing `drift`, `reconcile`, and `--drift-resolution` commands against
 the aggregate baseline. Reports contain one `repositories` entry per member and
 an overall `clean`, `confirmation_required`, or `restart_required` status.
 User decisions use qualified keys, for example
-`{"decisions": {"MLLM:local-notes.txt": "preserve"}}`. The orchestrator classifies
+`{"decisions": {"library:local-notes.txt": "preserve"}}`. The orchestrator classifies
 every reported path before reconciliation. Strong drift in any member cannot
 be preserved. Pass the aggregate `resolution.json` to later captures; it binds
 the per-member resolutions and keeps preserved changes outside every index.
@@ -149,8 +149,8 @@ completion record, using this multi-repository form for that field:
 
 ```markdown
 - Accepted implementation:
-  - QIFramework: `<index hash>`
-  - MLLM: `<index hash>`
+  - service: `<index hash>`
+  - library: `<index hash>`
 ```
 
 Keep the existing verification and review fields. The orchestrator checks the
@@ -171,6 +171,13 @@ omit `--snapshot` for multi-repository completion. A validation-only ticket
 passes its unchanged, empty-scope aggregate pre snapshot instead; it does not
 stage an empty implementation. The skill runs only spec/ticket-declared checks
 and does not define additional joint acceptance.
+
+Each member retains its hash-bound authority parent. In the ticket repository,
+completion verifies the current set through that lineage to the unchanged
+run-start receipt, including checkpointed ticket additions and removals.
+Harmless protected-state rebinding uses `review_state.py rebind` with aggregate
+baseline, snapshot and resolution paths under `working-tree-drift.md`; every
+member's candidate and authority must remain identical.
 
 Resume validates the same aggregate repository membership, hashes, completion
 evidence, and integration-review-index map. A legacy single-repository

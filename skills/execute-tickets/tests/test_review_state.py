@@ -58,7 +58,7 @@ class ReviewStateTest(unittest.TestCase):
         self.temp.cleanup()
 
     def test_repository_set_stages_each_repository_without_changing_history(self) -> None:
-        other = self.root / "MLLM"
+        other = self.root / "library"
         run("git", "clone", "--quiet", str(self.repo), str(other), cwd=self.root)
         heads = {}
         for repo in (self.repo, other):
@@ -70,12 +70,12 @@ class ReviewStateTest(unittest.TestCase):
         pre = self.root / "multi-pre"
         self.tool(
             "capture", "--output", str(pre),
-            "--repository", f"QIFramework={self.repo}",
-            "--repository", f"MLLM={other}",
-            "--scope-path", "QIFramework:settings.gradle",
-            "--scope-path", "MLLM:engine.py",
+            "--repository", f"service={self.repo}",
+            "--repository", f"library={other}",
+            "--scope-path", "service:settings.gradle",
+            "--scope-path", "library:engine.py",
         )
-        (self.repo / "settings.gradle").write_text("// accepted QI change\n", encoding="utf-8")
+        (self.repo / "settings.gradle").write_text("// accepted service change\n", encoding="utf-8")
         (other / "engine.py").write_text("value = 2\n", encoding="utf-8")
         review = self.capture("multi-review", baseline=pre)
         self.tool("verify", "--snapshot", str(review))
@@ -83,7 +83,7 @@ class ReviewStateTest(unittest.TestCase):
             "stage", "--baseline", str(pre), "--snapshot", str(review),
             "--output", str(self.root / "staging"),
         )
-        self.assertEqual({"QIFramework", "MLLM"}, set(json.loads(result.stdout)["repositories"]))
+        self.assertEqual({"service", "library"}, set(json.loads(result.stdout)["repositories"]))
         for repo, expected in ((self.repo, "settings.gradle"), (other, "engine.py")):
             self.assertEqual(heads[repo], run("git", "rev-parse", "HEAD", cwd=repo).stdout)
             self.assertEqual(
@@ -97,30 +97,30 @@ class ReviewStateTest(unittest.TestCase):
     def test_submodule_content_is_reviewed_and_staged_without_changing_gitlink(self) -> None:
         run(
             "git", "-c", "protocol.file.allow=always", "submodule", "add", "--quiet",
-            str(self.repo), "MLLM", cwd=self.repo,
+            str(self.repo), "library", cwd=self.repo,
         )
         run(
             "git", "-c", "user.name=Test", "-c", "user.email=test@example.com",
             "commit", "--quiet", "-m", "fixture submodule", cwd=self.repo,
         )
-        child = self.repo / "MLLM"
+        child = self.repo / "library"
         (child / "README.md").write_text("user's existing child commit\n", encoding="utf-8")
         run("git", "add", "README.md", cwd=child)
         run("git", "-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "--quiet", "-m", "existing child commit", cwd=child)
-        run("git", "add", "MLLM", cwd=self.repo)
+        run("git", "add", "library", cwd=self.repo)
         # Local ignore preferences must not hide a pre-existing staged gitlink
         # from the frozen index used to reconstruct the accepted parent index.
-        run("git", "config", "submodule.MLLM.ignore", "all", cwd=self.repo)
+        run("git", "config", "submodule.library.ignore", "all", cwd=self.repo)
         run("git", "config", "diff.submodule", "log", cwd=self.repo)
-        gitlink = run("git", "ls-files", "--stage", "--", "MLLM", cwd=self.repo).stdout
+        gitlink = run("git", "ls-files", "--stage", "--", "library", cwd=self.repo).stdout
         heads = {repo: run("git", "rev-parse", "HEAD", cwd=repo).stdout for repo in (self.repo, child)}
         (child / "README.md").write_text("candidate before admission\n", encoding="utf-8")
         (child / "gradle.properties").write_text("protected=true\n", encoding="utf-8")
         pre = self.root / "submodule-pre"
         self.tool(
             "capture", "--output", str(pre),
-            "--repository", f"QIFramework={self.repo}", "--repository", f"MLLM={child}",
-            "--scope-path", "QIFramework:settings.gradle", "--scope-path", "MLLM:README.md",
+            "--repository", f"service={self.repo}", "--repository", f"library={child}",
+            "--scope-path", "service:settings.gradle", "--scope-path", "library:README.md",
         )
         (self.repo / "settings.gradle").write_text("// candidate\n", encoding="utf-8")
         (child / "README.md").write_text("reviewed candidate\n", encoding="utf-8")
@@ -128,12 +128,12 @@ class ReviewStateTest(unittest.TestCase):
         (child / "README.md").write_text("unreviewed change while still dirty\n", encoding="utf-8")
         drifted = self.tool("verify", "--snapshot", str(review), check=False)
         self.assertNotEqual(0, drifted.returncode)
-        self.assertIn("MLLM", drifted.stderr)
+        self.assertIn("library", drifted.stderr)
         (child / "README.md").write_text("reviewed candidate\n", encoding="utf-8")
         staged = self.tool("stage", "--baseline", str(pre), "--snapshot", str(review), "--output", str(self.root / "submodule-stage"), check=False)
         self.assertEqual(0, staged.returncode, staged.stderr)
         self.assertEqual("reviewed candidate\n", run("git", "show", ":README.md", cwd=child).stdout)
-        self.assertEqual(gitlink, run("git", "ls-files", "--stage", "--", "MLLM", cwd=self.repo).stdout)
+        self.assertEqual(gitlink, run("git", "ls-files", "--stage", "--", "library", cwd=self.repo).stdout)
         for repo in (self.repo, child):
             self.assertEqual(heads[repo], run("git", "rev-parse", "HEAD", cwd=repo).stdout)
         self.assertEqual("gradle.properties\n", run("git", "diff", "--name-only", cwd=child).stdout)
@@ -146,7 +146,7 @@ class ReviewStateTest(unittest.TestCase):
         outside.mkdir()
         result = self.tool(
             "capture", "--output", str(self.root / "rejected"),
-            "--repository", f"QIFramework={self.repo}", "--repository", f"MLLM={outside}",
+            "--repository", f"service={self.repo}", "--repository", f"library={outside}",
             check=False,
         )
         self.assertEqual(1, result.returncode)
@@ -156,13 +156,13 @@ class ReviewStateTest(unittest.TestCase):
         self.assertNotIn("Traceback", result.stderr)
 
     def test_repository_set_resumes_partial_staging_without_reaccepting_drift(self) -> None:
-        other = self.root / "MLLM"
+        other = self.root / "library"
         run("git", "clone", "--quiet", str(self.repo), str(other), cwd=self.root)
         pre = self.root / "partial-pre"
         self.tool(
             "capture", "--output", str(pre),
-            "--repository", f"QIFramework={self.repo}", "--repository", f"MLLM={other}",
-            "--scope-path", "QIFramework:settings.gradle", "--scope-path", "MLLM:settings.gradle",
+            "--repository", f"service={self.repo}", "--repository", f"library={other}",
+            "--scope-path", "service:settings.gradle", "--scope-path", "library:settings.gradle",
         )
         for repo in (self.repo, other):
             (repo / "settings.gradle").write_text("// accepted\n", encoding="utf-8")
@@ -184,19 +184,19 @@ class ReviewStateTest(unittest.TestCase):
         self.tool("verify", "--snapshot", str(self.root / "partial-stage/accepted"))
         for repo in (self.repo, other):
             self.assertEqual("// accepted\n", run("git", "show", ":settings.gradle", cwd=repo).stdout)
-        narrowed = self.tool(*stage_args, "--allow-path", "QIFramework:settings.gradle", check=False)
+        narrowed = self.tool(*stage_args, "--allow-path", "service:settings.gradle", check=False)
         self.assertNotEqual(0, narrowed.returncode)
         self.assertIn("allowed set", narrowed.stderr)
 
     def test_repository_set_preserves_user_classified_drift_in_a_repository_without_scope(self) -> None:
-        other = self.root / "MLLM"
+        other = self.root / "library"
         run("git", "clone", "--quiet", str(self.repo), str(other), cwd=self.root)
         (other / "gradle.properties").write_text("external=before\n", encoding="utf-8")
         pre = self.root / "drift-pre"
         self.tool(
             "capture", "--output", str(pre),
-            "--repository", f"QIFramework={self.repo}", "--repository", f"MLLM={other}",
-            "--scope-path", "QIFramework:settings.gradle",
+            "--repository", f"service={self.repo}", "--repository", f"library={other}",
+            "--scope-path", "service:settings.gradle",
         )
         (self.repo / "settings.gradle").write_text("// accepted\n", encoding="utf-8")
         (other / "gradle.properties").write_text("external=preserved\n", encoding="utf-8")
@@ -205,20 +205,20 @@ class ReviewStateTest(unittest.TestCase):
         report = self.drift("multi-drift", pre)
         payload = json.loads((report / "report.json").read_text(encoding="utf-8"))
         self.assertEqual("confirmation_required", payload["status"])
-        self.assertEqual("gradle.properties", payload["repositories"]["MLLM"]["changes"][0]["path"])
-        resolution = self.reconcile("multi-resolution", pre, report, {"MLLM:gradle.properties": "preserve"})
+        self.assertEqual("gradle.properties", payload["repositories"]["library"]["changes"][0]["path"])
+        resolution = self.reconcile("multi-resolution", pre, report, {"library:gradle.properties": "preserve"})
         review = self.capture("drift-review", baseline=pre, drift_resolution=resolution / "resolution.json")
         staging = self.root / "drift-stage"
         self.tool("stage", "--baseline", str(pre), "--snapshot", str(review), "--output", str(staging))
         self.assertEqual("", run("git", "diff", "--cached", "--name-only", cwd=other).stdout)
         self.assertEqual("external=preserved\n", (other / "gradle.properties").read_text(encoding="utf-8"))
-        self.capture("next-pre", handoff=staging / "accepted", scope_paths=["MLLM:README.md"])
+        self.capture("next-pre", handoff=staging / "accepted", scope_paths=["library:README.md"])
 
     def test_repository_set_rejects_staging_an_empty_implementation(self) -> None:
-        other = self.root / "MLLM"
+        other = self.root / "library"
         run("git", "clone", "--quiet", str(self.repo), str(other), cwd=self.root)
         pre = self.root / "empty-pre"
-        self.tool("capture", "--output", str(pre), "--repository", f"QIFramework={self.repo}", "--repository", f"MLLM={other}")
+        self.tool("capture", "--output", str(pre), "--repository", f"service={self.repo}", "--repository", f"library={other}")
         review = self.capture("empty-review", baseline=pre)
         output = self.root / "empty-stage"
         result = self.tool("stage", "--baseline", str(pre), "--snapshot", str(review), "--output", str(output), check=False)
@@ -227,17 +227,17 @@ class ReviewStateTest(unittest.TestCase):
         self.assertFalse(output.exists())
 
     def test_repository_set_rejects_an_ignored_untracked_scope_path(self) -> None:
-        other = self.root / "MLLM"
+        other = self.root / "library"
         run("git", "clone", "--quiet", str(self.repo), str(other), cwd=self.root)
         self.ignore_paths(other, "engine.py")
         (other / "engine.py").write_text("value = 1\n", encoding="utf-8")
         repositories = (
-            "--repository", f"QIFramework={self.repo}",
-            "--repository", f"MLLM={other}",
+            "--repository", f"service={self.repo}",
+            "--repository", f"library={other}",
         )
 
         assessment = self.tool(
-            "assess", *repositories, "--scope-path", "MLLM:engine.py", check=False
+            "assess", *repositories, "--scope-path", "library:engine.py", check=False
         )
         self.assertNotEqual(0, assessment.returncode)
         self.assertIn("engine.py", assessment.stderr)
@@ -245,14 +245,14 @@ class ReviewStateTest(unittest.TestCase):
         output = self.root / "multi-pre"
         capture = self.tool(
             "capture", "--output", str(output), *repositories,
-            "--scope-path", "MLLM:engine.py", check=False,
+            "--scope-path", "library:engine.py", check=False,
         )
         self.assertNotEqual(0, capture.returncode)
         self.assertIn("engine.py", capture.stderr)
         self.assertFalse(output.exists())
 
     def test_staging_does_not_adopt_an_external_edit_during_index_preparation(self) -> None:
-        other = self.root / "MLLM"
+        other = self.root / "library"
         run("git", "clone", "--quiet", str(self.repo), str(other), cwd=self.root)
         pre = self.root / "concurrent-pre"
         self.tool("capture", "--output", str(pre), "--repository", f"A={self.repo}", "--repository", f"B={other}", "--scope-path", "A:settings.gradle")
@@ -478,6 +478,36 @@ class ReviewStateTest(unittest.TestCase):
         self.assertEqual("", run("git", "diff", cwd=self.repo).stdout)
         self.assertIn("ticket-created.txt", run("git", "diff", "--cached", "--name-only", cwd=self.repo).stdout)
         self.assertIn("local-notes.txt", run("git", "ls-files", "--others", "--exclude-standard", cwd=self.repo).stdout)
+
+    def test_inferred_ticket_paths_retain_verified_staging_evidence(self) -> None:
+        (self.repo / "local-notes.txt").write_text("protected user input\n", encoding="utf-8")
+        pre = self.capture("pre")
+        readme = self.repo / "README.md"
+        readme.write_text(readme.read_text(encoding="utf-8") + "\naccepted ticket\n", encoding="utf-8")
+        (self.repo / "ticket-created.txt").write_text("new file\n", encoding="utf-8")
+        review = self.capture("review", pre)
+        staging = self.root / "staging"
+
+        result = self.tool(
+            "stage", "--baseline", str(pre), "--snapshot", str(review),
+            "--output", str(staging),
+        )
+
+        accepted = Path(json.loads(result.stdout)["accepted_snapshot"])
+        self.tool("verify", "--snapshot", str(accepted))
+        state = json.loads((accepted / "snapshot.json").read_text(encoding="utf-8"))
+        self.assertEqual([], state["tracked_unstaged"])
+        self.assertEqual(["local-notes.txt"], [record["path"] for record in state["untracked"]])
+        self.assertEqual("protected user input\n", (self.repo / "local-notes.txt").read_text(encoding="utf-8"))
+        self.assertEqual(
+            {"README.md", "ticket-created.txt"},
+            set(run("git", "diff", "--cached", "--name-only", cwd=self.repo).stdout.splitlines()),
+        )
+        resumed = self.tool(
+            "stage", "--baseline", str(pre), "--snapshot", str(review),
+            "--output", str(staging),
+        )
+        self.assertEqual(json.loads(result.stdout), json.loads(resumed.stdout))
 
     def test_supervisor_index_change_is_rejected(self) -> None:
         pre = self.capture("pre")
@@ -1411,6 +1441,97 @@ class ReviewStateTest(unittest.TestCase):
         result = self.tool("verify", "--snapshot", str(snapshot), check=False)
         self.assertNotEqual(0, result.returncode)
         self.assertIn("review input drifted: authority", result.stderr)
+
+    def assert_nonignored_authority_repair(self, tracked: bool) -> None:
+        ticket = self.repo / "process/example/issues/01-example.md"
+        ticket.parent.mkdir(parents=True)
+        ticket.write_text("**Status:** ready-for-agent\n", encoding="utf-8")
+        relative = ticket.relative_to(self.repo).as_posix()
+        if tracked:
+            run("git", "add", relative, cwd=self.repo)
+        index_before = run("git", "ls-files", "--stage", "--", relative, cwd=self.repo).stdout
+        pre = self.capture("pre", scope_paths=["README.md"], authority_paths=[relative])
+        ticket.write_text(ticket.read_text(encoding="utf-8") + "\nCorrected check.\n", encoding="utf-8")
+        repair = self.capture("repair", baseline=pre, authority_transition_paths=[relative])
+        repaired = json.loads((repair / "snapshot.json").read_text(encoding="utf-8"))
+        self.assertEqual([], repaired["ticket_tracked"])
+        self.assertEqual([], repaired["ticket_untracked"])
+        (self.repo / "README.md").write_text("accepted implementation\n", encoding="utf-8")
+        candidate = self.capture("candidate", baseline=repair)
+        self.tool("stage", "--baseline", str(repair), "--snapshot", str(candidate),
+                  "--output", str(self.root / "staging"))
+        self.assertEqual(index_before, run("git", "ls-files", "--stage", "--", relative, cwd=self.repo).stdout)
+
+    def test_tracked_authority_repair_stays_out_of_ticket_patch(self) -> None:
+        self.assert_nonignored_authority_repair(True)
+
+    def test_untracked_authority_repair_stays_out_of_ticket_patch(self) -> None:
+        self.assert_nonignored_authority_repair(False)
+
+    def assert_review_rebinding(self, change_candidate: bool) -> None:
+        note = self.repo / "local-notes.txt"
+        note.write_text("before\n", encoding="utf-8")
+        pre = self.capture("pre", scope_paths=["README.md"])
+        target = self.repo / "README.md"
+        target.write_text("reviewed implementation\n", encoding="utf-8")
+        reviewed = self.capture("reviewed", baseline=pre)
+        note.write_text("after review\n", encoding="utf-8")
+        report = self.drift("drift", pre)
+        decision, resolution = self.root / "decision.json", self.root / "resolution"
+        decision.write_text(json.dumps({"decisions": {"local-notes.txt": "preserve"}}), encoding="utf-8")
+        self.tool("reconcile", "--baseline", str(pre), "--report", str(report / "report.json"),
+                  "--decision", str(decision), "--output", str(resolution))
+        if change_candidate:
+            target.write_text("unreviewed implementation\n", encoding="utf-8")
+        rebound = self.root / "rebound"
+        result = self.tool("rebind", "--baseline", str(pre), "--snapshot", str(reviewed),
+                           "--drift-resolution", str(resolution / "resolution.json"),
+                           "--output", str(rebound), check=False)
+        if change_candidate:
+            self.assertNotEqual(0, result.returncode)
+            self.assertIn("review content changed", result.stderr)
+            self.assertFalse(rebound.exists())
+            return
+        self.assertEqual(0, result.returncode, result.stderr)
+        proof = json.loads((rebound / "snapshot.json").read_text(encoding="utf-8"))["review_rebinding"]
+        self.assertEqual(hashlib.sha256((reviewed / "snapshot.json").read_bytes()).hexdigest(), proof["source_snapshot_sha256"])
+        staging = self.root / "staging"
+        self.tool("stage", "--baseline", str(pre), "--snapshot", str(rebound), "--output", str(staging))
+        self.tool("stage", "--baseline", str(pre), "--snapshot", str(rebound), "--output", str(staging))
+        self.assertEqual("after review\n", note.read_text(encoding="utf-8"))
+        self.assertEqual("README.md\n", run("git", "diff", "--cached", "--name-only", cwd=self.repo).stdout)
+        with (reviewed / "snapshot.json").open("a", encoding="utf-8") as destination:
+            destination.write("\n")
+        refused = self.tool("verify", "--snapshot", str(rebound), check=False)
+        self.assertNotEqual(0, refused.returncode)
+        self.assertIn("rebound review source snapshot was modified", refused.stderr)
+
+    def test_harmless_drift_preserves_the_reviewed_candidate(self) -> None:
+        self.assert_review_rebinding(False)
+
+    def test_final_review_rebinding_keeps_dirty_tracked_content_protected(self) -> None:
+        source, drift, resolution, rebound = (self.root / name for name in ("final-review", "drift", "resolution", "rebound"))
+        target = self.repo / "README.md"
+        target.write_text("Existing protected edit.\n", encoding="utf-8")
+        self.tool("capture", "--output", str(source))
+        target.write_text("Later harmless protected edit.\n", encoding="utf-8")
+        self.tool("drift", "--baseline", str(source), "--output", str(drift))
+        decision = self.root / "decision.json"
+        decision.write_text(json.dumps({"decisions": {"README.md": "preserve"}}), encoding="utf-8")
+        self.tool("reconcile", "--baseline", str(source), "--report", str(drift / "report.json"),
+                  "--decision", str(decision), "--output", str(resolution))
+        self.tool("rebind", "--baseline", str(source), "--snapshot", str(source),
+                  "--drift-resolution", str(resolution / "resolution.json"), "--output", str(rebound))
+        self.tool("verify", "--snapshot", str(rebound))
+        state = json.loads((rebound / "snapshot.json").read_text(encoding="utf-8"))
+        original = json.loads((source / "snapshot.json").read_text(encoding="utf-8"))
+        self.assertEqual([], state["ticket_scope_paths"])
+        self.assertEqual([], state["ticket_tracked"])
+        self.assertEqual(original["index_entries_sha256"], state["index_entries_sha256"])
+        self.assertEqual("Later harmless protected edit.\n", target.read_text(encoding="utf-8"))
+
+    def test_rebinding_rejects_a_changed_candidate(self) -> None:
+        self.assert_review_rebinding(True)
 
     def test_capture_records_an_approved_authority_transition(self) -> None:
         _, ticket = self.write_ignored_feature()

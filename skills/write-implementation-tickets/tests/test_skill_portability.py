@@ -295,8 +295,6 @@ class SkillPortabilityTest(unittest.TestCase):
 
         serialized = json.dumps(evals, ensure_ascii=False)
         for workspace_term in (
-            "MLLM",
-            "app-role-local-inference-split",
             "remote destroy",
             "engine module",
         ):

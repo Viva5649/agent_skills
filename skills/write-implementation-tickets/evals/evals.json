@@ -183,11 +183,11 @@
     },
     {
       "id": 14,
-      "prompt": "把 LLM API 从 v3 迁移到 v4。一个 ticket 计划同时改 public API、SDK facade、private wire、service endpoint、capability、engine controller、Demo、delivery scripts 和 architecture docs；还要改 lifecycle、cleanup、并发线性化和发布验证。虽然每层都服务于同一个用户功能，请直接保留为 Ticket 03。",
-      "expected_output": "用 independent-rejection test 判定这是 semantic epic，而不是因为跨层就机械拆分或因为同一功能就保留。先以 expand–migrate–contract 分开公共契约扩展、内部迁移/生命周期所有权、消费者切换和 legacy 收缩；每张票只保留一个可独立验收的行为/状态所有权，并用 Consumes/Produces 和真实 Blocked by 连接。",
+      "prompt": "把 LLM API 从 v3 迁移到 v4。一个 ticket 计划同时改 public API、SDK facade、private wire、service endpoint、capability、engine controller、Demo、delivery scripts 和 architecture docs；还要改 lifecycle、cleanup、并发线性化和发布验证。虽然每层都服务于同一个用户功能，请直接保留为 Ticket 03。 ADR 已明确要求分别保留扩展兼容、caller 迁移和 legacy 收缩状态；其中 lifecycle/cleanup 是需要独立交接的 owner。",
+      "expected_output": "结合 independent-rejection test、ADR 要求的兼容状态和独立 owner 交接收益判定这是 semantic epic，而不是因为跨层就机械拆分或因为同一功能就保留。先以 expand–migrate–contract 分开公共契约扩展、内部迁移/生命周期所有权、消费者切换和 legacy 收缩；每张票只保留一个可独立验收的行为/状态所有权，并用 Consumes/Produces 和真实 Blocked by 连接。",
       "files": [],
       "expectations": [
-        "Rejects the proposed ticket as a semantic epic based on independently reviewable outcomes and ownership changes, not raw file count.",
+        "Rejects the proposed ticket as a semantic epic based on authority-required compatibility states and independent ownership handoffs, not raw file count.",
         "Preserves vertical slices where cross-layer changes are required for one observable result.",
         "Uses expand–migrate–contract ordering instead of combining public contract choice, migration, and contraction.",
         "Names explicit Consumes/Produces interfaces and blocker edges between the replacement tickets."
@@ -267,13 +267,13 @@
     },
     {
       "id": 21,
-      "prompt": "Ticket 05 的 declared write scope 已列出 RuntimePort 和 RuntimeController。它还声明 permitted discovery：`rg -l 'unloadModel\\(' service/src`。authoring baseline 上该命令另外返回 `service/src/PosLlmImpl.kt`，这里仍直接转发即将删除的 `unloadModel(runtimeHandle, modelId, ...)`；模块编译当前为绿。请完成 authoring admission，不要把问题留给 execute-tickets 的 stop condition。",
-      "expected_output": "执行 discovery 并把每个命中路径与 declared-write、read-only 和命名 false-positive 集合比较；PosLlmImpl.kt 是未处置且必须随签名迁移的真实 caller，因此 author 停止发布并将其加入 declared write scope，随后重跑闭包得到 0 undisposed paths。独立 reviewer 还要重放同一命令并报告 scope counts；当前编译为绿或 execution 将来会停止都不能替代 authoring scope closure。",
+      "prompt": "Ticket 05 的 declared write scope 已列出 RuntimePort 和 RuntimeController。它还声明 permitted discovery：`rg -l 'unloadModel\\(' service/src`。authoring baseline 上该命令另外返回 `service/src/ModelServiceImpl.kt`，这里仍直接转发即将删除的 `unloadModel(runtimeHandle, modelId, ...)`；模块编译当前为绿。请完成 authoring admission，不要把问题留给 execute-tickets 的 stop condition。",
+      "expected_output": "执行 discovery 并把每个命中路径与 declared-write、read-only 和命名 false-positive 集合比较；ModelServiceImpl.kt 是未处置且必须随签名迁移的真实 caller，因此 author 停止发布并将其加入 declared write scope，随后重跑闭包得到 0 undisposed paths。独立 reviewer 还要重放同一命令并报告 scope counts；当前编译为绿或 execution 将来会停止都不能替代 authoring scope closure。",
       "files": [],
       "expectations": [
         "Runs the exact permitted-discovery command during authoring rather than treating it only as an execution stop condition.",
-        "Classifies every discovered path exactly once and identifies PosLlmImpl.kt as an undisposed production caller, not a read-only or false-positive match.",
-        "Blocks publication until PosLlmImpl.kt is added to declared write scope and the closure result is 0 undisposed paths.",
+        "Classifies every discovered path exactly once and identifies ModelServiceImpl.kt as an undisposed production caller, not a read-only or false-positive match.",
+        "Blocks publication until ModelServiceImpl.kt is added to declared write scope and the closure result is 0 undisposed paths.",
         "Requires the fresh exhaustive reviewer to replay discovery and report per-ticket scope-closure counts."
       ]
     },
@@ -451,11 +451,11 @@
     },
     {
       "id": 38,
-      "prompt": "写票时引用仓库已有 verify-full-matrix.sh 作为 G-PUBLISH 阻塞项：脚本含 16 模块、六聚合检查，另默认执行 MLC/LiteRT/Pulse/GenieX consumer 矩阵和一个 MTP smoke 子命令。两个权威来源对照：A) MLC/LiteRT 等矩阵仅来自脚本自身默认值，本 feature 的 spec 只点名『16 模块、六聚合』与 llama.cpp 的 Core/IPC/LAN/R8 边界；B) spec 明确要求『使用当前仓库正常构建和真实模型，分别覆盖长文本 Prefill 拒绝、生成中途容量耗尽、图片 token 占满、MTP 边界，以及 maxTokens 正常 length』，另有原句『MTP 边界与正常构建真机验证尚无本任务证据，不得标成已验收』，而当前模型报告 MTP unavailable。author 提议：整脚本矩阵全列为阻塞项，首审一半通过即视为基本完成。做发布前逐阻塞项适用范围核对；不运行脚本。",
+      "prompt": "写票时引用仓库已有 verify-full-matrix.sh 作为 G-PUBLISH 阻塞项：脚本含 16 模块、六聚合检查，另默认执行 BackendA/BackendB/BackendC/BackendD consumer 矩阵和一个 MTP smoke 子命令。两个权威来源对照：A) BackendA/BackendB 等矩阵仅来自脚本自身默认值，本 feature 的 spec 只点名『16 模块、六聚合』与 BackendE 的 Core/IPC/LAN/R8 边界；B) spec 明确要求『使用当前仓库正常构建和真实模型，分别覆盖长文本 Prefill 拒绝、生成中途容量耗尽、图片 token 占满、MTP 边界，以及 maxTokens 正常 length』，另有原句『MTP 边界与正常构建真机验证尚无本任务证据，不得标成已验收』，而当前模型报告 MTP unavailable。author 提议：整脚本矩阵全列为阻塞项，首审一半通过即视为基本完成。做发布前逐阻塞项适用范围核对；不运行脚本。",
       "expected_output": "逐阻塞项沿权威来源核对适用性：A 类（仅脚本自带、spec 未点名）的矩阵不构成本 feature 的阻塞验收，gate 定义收缩到 spec 点名的最小 target/selector，16 模块/六聚合等 spec 明确项保留；B 类（spec 点名）保留要求，模型能力冲突移交需求 owner 处置，不得因『模型不支持』自行豁免，也不得无证据标已验收；『一半通过』只能按组件记 proved/unproved 与来源，不得汇总为整体 PASS；来源已明确的行为不新增询问。",
       "files": [],
       "expectations": [
-        "区分 A/B 两类来源：现成大脚本的存在不自动授权其全矩阵成为本 feature 验收；spec 点名的 16 模块/六聚合与 llama.cpp 边界保留",
+        "区分 A/B 两类来源：现成大脚本的存在不自动授权其全矩阵成为本 feature 验收；spec 点名的 16 模块/六聚合与 BackendE 边界保留",
         "A 类后端矩阵移出本 feature 阻塞项或标注其真实权威来源，不静默扩大也不静默删除 spec 要求",
         "B 类 MTP 要求保留并移交需求 owner 处置能力冲突，记录显式决定；author 不自我豁免、不跳过",
         "验收结果按组件记录 proved/unproved 及来源，部分通过不记整体 PASS，未验项不得写成已解决",
@@ -472,6 +472,116 @@
         "权威已明确的环境或解析限制与真实兼容约束保持约束力，不擅自取消；修正经由 owning authority 流程",
         "spec 点名的真机 Customer/Agent 验收原样保留，判据不反向泛化为禁止真机验证",
         "不从现成大矩阵或单个枚举/映射改动推导模型任务效果类阻塞验收；该 finding 缺乏权威来源，按既有分类作为 review_drift 处置：不改写票面、保持终态 FAIL 未决等待用户处置、不转成独立门禁或验收提醒；历史 FAIL 证据保留、不改写为 PASS"
+      ]
+    },
+    {
+      "id": 40,
+      "prompt": "为 Runtime 严重故障上报写票。权威 spec 要求 generate 的 callback、monitor，以及故障后的同步 createChat 都向 SDK 调用方交付不可恢复的1027。当前草案用 FakeService 验证 callback/monitor，用直接 Service 调用验证 createChat，再用 Android Parcel 写读 FaultException；据此把跨进程分类标为完整。实际调用链：facade createChat → RPC proxy → Reply parser；Reply parser 对普通业务 Throwable 只保留字符串并抛 TransportException，callback 则有独立的业务错误编码。仅给出 authoring preflight 的处置及必要的 Interfaces/witness 修正，不发布票、不实现、不运行构建或设备。",
+      "expected_output": "识别同步 throw 与异步 callback 的不同生产交付通道。原直接 Service/Parcel 证据只能证明局部边界，不能证明 Reply parser 到 facade 的错误类型；为受影响 createChat 声明真实包装、解析与调用方分类的精确 owner/scope/witness，在完成前保留未验证。保持1027合同，不按字符串猜类型，不新增重试或扩扫无关API。",
+      "files": [],
+      "expectations": [
+        "Separates the actual synchronous createChat throw channel from generate/monitor callback channels.",
+        "Rejects direct Service and error-object Parcel evidence as proof of the RPC Reply-to-facade classification.",
+        "Assigns the missing transport producer/consumer, scope and verification to named owners while retaining the caller-visible 1027 contract.",
+        "Does not invent retries, error-message matching, or unrelated public API changes."
+      ]
+    },
+    {
+      "id": 41,
+      "prompt": "两张行为票先后实施，最终 G-DEVICE 由 validation supervisor 执行；该 supervisor 就是 final supervisor，同一 actor，现有协议明确只读。Ticket01 的文档owner已有 docs/verification.md“当前验收”的写范围，Ticket02 的文档owner已有 docs/known-issues.md 对应边界的写范围，最终结果后这两个写范围仍有效。两票会先写入“设备放置及SDK故障路径尚未验证”，各自源码检查完成后可先结束。spec 要求交付时两份文档反映真实已验证范围，G-DEVICE 结果此前无法取得，另一个设备组合可能经用户决定延期。草案称 final supervisor 只需审计文档哈希。仅修正既有文档交接合同，不撤销 supervisor 的只读约束，不新增票、不执行工单或Git操作。",
+      "expected_output": "在既有 Required replacement outputs 内声明 G-DEVICE、原具名文档owner、各自精确位置及正向验收。final supervisor只读取得/核对结果，orchestrator交给Ticket01/Ticket02原文档owner在已有写范围内surgical更新，不能授予只读gate owner编辑权限。临时未验证文字不是最终输出；区分已证明、延期未证明和历史事实，不新增文档票/阶段，不用哈希或diff check代替事实对账。",
+      "files": [],
+      "expectations": [
+        "Binds the deferred replacement to G-DEVICE and the existing Ticket01/Ticket02 document owners with their declared write scopes and exact sections.",
+        "Requires a positive final acceptance item and does not treat interim unverified wording as the completed replacement.",
+        "Distinguishes proved, explicitly deferred and historical conditions without claiming deferred checks passed.",
+        "Keeps the same final/validation supervisor read-only and routes updates to existing document owners without a new ticket, role or hash-only completion check."
+      ]
+    },
+    {
+      "id": 42,
+      "prompt": "给 native 映射故障票做 authoring preflight。权威要求真实 prepare 返回 FAILED，实际 queue 提交增量为0，不能加生产测试hook。独立 verifier 导出 queue_write wrapper 并对它计数；生产库既有 driver.cpp 通过全局 queue_write_pfn 调用 vendor target，已保存反汇编确认该间接调用。合法小图、静态 prepare-before-enqueue 顺序都有，草案将 wrapper=0 写成队列未提交的证明。当前同源目标制品尚待前置构建 G-BUILD，就绪后由 final gate owner G-NATIVE 运行。仅给出票前修正和责任安排，不构建或运行设备。",
+      "expected_output": "wrapper符号存在和静态顺序不证明实际dispatch被观测，零计数不能排除observer未接入。修正合法fixture与Observation，要求实际绑定或最小正常路径证明observer接入；复用有效证据。当前可判的接线修复归实现owner，依赖G-BUILD的启动/可达证明归最早适用G-NATIVE owner。保留真实queue=0合同，不加生产hook或每断言mutation，不把每张票提前上设备。",
+      "files": [],
+      "expectations": [
+        "Identifies that the production function-pointer dispatch bypasses the exported wrapper and zero count is not absence evidence.",
+        "Requires actual binding or normal-path evidence in the existing Observation witness while preserving the real queue-zero contract.",
+        "Assigns decidable wiring work to the implementation owner and dependency-bound execution to the earliest named G-NATIVE owner after G-BUILD.",
+        "Reuses applicable evidence and adds neither a production hook nor a mutation or hardware run for every assertion/ticket."
+      ]
+    },
+    {
+      "id": 43,
+      "prompt": "请基于 evals/fixtures/embedding-replay/ 中已确认要求、可行性证据和仓库片段，给出正式 implementation-ticket 的简短方案：本次交付什么、按什么边界拆分、依赖和验证如何安排。只展示方案，不创建票据、跑设备或启动 admission review。",
+      "expected_output": "明确交付完整 embedding 实现，不重新询问已确认的一次发布，不把已验证的可行性再写成预检图。同一 Runtime 加载不变量中的任务绑定与模型匹配一起交付；原生计算与公共请求生命周期按真实 owner/接口需要分别交接。不锁定固定票数，不创建独立参考工具票。共享 Runtime 保持模型中立；具体维度解释归 Engine，不为假想模型新增注册表。保留真实 SDK、native 数值与 release consumer 的最终验收，说明当前仅有片段，正式可执行票仍需完整仓库闭包。",
+      "files": [
+        "evals/fixtures/embedding-replay/spec.md",
+        "evals/fixtures/embedding-replay/runtime.py",
+        "evals/fixtures/embedding-replay/engine.py"
+      ],
+      "expectations": [
+        "States full implementation coverage, reuses established feasibility and does not ask again about the confirmed release scope.",
+        "Keeps task binding and loaded-model matching together as one Runtime invariant, without requiring a fixed total ticket count.",
+        "Explains necessary handoffs for native computation and the public request lifecycle instead of splitting by file, layer or separate tests.",
+        "Keeps model-specific dimensions in Engine and shared Runtime model-neutral without implementing a speculative second model or registry.",
+        "Preserves final SDK/native/release verification and identifies the missing full-repository inputs before executable ticket publication."
+      ]
+    },
+    {
+      "id": 44,
+      "prompt": "用户要完整实现票，已确认一次发布。spec 规定跨线程 native handle 所有权必须由既有实验 owner 用确定性原型证明后才能确定实现合同；两个候选顺序会改变 cleanup owner，当前都没有证据，普通代码阅读无法决定。原型需独立设备资源，当前 author 无法运行。另一段只涉及现有纯函数映射，合同已完整。仅给拆票方案和当前交付范围，不修改 spec 或运行实验。",
+      "expected_output": "保留明确前置证据门禁，不能为了少票把未定 ownership 假装成可执行合同。可以单独安排有界证据票，并说明具体 owner、输入、需要消除的选择和恢复条件；无关且合同完整的工作可推进。首句明确当前方案只覆盖可确定部分/前置证据，剩余生产实现尚未定稿，不能称整图已完成。实验结论涉及 owner 选择时由权威决定者落盘后再完善实现票，不重问发布偏好。",
+      "files": [],
+      "expectations": [
+        "Explicitly identifies partial coverage and the remaining production implementation rather than claiming the full graph is executable.",
+        "Preserves the authority-required ownership evidence gate and assigns the bounded experiment to the existing owner.",
+        "Names the result or decision needed to resume affected authoring while allowing the independent specified mapping work.",
+        "Does not invent a cleanup owner, remove the gate to merge tickets, or re-ask the confirmed release decision."
+      ]
+    },
+    {
+      "id": 45,
+      "prompt": "请用 write-implementation-tickets 只判断候选是否可发布并给出需要调整的合同，不实施、不启动正式 admission review。仓库架构要求内部业务只能使用 Framework 类型，Vendor SDK 请求、响应和错误限于 Adapter；普通 GeneratePort 已如此实现。新 BatchPort 的 spec 却写「同进程且未发布，直接使用 VendorRequest、VendorResponse、VendorCallback 和 VendorError，避免重复 DTO」，没有单独记录边界例外。全部功能测试计划齐全。作者认为 spec 优先，reviewer 只需检查票是否照抄。随后需求负责人明确批准这一条 SDK 耦合例外并写入 ADR，第二次应如何处理？",
+      "expected_output": "先指出具体接口与架构冲突，不能用功能测试或 spec 优先机械放行，也不能自行重写已明确的接口。需求负责人解决冲突后再发布；后续 ADR 已明确授权例外时保留决定，不反复阻塞。",
+      "files": [],
+      "expectations": [
+        "Identifies the declared caller/Adapter boundary and SDK types crossing it despite an internal unpublished interface.",
+        "Routes the spec/architecture conflict to the requirement owner before publishing, without silently inventing a replacement interface.",
+        "Honors the later explicit ADR exception without imposing a universal SDK ban or another approval gate."
+      ]
+    },
+    {
+      "id": 46,
+      "prompt": "只给实现图中的职责与接口结论，不写工单。现有 SearchPort 的请求、结果、callback、错误均为 Framework 类型；SearchAdapter 内部调用 VendorClient，使用 VendorRequest 和 VendorError 再转换回 Framework 结果。两个真实调用方只依赖 SearchPort。同类生成能力需要会话和流式事件，搜索能力是无状态批次。是否应为了层级一致再增加 SearchFacade 和第二套中间 DTO？",
+      "expected_output": "保留已经正确的能力边界；SDK 类型在 Adapter 内部合法，复用现有转换，不增加仅转发包装层，不统一不同功能的类数和生命周期。",
+      "files": [],
+      "expectations": [
+        "Allows SDK types inside the existing adapter while tracing caller-facing request/result/callback/error isolation.",
+        "Rejects a forwarding facade or duplicate DTO without an independent production responsibility.",
+        "Preserves justified batch versus streaming/session differences rather than forcing identical layer counts."
+      ]
+    },
+    {
+      "id": 47,
+      "prompt": "只修正以下 baseline preflight 草案，不执行命令。C-LEGACY 是既有 HostCompositionTest；gradle --dry-run exit 0，测试类存在，但宿主依赖一个源码中找不到定义的 MembershipTool，真实编译未执行。G-DEVICE 只观察到 adb device 在线，应用 UID 对模型的读取和结果 writer/parser 未验证；新 writer 等实现票完成后才存在。另一张纯函数票没有这些依赖。请给当前已知事实、最小下一检查、负责者和发布/继续条件。",
+      "expected_output": "dry-run 只证明任务图，缺失引用是当前可判定的编译风险，不能伪装为未来功能依赖；选择最小相关编译检查或精确声明证据。设备可用不证明入口运行和读写；已存在权限前提现在核对，新 writer 最早由实现完成后的具名 owner 启动回读。独立工作可推进但不把全图称可执行。",
+      "files": [],
+      "expectations": [
+        "Does not treat dry-run or a test declaration as proof that the existing host dependency compiles.",
+        "Assigns a minimal decisive check and concrete resumption condition for the missing dependency instead of requiring a whole-repository build.",
+        "Separates device connectivity, app-identity access and future writer reachability with the earliest responsible verification owner.",
+        "Allows independent specified work while preserving incomplete admission/acceptance for affected work."
+      ]
+    },
+    {
+      "id": 48,
+      "prompt": "只给两种 spec 下的 gate 合同。A 要求本地 Batch 准备/释放不改变既有 Generate 模型、会话和文件；旧脚本却钉死另一台设备的模型 SHA-256，并用不存在的合法 modelId 探测释放，实际会访问签名下载服务。用户已明确只用现有本地制品，环境下载不可用。B 另外明确要求真实下载及跨 Runtime 缓存复用。两者都已有本地模型，作者准备统一改成预置模型通过。",
+      "expected_output": "A 区分前后保持要求、实际模型身份记录与历史摘要选择，追溯探针能证明的性质，修正无依据限制但不拿本地错误证明物理销毁。B 保留真实下载与缓存证明，预置只能诊断，不可替代。",
+      "files": [],
+      "expectations": [
+        "Distinguishes required before/after preservation from an incidental fixed model digest and records the actual artifact identity.",
+        "Keeps local-only authority for A and requires a valid lifecycle observation rather than claiming a local error proves physical cleanup.",
+        "Retains B’s explicit real-download/cache gate as unproved until its prerequisites are met."
       ]
     }
   ]

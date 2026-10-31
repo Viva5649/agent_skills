@@ -4,10 +4,11 @@ Every fresh ticket supervisor reads the `Context boundary`,
 `Supervisor status protocol`, `Execution mode routing`, and
 `Assurance lane routing` sections before it starts, from the absolute
 `references/supervisor-protocol.md` path received in its cold-start inputs.
+Read `Ticket implementation sequence` before scope assessment.
 Device/document details load only when applicable. The orchestrator reads its
 `Context boundary` and `Supervisor status protocol` responsibilities and reuses
 unchanged loaded sections; an update requires only the changed applicable
-sections. This file owns those four sections.
+sections. This file owns supervisor context, implementation, status and mode rules.
 The ticket lifecycle and Git transitions remain in `SKILL.md`.
 
 ## Context boundary
@@ -17,10 +18,10 @@ Keep the orchestrator thin so a long ticket graph does not accumulate implementa
 - Resolve all ticket paths, but parse only their scheduling metadata (`ticket number`, `Status`, and `Blocked by`) before selection. Do not preload every ticket body into the orchestrator context.
 - After selection, read only the current ticket's cold-start contract so the orchestrator can validate the supervisor's scope and verification traces. Do not read future ticket bodies.
 - Start each supervisor, implementation worker, and discovery reviewer without inherited conversation history when the agent API supports it, for example with `fork_turns: "none"`. Closure continues the same per-axis reviewer under `review-policy.md`. Give absolute repository and input-file paths instead of pasting large specs, tickets, patches, or logs into prompts.
-- Give the supervisor only the feature spec path, current ticket path, relevant
-  standards paths, current repository, the resolved absolute
+- Give the supervisor only the feature spec path, current ticket path, applicable
+  repository instructions and relevant standards paths, current repository, the resolved absolute
   `<execute-tickets-skill-root>`, the absolute `references/supervisor-protocol.md`
-  path, and compact evidence for the current
+  path, verified admission receipt and bounded `admission_basis`, and compact evidence for the current
   ticket's direct completed blockers, selected from their retained
   integration-review-index rows. For each consumed blocker, that evidence
   contains the exact ticket path and SHA-256, only the verbatim `Produces` rows
@@ -43,6 +44,61 @@ Keep the orchestrator thin so a long ticket graph does not accumulate implementa
   from those artifacts instead of reconstructing prior ticket conversations. A
   missing checkpoint stops resume safely; do not depend on automatic
   conversation compaction for correctness.
+
+## Ticket implementation sequence
+
+1. Before `scope_ready`, follow `admission-preflight.md`: inspect live authority,
+   directly consumed blocker interfaces, owners and stable seams; replay exact
+   permitted discovery with `0 undisposed paths` and declared non-mutating
+   preflights. Reuse unchanged admitted definitions. Emit exact scope, mode,
+   assurance lane and verification traces through the status envelope. Missing
+   authority or an unrealizable witness blocks; do not invent a design.
+   Distinguish directly observed facts, evidence-backed inferences and unknowns;
+   name the cheapest decisive check for a material inference. An unknown that
+   affects behavior, ownership, interface, scope, state or verification blocks.
+2. Before `scope_accepted`, run only those exact non-mutating admission
+   preflights. Do not edit, run post-implementation checks or start review.
+   After acceptance, read affected exports, immediate callers and shared
+   utilities before editing. Run the cheapest decisive check for the highest-risk
+   ticket-backed assumption as early as the selected mode permits; a diagnostic
+   subset never replaces a ticket-scoped check, feature final gate, behavior test
+   or assurance review.
+3. Implement ticket work only within accepted scope and leave changes unstaged.
+   An explicitly authorized temporary prerequisite repair follows
+   `working-tree-drift.md` before its write and stays outside ticket delivery.
+   Only `tdd` invokes its behavior-level red → green loop. Optional first-pass delegation
+   follows `implementation-delegation.md`; pass its absolute path to workers.
+   Scope-affecting drift uses `working-tree-drift.md`; unrelated paths stay
+   protected outside the delta/index without a provenance investigation.
+4. A failing check blocks acceptance, not repair. Fix authorized in-scope defects
+   and uniquely authority-backed verifier defects under `review-policy.md`.
+   Literal ticket verifier edits need the orchestrator's verification-only
+   contract transition; omitted scope/contract fields use execution authority
+   repair under `admission-preflight.md`. The changed verifier cannot approve
+   itself. Unsettled behavior/owner/interface choices or required completed-
+   blocker changes stop dependent work; keep the run-start receipt unchanged.
+5. Before `implementation_ready`, end all workers, inspect their full deltas and
+   exact assigned scopes, integrate boundaries and personally run only the
+   ticket-scoped checks plus applicable audits and required runtime interactions.
+   Do not run feature final gates during ordinary implementation. Rebuild the
+   final witness under Supervisor status protocol and retain raw logs in the
+   run-artifact tree. Worker PASS is not ticket acceptance.
+6. In the existing delta self-check, catch behavior-bearing code deleted without
+   authority, parameters/branches without production callers, and assertions
+   that pass when the claimed condition is false. Repair these before review.
+   For an affected capability/provider boundary, trace the final caller,
+   interface and adapter responsibilities, including nested result, callback,
+   error and alias types against architecture authority. A green functional
+   test or import scan alone does not prove that boundary. Keep necessary
+   conversions; internal/unpublished status or fewer lines is not an exception.
+   Honor approved coupling and avoid symmetry-only layers or duplicate DTOs.
+   Apply the implementation/deletion and Markdown audits below; the self-check
+   never substitutes for assurance or creates an extra review stage.
+7. Emit `implementation_ready` and wait for the immutable snapshot. Follow
+   `review-mechanics.md` for fresh Standards/Spec discovery and same-reviewer
+   closure, with no active worker. Micro assurance waits for orchestrator
+   inspection and starts no reviewers. The supervisor fixes authorized findings
+   itself after review begins and follows the existing bounded status protocol.
 
 ## Supervisor status protocol
 
@@ -208,6 +264,22 @@ counterfactual failure for every branch. Do not copy the planned trace forward,
 collapse distinct legal branches into one broad fixture, or cite a green command
 without proving required execution and inspecting its behavioral assertions. If this final matrix cannot be produced, emit `blocked`
 instead of relying on discovery review to find the missing witness.
+At a changed data-preservation boundary, verify that a plausible truncation,
+replacement or reordering would fail the existing oracle. Expected values must
+come from submitted input or an independent declared reference, not the actual
+output. Shape, finiteness and a positive count alone do not establish content
+preservation. Use a legal edge fixture or applicable existing evidence; do not
+require a mutation suite just to fill the trace.
+When public error semantics cross a process or network boundary, follow each
+affected operation's actual synchronous return/throw or asynchronous
+callback/stream to its caller. A direct service call or error-object
+serialization proves its own boundary, not RPC reply wrapping or facade
+classification. Reuse applicable evidence for the actual transport.
+For affected asynchronous operations, follow work completion through result
+delivery and caller settlement. Inspect reachable callback/transport failures
+under the declared contract and the existing pending-state owner; successful
+computation alone is insufficient. Do not add retries, cleanup owners or
+fake-only failure paths to satisfy this inspection.
 If the final implementation structurally eliminates a failure path, apply
 `review-policy.md`: record elimination evidence and affected behavior checks
 instead of forcing that removed path. Independently required product failure
@@ -234,6 +306,13 @@ blocker or explicitly permits historical retention after repairs under
 `reusable-gates.md`; a fresh-runtime gate still runs. Deterministic reuse keeps
 its manifest/external-state rules. Use scope/authority repair for a defective literal
 command, not an ad-hoc weaker substitute.
+Check access under the actual writer and reader identities. A shell-readable
+model path does not prove app access; a non-debuggable app's private result does
+not prove verifier access. Resolve statically decidable restrictions before
+launch. Where runtime evidence is missing, the earliest authorized verification
+owner performs the smallest launch/readback probe once dependencies are ready,
+retaining that evidence in the existing trace before the full matrix. This does
+not create a new universal preflight or replace declared acceptance.
 
 When changing a verifier, its implementation owner uses the existing witness to
 trace observations, comparisons and reachable failure cleanup before the costly
@@ -246,6 +325,14 @@ production instrumentation or a mutation matrix. Reference this check in the
 existing witness. Other roles do not repeat it without relevant change or a
 concrete gap. Run the declared acceptance after repairing a discovered defect;
 this inspection never substitutes for it.
+
+For native verifiers, inspect the installed artifact's actual dispatch and the
+observation API's legal results. An exported wrapper may miss an indirect call;
+a zero counter needs binding or normal-path evidence before it proves no
+execution. Check null/absent query results and numerical tolerances against the
+backend contract before treating them as product failures. Reuse existing
+evidence; an unresolved runtime fact belongs to the earliest applicable
+runnability owner below, using the smallest necessary probe.
 
 A ticket that adds or changes a verification entry names its runnability owner
 in the existing verification trace. Runner, build wiring, parameter, result
@@ -275,6 +362,14 @@ prerequisite gates are never deferred. A minimal probe proves only its
 covered range; it never replaces ticket-scoped checks or feature final gates.
 
 ## Target-runtime failures and diagnosis
+
+Within existing authorization, retaining/reading logs, bounded diagnosis,
+authorized repairs and targeted reverification are execution work, not new
+approval gates. Honor an explicit user first-failure stop. Otherwise pause only
+the operations needing a new decision or authority, or whose diagnosis has
+exhausted its bound or stopped producing discriminating evidence. Carry the
+same unresolved question's consumed budget across resumes, file edits and run
+directories; do not ask again for an already-authorized diagnostic step.
 
 First distinguish an unmet environment prerequisite from a product failure
 under valid conditions, and check whether the oracle rejected a result allowed

@@ -42,6 +42,9 @@ content input is:
 - `ticket-untracked.json`: those scope-file paths and hashes;
 - for a ticket that changed existing Markdown, the supervisor's
   `document-deletion-audit.md` and its verified SHA-256;
+- when verification uses an authorized outside-scope prerequisite repair, only
+  its named frozen delta/resulting content, authorization and dependency evidence
+  from `working-tree-drift.md`, with exact paths and SHA-256 values;
 - current ticket/spec/standards and live repository context.
 
 For that audit, the orchestrator verifies the envelope SHA-256 before dispatch,
@@ -53,7 +56,12 @@ snapshot drift.
 orchestrator-only integrity artifact bodies. The orchestrator verifies them
 before and after review and gives reviewers only the verified snapshot identity,
 protected path summary, and relevant hashes. Reviewers must not read `unstaged.patch` or
-use protected outside-scope content as review input; `ticket-tracked.patch` and
+use the full protected outside-scope content as review input. The named frozen
+prerequisite repair above is the sole additional patch input, used to judge
+verification dependence, not as ticket delivery or authorization for unrelated
+review. Bind its hashes to the review's existing input evidence, check them
+before and after review, and invalidate affected review evidence on change.
+`ticket-tracked.patch` and
 `ticket-untracked.patch` already contain the complete current-ticket candidate.
 
 An empty tracked patch may still have scope-owned untracked files. Earlier staged
@@ -61,9 +69,9 @@ ticket lines may appear only as patch context. Reviewers assess the complete
 candidate on exact scope paths; pre-existing content outside scope is context
 only and remains protected.
 
-## Adapt the code-review skill
+## Adapt the mattpocock-code-review skill
 
-Reuse the installed `/code-review` skill's Standards discovery, smell baseline,
+Reuse the installed `mattpocock-code-review` skill's Standards discovery, smell baseline,
 Spec axis, reviewer briefs, and separate reports, but do not invoke its
 commit-oriented flow as a black box.
 
@@ -80,8 +88,19 @@ For discovery the waiting supervisor starts fresh read-only Standards and Spec
 reviewers in parallel; closure follows `review-policy.md` reviewer continuity.
 It gives both the reviewer content artifact paths, repository root,
 ticket/spec/standards inputs, verified snapshot identity, protected path
-summary, and instructions to hash-check every new file. Findings must concern
-the current ticket delta; full live files are context only.
+summary, and instructions to hash-check every new file. Findings concern the
+current ticket delta and the validity of its claimed verification; full live
+files are context only. Classify unrelated existing defects under
+`review-policy.md` instead of expanding the ticket.
+
+For an affected capability/provider boundary, the Standards reviewer traces
+caller → interface → adapter → SDK responsibilities and reachable request,
+result, callback, error and alias types against current architecture authority.
+Retain necessary isolation even if direct SDK reuse is shorter; internal or
+unpublished status alone is not an exception. SDK use within the owning adapter
+is valid. Honor explicit coupling exceptions without demanding symmetric layers,
+forwarding facades or duplicate DTOs. A spec/architecture conflict follows the
+existing authority rules; green behavior tests and import scans do not settle it.
 
 When existing Markdown changed, add this explicit task to the Standards reviewer
 brief without modifying the Standards reviewer implementation: compare every
@@ -138,6 +157,11 @@ Verification failure invalidates both reports. On success, return
 with every finding disposed, that final `review_complete` on the verified
 snapshot is itself the acceptance evidence and the orchestrator proceeds to
 protected staging. Never average the axes.
+
+After a verified PASS, harmless protected-state drift may use the deterministic
+rebinding in `working-tree-drift.md`. Retain the original reports and snapshot
+hash, verify the rebinding proof, and use the rebound snapshot for staging or
+final acceptance without dispatching or recording another review round.
 The same supervisor fixes actionable findings; do not dispatch an implementation
 worker after review begins.
 
@@ -203,7 +227,11 @@ On-demand evidence paths:
 - the complete staged feature patch and final snapshot identity;
 - every ticket's accepted per-path hashes, ticket acceptance reports, Standards
   and Spec reports, and bounded completion record;
-- final-gate logs and reusable-input evidence.
+- final-gate logs and reusable-input evidence;
+- any authorized temporary prerequisite repair consumed by those gates: the
+  narrow frozen content, authorization, dependency and hash evidence defined
+  above. Index that dependence in the existing completion/deviations or gate
+  entry; do not supply the full protected worktree.
 
 Each reviewer reads the index first, forms an integration-boundary checklist,
 then reads only the exact path sections or hunks from `staged.patch` needed for
@@ -238,7 +266,10 @@ instead of reopening accepted tickets.
 The Standards and Spec axes remain separate. Standards assesses cross-ticket
 architecture, ownership, and delivery consistency; Spec assesses cumulative
 observable behavior, interfaces, ordering authority, non-goals, and feature-gate
-evidence. Freeze both reports' combined finding set before any repair.
+evidence. For discovery, complete the available supplemental CE review under
+`final-gate.md` before freezing the combined finding set; its findings follow
+the same integration scope and authority rules. Closure retains that frozen
+set, including CE IDs, without repeating CE discovery.
 
 Any final repair invalidates the frozen index together with the prior snapshot.
 Update only the affected ticket/path/edge/owner and gate-result rows from the new

@@ -2,7 +2,7 @@
 
 > 本文面向要修改 `audit-docs-landscape` 的维护者，解释缺口推导、导航检查、输出和设计取舍。运行时行为以 [SKILL.md](../../skills/audit-docs-landscape/SKILL.md) 和 [报告模板](../../skills/audit-docs-landscape/references/report-template.md) 为准；本文是该 Skill 的权威设计说明，不作为安装包的运行依赖。
 >
-> 单篇文档的可读性审查与写作收尾见 [`optimize-docs-readability` 设计](./optimize-docs-readability-design.md)。两份设计各自维护所属 Skill；共同术语沿用根 `CONTEXT.md`。
+> 单篇文档的可读性优化与独立审阅见 [`optimize-docs-readability` 设计](./optimize-docs-readability-design.md)。两份设计各自维护所属 Skill；共同术语沿用根 `CONTEXT.md`。
 >
 > **按需要读**：修改 `SKILL.md` 看第 7–11 节和第 14 节；了解取舍与依据看第 12、17 节；查验证记录看第 13 节，查决策出处看第 15 节，查待决问题看第 16 节。第 14.1 节约束设计维护者，第 14.2 节约束 Skill 的运行时行为。
 
@@ -47,7 +47,7 @@ Agent-directed file、代码注释、docstring 和标识符命名不属于默认
 
 | Skill | 它做的 | 与本 Skill 的分界 |
 | --- | --- | --- |
-| `optimize-docs-readability` | 审查单篇文档的 Reader loss；在写作任务中优化当前长文草稿 | 信息已写下但文内表达让 Reader 自己找回来归它；缺失信息与跨篇导航归本 Skill，详见第 7.1 节与 [`optimize-docs-readability` 设计](./optimize-docs-readability-design.md) |
+| `optimize-docs-readability` | 按请求直接优化具名文档或当前长文草稿；仅要求审阅时报告 Reader loss 与改写建议 | 信息已写下但文内表达让 Reader 自己找回来归它；缺失信息与跨篇导航归本 Skill，详见第 7.1 节与 [`optimize-docs-readability` 设计](./optimize-docs-readability-design.md) |
 | `codebase-documenter` | 撰写 README、架构文档、API 文档、注释 | 本 Skill 指出缺口与归属，由它撰写 |
 | `neat-freak` | 让文档、规则文件、agent memory 与代码和运行时行为对齐 | 它查语义是否与代码相符；本 Skill 查文档需求是否被满足与入口能否到达 |
 | `spec-miner` | 从既有代码逆向出规格、依赖图、API 文档 | 本 Skill 只指出缺口并交给它生产内容 |

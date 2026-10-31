@@ -37,6 +37,11 @@ Do not use metrics availability, counts, durations, or exit codes for any decisi
 
 ## Event contract
 
+Protected-state rebinding under `working-tree-drift.md` retains an existing
+passing review with unchanged assurance inputs. It dispatches no reviewer and
+appends no review event. Preserve the original result and budget; a changed
+candidate or missing evidence cannot use this route.
+
 Write an event with exactly these fields:
 
 ```json

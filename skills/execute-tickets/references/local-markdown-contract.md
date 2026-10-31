@@ -78,14 +78,16 @@ admitted bytes. Renaming that label therefore leaves admission valid, matching
 the authoring skill — a requirement's human-readable name is not a requirement.
 Any malformed block, and every ticket byte, stays authority.
 
-The orchestrator freezes that authority set into every snapshot by passing
+The orchestrator freezes the initial authority set into the run-start snapshot by passing
 `--receipt` with the feature's admission receipt; `review_state.py` derives the
 exact path set from the receipt — the spec, the receipt itself, and every
 recorded ticket — and records each path's SHA-256, so the run-start set can never
 disagree with what admission verified. The snapshot makes the stricter promise
 that nothing moved during this run, so it freezes whole-file bytes and rejects
 any authority byte that changes without an approved transition, presentation
-label included. Stop before execution when a required authority file is missing,
+label included. Later captures inherit the current set from `--baseline` or
+`--handoff`; do not add `--receipt` again after a path-set repair, because it would
+reintroduce removed paths. Stop before execution when a required authority file is missing,
 unreadable, or disagrees with the receipt.
 
 Execution must not add process documents to the accepted baseline.
@@ -119,7 +121,9 @@ python3 <execute-tickets-skill-root>/scripts/review_state.py capture \
 
 The capture requires the declared path to have actually changed, keeps `HEAD`,
 the index, and every other authority file byte-identical, and records the
-before/after SHA-256 pair. Use that snapshot as the new current-ticket baseline
+before/after SHA-256 pair. The approved process-document transition is excluded
+from ordinary scope-drift checks and ticket patches for tracked, untracked, and
+ignored files alike; every other protected path still must match. Use that snapshot as the new current-ticket baseline
 before the supervisor continues. This repair must not change observable
 behavior, acceptance sources,
 scope, non-goals, state budget, `Blocked by`, or a completed blocker's contract.
@@ -157,6 +161,12 @@ every added or removed path with `--authority-transition-path`. Added paths
 record a null before-hash, removed paths a null after-hash, and renames declare
 both sides. The next snapshot carries the resulting set; the frozen receipt and
 completed-ticket paths remain unchanged.
+
+Snapshots retain a hash-bound `authority_parent` linking captures, repairs,
+staging and completion. The orchestrator preserves that chain. Completion
+verifies every declared transition back to the original receipt path set and
+unchanged receipt bytes, then uses the current set, including added tickets.
+A missing or modified parent is not permission to reconstruct a baseline.
 
 This transaction never autonomously decides observable behavior, public
 interfaces, production ownership, runtime state semantics, unresolved review risk, or new
@@ -209,7 +219,9 @@ staging succeeds and a bounded completion record is ready in the ignored
 run-artifact tree.
 It uses the single atomic command
 `ticket_state.py complete --ticket <path> --record-file <path> --receipt <path>
---output <evidence-dir>` rather than editing the ticket freehand. The command
+--snapshot <accepted-snapshot> --output <evidence-dir>` rather than editing the ticket freehand. Pass
+`staging/accepted` for an implementation ticket or the unchanged empty-scope
+`pre` for validation-only work, for both single repositories and repository sets. The command
 freezes an internal baseline, appends the record, performs
 `ready-for-agent -> done`, proves that HEAD, the index, the working tree, and
 every other authority file are byte-identical while the current ticket actually
@@ -263,7 +275,7 @@ vary, but the ticket must contain:
   explicit no-discovery result, authoring baseline, per-path dispositions, and
   `0 undisposed paths`. Execution reruns each command after blockers complete.
 - **Slice boundary:** one acceptance unit, every changed lifecycle/state/cleanup
-  owner, the independent-rejection result, fresh-context fit, and a split
+  owner, the independent-rejection result and handoff rationale, fresh-context fit, and a split
   trigger. A semantic epic is not executable merely because its paths are exact.
 - **Interfaces:** exact `Consumes` and `Produces` rows for every cross-ticket
   dependency, or an explicit `None`.

@@ -343,9 +343,15 @@ def init_metrics(args: argparse.Namespace) -> None:
 
 def _event_from_file(path: str) -> dict[str, Any]:
     try:
-        return _validate_event(json.loads(Path(path).read_text(encoding="utf-8")))
+        event = json.loads(Path(path).read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as error:
         raise StateError(f"cannot read event file: {error}") from error
+    if isinstance(event, dict):
+        for field in ("scope_paths", "state_owners"):
+            values = event.get(field)
+            if isinstance(values, list) and all(isinstance(value, str) for value in values):
+                event[field] = sorted(values)
+    return _validate_event(event)
 
 
 def validate_event(args: argparse.Namespace) -> None:

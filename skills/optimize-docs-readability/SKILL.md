@@ -1,20 +1,16 @@
 ---
 name: optimize-docs-readability
 description: >-
-  Automatically use after drafting or substantially revising any long-form text for
-  human readers, before final delivery, even without an explicit readability request.
-  Covers research reports, articles, proposals, guides, design documents, READMEs,
-  and multi-section explanations, whether saved in files or written in chat.
-  Also use when the user asks to optimize, polish, tidy up, or fix the readability,
-  wording, or typography of existing documents ("优化一下这篇文档", "把这个 README
-  改得好读一点", "润色", "排版和用词也一起改"). Both cases fix the text directly,
-  including Chinese wording and typography through tech-doc-style-chinese, then list
-  the problems fixed. For requests only to review ("审阅", "检查一下可读性",
-  "看看有什么问题", "出个报告"), return findings and concrete rewrites without editing
-  the source. Preserves factual meaning, citations, and necessary limits. Not for requirement or design correctness (ce-doc-review),
-  repository-wide documentation gaps or navigation (audit-docs-landscape), or writing
-  missing documents from scratch (codebase-documenter). Short replies and
-  agent-directed instructions do not trigger the automatic pass.
+  Automatically improve human-facing long-form drafts before delivery, including
+  reports, articles, proposals, guides, design documents, READMEs, and multi-section
+  explanations in files or chat. Also directly fix named documents when the user asks
+  to optimize, polish, rewrite, or improve wording and typography. Both cases preserve
+  facts, citations, and necessary limits, apply tech-doc-style-chinese to Chinese
+  technical documents, and list the problems fixed. Review-only requests return
+  findings and concrete rewrites without editing the source. Not for requirement or
+  design correctness (ce-doc-review), repository-wide gaps or navigation
+  (audit-docs-landscape), or writing missing documents (codebase-documenter).
+  Short replies and agent-directed instructions do not trigger the automatic pass.
 ---
 
 # Optimize Docs Readability

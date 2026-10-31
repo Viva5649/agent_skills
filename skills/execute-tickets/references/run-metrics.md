@@ -78,11 +78,16 @@ Every event has exactly these fields (schema v2 is retained;
 
 - `ticket` is the stable ticket number, or `null` for a feature-level gate or
   result.
-- `scope_paths` contains sorted, unique, repository-relative paths actually
+- `scope_paths` contains unique, repository-relative paths actually
   owned by the event. Do not put inferred dependencies here.
-- `state_owners` contains sorted, unique project identifiers from the ticket's
+- `state_owners` contains unique project identifiers from the ticket's
   ordering/ownership contract. Use `[]` when the ticket changes no state owner;
   do not invent an umbrella owner name merely to populate metrics.
+- The helper sorts both incoming lists before validation and recording; callers
+  need not sort them. It leaves the input file unchanged and applies no list
+  normalization to retained history. Duplicates, unsafe paths, invalid types and
+  corrupt retained logs still fail validation; normalization does not repair
+  historical evidence.
 - `duration_ms` is the orchestrator-observed elapsed wall time for the bounded
   action, calculated from machine-clock readings at its boundaries. When both
   boundaries are observable to the orchestrator, take the readings and record a
@@ -209,4 +214,8 @@ If metrics became incomplete, do not emit a partial summary as though it were
 complete; report the first metrics failure and available diagnostic artifact.
 The summary deliberately contains `quality_proxy: false` and no quality score.
 The final user-facing result leads with staged/verified outcome and acceptance
-evidence; metrics appear only as workflow-cost diagnostics.
+evidence; metrics appear only as workflow-cost diagnostics. State the gap plainly,
+for example: "Execution timing is incomplete; verified acceptance is unaffected."
+Use that last clause only when acceptance has actually passed; otherwise report
+the remaining acceptance blocker separately. Do not describe missing timings as
+missing test or review evidence.

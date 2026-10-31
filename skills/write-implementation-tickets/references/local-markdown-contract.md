@@ -182,7 +182,7 @@ vary, but the ticket must contain:
   `0 undisposed paths`. A successful build or verification preflight cannot
   substitute for this scope evidence.
 - **Slice boundary:** one acceptance unit, every changed lifecycle/state/cleanup
-  owner, the independent-rejection result, fresh-context fit, and the exact
+  owner, the independent-rejection result and handoff rationale, fresh-context fit, and the exact
   evidence that returns a semantic epic to authoring for a split. File or layer
   count is not a boundary rule.
 - **Interfaces:** the exact current or blocker-produced contract consumed and

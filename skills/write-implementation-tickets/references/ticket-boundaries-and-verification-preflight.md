@@ -26,24 +26,39 @@ For results that meet this product-contract boundary, apply the independent-reje
 > Could a reviewer independently accept or reject one required result while
 > the other result remains a coherent, green repository state?
 
-If yes, those results are separate tickets with an explicit `Consumes` /
-`Produces` edge when one depends on the other. A proposed ticket is a
-**semantic epic** and must be split when any of these is true:
+An affirmative answer makes a split possible, not mandatory. Name the concrete
+benefit of the handoff: independently required delivery, a prerequisite whose
+result chooses the next implementation, a necessary migration compatibility
+state, or separation of independently changeable lifecycle/state/cleanup owners.
+An extra compilation checkpoint or separately nameable test is not a benefit.
+Use an explicit `Consumes` / `Produces` edge for each resulting dependency.
 
-- it contains two independently reviewable observable results;
-- it changes two lifecycle, state, or cleanup owners whose contracts can be
-  accepted independently;
-- it asks the implementation supervisor both to choose a public API or wire
-  contract and to implement that undecided contract;
-- it combines compatibility expansion, caller migration, old-contract removal,
-  and delivery closure even though those states can remain green separately;
-- its behavior, ownership, boundary interactions, and verification cannot be
-  reasoned about within one fresh supervisor context using only the declared
-  cold-start inputs.
+A proposed ticket is a **semantic epic** when it combines those independently
+required units or cannot be reasoned about within one fresh supervisor context
+using its declared inputs. Split those units; preserve required expand–migrate–
+contract states. An undecided public API, wire contract, or owner returns to the
+decision owner before any implementation ticket becomes executable.
 
 Do not split one lifecycle or state model merely because it crosses technical
 layers. Keep the slice intact when one owner and one invariant require an atomic
 change and a reviewer could not accept either half independently.
+
+Before review, compare adjacent proposed tickets. Merge internal steps serving
+one bounded result when they fit one fresh context and no required handoff,
+independent owner, migration state, or prerequisite gate is lost. Keep all
+acceptance items and assign each check once. Fewer tickets is not the goal;
+remove only handoffs without an identified benefit. For example, binding a
+runtime's task and rejecting mismatched loaded models may establish one load
+invariant; raw inference and the public request lifecycle may have distinct
+owners and independently useful acceptance.
+
+Apply the same rule to prerequisite evidence. Prefer one bounded experiment
+with retained inputs, result, limits, and the design decision it resolves.
+Create a separate evidence ticket only for an independently handed-off result,
+a consequential unknown that selects subsequent design, or an explicitly required
+evidence gate. State when the implementation graph will be completed; do not
+label an evidence-only delivery as full implementation coverage. Existing
+explicit prerequisite gates cannot be merged away or marked passed by planning.
 
 For a wide migration, prefer **expand–migrate–contract**:
 
@@ -62,7 +77,8 @@ Every published ticket records a concise slice-boundary proof:
 
 - the single acceptance unit;
 - the lifecycle, state, and cleanup owners it changes;
-- why no required result can be independently rejected and split;
+- the independent-rejection result and the concrete reason to split or keep
+  related steps together, including the adjacent-ticket merge assessment;
 - why its declared inputs fit one fresh supervisor context;
 - the condition that would return the ticket to authoring for a split.
 
@@ -246,6 +262,16 @@ that fails, an `intentional-fail` with the wrong signature, or an
 `implementation-dependent` probe that cannot establish its declared facts
 returns the ticket to authoring. It does not become an implementation-time
 authority question.
+
+State what each observation proves and leaves unproved. A build dry-run proves
+target selection, not compilation; an online device proves connectivity, not
+application-identity access or a working result writer/parser. A script self-test
+does not establish its real network/model prerequisites. Use the smallest
+decisive probe for a currently decidable gap. For proof that genuinely requires
+unfinished implementation, name the earliest ticket/final-gate owner and the
+condition for obtaining it in the existing preflight/witness. Do not hide an
+unrelated baseline compilation failure as `implementation-dependent`, or call
+the whole graph executable because independent checks can continue.
 
 The preflight proves that the verification contract is coherent on the
 authoring baseline. It never replaces the ticket-scoped check, feature final

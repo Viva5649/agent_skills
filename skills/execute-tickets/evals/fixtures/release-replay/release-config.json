@@ -1,0 +1,10 @@
+{
+  "debuggable": false,
+  "minifyEnabled": true,
+  "writer_identity": "release app",
+  "reader_identity": "adb shell",
+  "readback_command": "adb shell run-as example.release cat files/embedding-RUN_ID.json",
+  "existing_readback_observation": "run-as: package not debuggable: example.release",
+  "required_result": "full vector, usage, callback count and destruction result from this invocation",
+  "contract_preserves_release_flags": true
+}

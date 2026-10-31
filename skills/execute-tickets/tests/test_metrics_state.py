@@ -195,6 +195,32 @@ class MetricsStateTest(unittest.TestCase):
         summary = json.loads(self.tool("summary", "--input", str(self.metrics)).stdout)
         self.assertEqual(2, summary["event_count"])
 
+    def test_unordered_observation_is_recorded_canonically_without_rewriting_inputs(self) -> None:
+        self.init()
+        self.record(self.write_event("earlier"))
+        previous_log = self.metrics.read_bytes()
+        event = self.write_event(
+            "unordered",
+            kind="ticket_scope",
+            phase="scope_accepted",
+            reason="declared_contract",
+            scope_paths=["tests/RuntimeTest.kt", "src/Runtime.kt"],
+            state_owners=["RuntimeController", "ConnectionOwner"],
+        )
+        original_event = event.read_bytes()
+
+        self.assertEqual("valid\n", self.validate(event).stdout)
+        self.assertEqual(previous_log, self.metrics.read_bytes())
+        self.assertEqual("recorded\n", self.record(event).stdout)
+        self.assertTrue(self.metrics.read_bytes().startswith(previous_log))
+        self.assertEqual(original_event, event.read_bytes())
+        recorded = json.loads(self.metrics.read_text().splitlines()[-1])
+        self.assertEqual(["src/Runtime.kt", "tests/RuntimeTest.kt"], recorded["scope_paths"])
+        self.assertEqual(["ConnectionOwner", "RuntimeController"], recorded["state_owners"])
+        summary = json.loads(self.tool("summary", "--input", str(self.metrics)).stdout)
+        self.assertEqual(2, summary["event_count"])
+        self.assertEqual(2, summary["ticket_scope"]["03"]["scope_path_count"])
+
     def test_core_timings_report_gaps_without_double_counting_checks(self) -> None:
         self.init()
         for phase, reason, duration in (
@@ -283,16 +309,35 @@ class MetricsStateTest(unittest.TestCase):
     def test_record_rejects_invalid_or_ambiguous_event_without_changing_log(self) -> None:
         self.init()
         original = self.metrics.read_bytes()
-        invalid = self.write_event(
-            "invalid",
-            reason="free form reason",
-            scope_paths=["src/Runtime.kt", "src/Runtime.kt"],
-        )
+        for overrides, diagnostic in (
+            ({"reason": "free form reason"}, "event reason"),
+            ({"scope_paths": ["src/Runtime.kt", "src/Runtime.kt"]}, "duplicates"),
+            ({"state_owners": ["RuntimeController", "RuntimeController"]}, "duplicates"),
+            ({"scope_paths": ["src/Runtime.kt", "../outside.kt"]}, "safe repository-relative"),
+            ({"scope_paths": ["/tmp/outside.kt"]}, "safe repository-relative"),
+            ({"scope_paths": ["src/Runtime.kt", 1]}, "list of non-empty strings"),
+            ({"state_owners": [None]}, "list of non-empty strings"),
+        ):
+            with self.subTest(overrides=overrides):
+                rejected = self.record(self.write_event("invalid", **overrides), check=False)
+                self.assertNotEqual(0, rejected.returncode)
+                self.assertIn(diagnostic, rejected.stderr)
+                self.assertEqual(original, self.metrics.read_bytes())
 
-        rejected = self.record(invalid, check=False)
+    def test_input_normalization_does_not_repair_an_invalid_retained_log(self) -> None:
+        self.init()
+        self.record(self.write_event("earlier", scope_paths=["a.py", "b.py"]))
+        lines = self.metrics.read_text().splitlines()
+        event = json.loads(lines[-1])
+        event["scope_paths"].reverse()
+        lines[-1] = json.dumps(event)
+        self.metrics.write_text("\n".join(lines) + "\n")
+        corrupted_log = self.metrics.read_bytes()
+
+        rejected = self.record(self.write_event("later"), check=False)
         self.assertNotEqual(0, rejected.returncode)
-        self.assertIn("event reason", rejected.stderr)
-        self.assertEqual(original, self.metrics.read_bytes())
+        self.assertIn("must be sorted", rejected.stderr)
+        self.assertEqual(corrupted_log, self.metrics.read_bytes())
 
     def test_record_refuses_a_manually_created_repository_local_log(self) -> None:
         self.init()

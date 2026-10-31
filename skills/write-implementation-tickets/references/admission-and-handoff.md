@@ -90,6 +90,9 @@ report the timing gap once alongside the authoring outcome.
 
 Report:
 
+- whether the admitted graph covers the complete requested implementation or
+  only prerequisite evidence; for a partial graph, name the remaining behavior,
+  decision owner and condition for completing its tickets;
 - the resolved spec and ticket directories and their tracker source, or the
   absence of the tracker that selected the `.spec` fallback;
 - the created ticket paths;

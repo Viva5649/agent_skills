@@ -38,6 +38,28 @@ When exact bounds are available, calculate them. When ordering decides the
 result, use the authoritative deterministic interleaving rather than a timing
 assumption.
 
+For a changed data-preservation boundary, check the oracle against one plausible
+contract violation: would truncation, replacement or reordering still pass?
+Expected values come from the submitted input or an independent declared
+reference, never the observed output itself. A finite vector, positive token
+count or matching shape cannot prove that the original text was processed.
+Choose contract-valid edge inputs; this reasoning does not require a mutation
+suite or new tests when existing evidence already distinguishes the violation.
+
+For an affected asynchronous operation, trace both work completion and result
+delivery to the caller's terminal state. Inspect reachable transport/callback
+failures covered by the existing contract, the actor that detects them and the
+owner that settles pending work. Successful computation does not prove successful
+delivery. Reuse real failure seams and existing error semantics; do not invent
+retry guarantees, impossible injected failures or new cleanup owners.
+
+For a native observer, an exported wrapper does not prove the production
+dispatch passes through it: an indirect function-pointer call may bypass it.
+Use applicable binding or normal-path evidence to establish that the observer
+is connected before interpreting a zero count as no execution. Keep that
+evidence in the existing Observation field; do not add production hooks or a
+mutation per assertion.
+
 ## Counterfactual preflight
 
 First reuse relevant exact test-result validation, failure-propagation evidence,
@@ -89,6 +111,13 @@ conflicts with code or model capability, the requirements owner decides; the
 author does not self-exempt. Include every authority-permitted result in the oracle, including
 an operation legitimately removing the environment condition that triggered it.
 
+Trace inherited fixture constants and probes to that authority too: an old
+output hash, token cap or network-dependent missing-model probe is not a product
+requirement merely because it already exists. Correct a demonstrably stale
+fixture through the existing authoring rules; do not waive explicitly required
+download/cache behavior by predeploying a model, or change required behavior
+under the label of calibration.
+
 State each environment condition as the capability it must provide (interpreter and version,
 JDK/SDK/NDK, dependency resolution, device, model source). An operating system, container
 image, or offline-versus-online resolution mode chosen only for convenience is an execution
@@ -119,6 +148,12 @@ result writer/artifact and its parser/oracle. Distinguish required execution
 from an explicitly consumed blocker result and an exact user waiver. Neither a
 blocker PASS nor a cheaper subset replaces a gate requiring fresh runtime
 evidence or a full suite. Keep final-gate reuse under its declared protocol.
+Resolve input and output access for the actual process identities: a shell's
+readable input may be unreadable to the app, and a release app's private output
+may be unreadable to the verifier. Read the build/runtime restrictions and retain
+the result-access path in the existing witness. If runtime proof needs a device,
+assign it to the earliest authorized owner before the expensive matrix; a small
+launch/readback probe establishes only that prerequisite, not feature acceptance.
 The same ownership rule applies to a new or changed acceptance entry: statically
 decidable runner/build-wiring, parameter, result-location, and assertion defects
 belong to this ticket's implementation owner and are resolved before the ticket
@@ -157,6 +192,14 @@ success on identical code/conditions does not erase a failure; closure needs an
 established cause with appropriate repair/reverification or explicit user
 disposition. Take evidence before subsequent runs overwrite it; stop diagnosis
 at its bound or when repeated failure adds no discriminating evidence.
+
+Default to evidence capture, bounded diagnosis, authorized repair and targeted
+reverification under the execution owner's existing authority. Do not author
+an automatic first-new-failure stop without a requirement or authorization
+boundary; preserve a user's explicit stop instruction. The bound applies to
+the same unresolved question across retries and resumes, not to each file edit
+or run directory. New decisions, missing authority, exhausted bounds or no new
+discriminating evidence stop the affected work, not independent authorized work.
 
 ## Unrealizable acceptance
 

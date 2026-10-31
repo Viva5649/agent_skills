@@ -1,7 +1,8 @@
 # Protected working-tree drift
 
 Read this file when `review_state.py` reports a tracked or untracked path outside
-the accepted ticket scope, and before the orchestrator captures the next
+the accepted ticket scope, before an authorized temporary prerequisite repair,
+and before the orchestrator captures the next
 ticket's `pre` snapshot from a retained handoff. The first question is whether
 the changed path can affect the current ticket. If it cannot, preserve it outside
 the ticket delta/index and continue without investigating who changed it.
@@ -73,8 +74,9 @@ orchestrator classifies each path as:
 
 - `restore` — a workflow-attributable accidental write that must return to the
   last frozen or previously classified protected state;
-- `preserve` — a harmless outside-scope change that must remain unstaged and
-  outside the ticket delta, regardless of who changed it.
+- `preserve` — an outside-scope change that must remain unstaged and outside the
+  ticket delta: either harmless state or an explicitly authorized prerequisite
+  repair handled below. Preservation does not establish harmlessness.
 
 Use `preserve` automatically whenever the path is independent of the ticket's
 authority, verification inputs, interfaces, state/resource owners, review input,
@@ -101,6 +103,41 @@ tree:
   }
 }
 ```
+
+## Authorized temporary prerequisite repairs
+
+Permission to repair a baseline prerequisite does not add that repair to the
+feature's delivery or staging scope. Before the write, the orchestrator records
+the existing authorization, exact paths, before-state bytes/hashes, repair owner
+and required keep/restore disposition in the existing run artifacts. The named
+supervisor may make only that authorized repair; all other protected paths stay
+read-only. If authority is missing, request only the missing repair or delivery
+decision and continue independent work. Do not expand ticket scope merely to
+make the guard accept a temporary patch.
+
+After the repair, the orchestrator freezes its exact delta and resulting content,
+records the affected checks, and uses the ordinary drift report and `preserve`
+reconciliation. Keep it outside ticket patches and the index. A compilation or
+verification dependency is affecting state, not harmless drift: rerun checks
+that consume it and supply the narrow frozen dependency evidence under
+`review-mechanics.md`. An existing authorization needs no repeat confirmation.
+The drift resolution checks protected bytes, not correctness or acceptance.
+After the required checks and review, only the orchestrator stages accepted
+ticket paths. In the repair handoff, name the supervisor as repair owner and
+the orchestrator as freeze, reconciliation and staging owner; do not leave
+those operations ownerless or assign them to the supervisor.
+
+This protocol isolates paths, not hunks. If temporary repair and ticket work
+share a scope path and cannot be reliably isolated with the existing mechanism,
+stop before staging or accepting that candidate. Preserve all bytes and report
+the exact delivery conflict for a decision. Do not stage the whole path and
+promise to remove temporary hunks later; continue independent work without
+inventing a hunk-staging subsystem.
+
+Report checks against a workspace containing the patch separately from evidence
+that the delivery candidate works without it. If independent candidate proof is
+required but unavailable, keep that result unproved under `final-gate.md`; do not
+claim it builds without the patch or silently discard the user's retained work.
 
 ## Reconcile the exact report
 
@@ -155,10 +192,49 @@ If reconciliation occurs after ticket checks or review began, the ticket
 supervisor reruns checks whose inputs can observe the changed external path.
 An external path that no ticket check, review input, interface, or state owner
 can observe is harmless and needs no rerun.
-Any repository change after a review snapshot invalidates that snapshot and its
-reports; capture and review again under the existing assurance policy. A drift
+Any change to assurance inputs invalidates the old review for the new candidate;
+capture and review again under the existing assurance policy. Protected-state
+changes with unchanged assurance inputs use the bounded rebinding below. A drift
 disposition prevents a scope-drift stop, but it does not turn a failing build,
 contract mismatch, or verification result into a pass.
+
+## Rebind a passing review after harmless protected-state drift
+
+After a verified passing review, the orchestrator may retain that review only
+when every changed protected path is independent of the ticket's implementation,
+checks, standards, reviewer context, interfaces, and state/resource owners. It
+records the path-specific evidence in the existing drift disposition. An
+uncertain dependency or changed assurance input is ineligible; do not use
+rebinding to avoid review budget or revive a FAIL.
+
+Reconcile against the original ticket `pre`, retaining any earlier resolution,
+then run:
+
+```bash
+python3 <execute-tickets-skill-root>/scripts/review_state.py rebind \
+  --baseline .execute-tickets/<feature>/<ticket>/pre \
+  --snapshot .execute-tickets/<feature>/<ticket>/review-N \
+  --drift-resolution .execute-tickets/<feature>/<ticket>/resolution-N/resolution.json \
+  --output .execute-tickets/<feature>/<ticket>/review-rebound-N
+```
+
+The tool requires identical HEAD, index, staged baseline, authority, exact scope,
+ticket manifests and ticket patches, and freezes only the reconciled protected
+state. Its `review_rebinding` links the original snapshot/hash and changed
+protected paths. Loading the rebound snapshot verifies that source and content
+identity again. This proves the declared byte boundary, not semantic
+independence; the orchestrator still owns the path-impact assessment above.
+
+The orchestrator keeps the original reports/hashes and disposition, binds
+`final_acceptance_snapshot` to the rebound snapshot, verifies it, and uses it for
+ticket staging or final acceptance. It records the relationship in the existing acceptance/integration
+evidence, not a new PASS or reviewer-round event. The review budget is unchanged.
+For repository sets, use aggregate paths; every member must satisfy the same
+rule. For a final or validation-only review captured without a review baseline,
+use that original review snapshot as both `--baseline` and the first `--snapshot`;
+reconcile against it and retain the same baseline for later rebindings. Frozen
+integration inputs and reports still must be unchanged. Missing source evidence
+blocks reuse.
 
 ## Compare run-start and ticket handoffs in each `pre` capture
 

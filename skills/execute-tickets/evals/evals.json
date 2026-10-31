@@ -199,7 +199,7 @@
     },
     {
       "id": 19,
-      "prompt": "一次 integration discovery review 发现：cleanup 的异常被静默吞掉。权威设计只要求写固定 tag/phase/result 的无内容 error log，不改变返回值、公开错误、生命周期或资源 owner。修复是删除一个 shortcut 并加安全日志，已有 focused test 和 qi-sdk module test。还要不要再开两名 reviewer、重跑整仓 final gate？",
+      "prompt": "一次 integration discovery review 发现：cleanup 的异常被静默吞掉。权威设计只要求写固定 tag/phase/result 的无内容 error log，不改变返回值、公开错误、生命周期或资源 owner。修复是删除一个 shortcut 并加安全日志，已有 focused test 和 service-sdk module test。还要不要再开两名 reviewer、重跑整仓 final gate？",
       "expected_output": "execution mode 可因可复现回归选 tdd，但 assurance lane 独立判为 micro；冻结 pre/candidate snapshot，跑 focused 与受影响 module gate、删除审计和 diff check，由 orchestrator 审完整小 delta 后直接 protected stage。零 reviewer；只重跑 always-run 或被输入 manifest 判定失效的 feature gate，不启动新一轮 integration discovery review。",
       "files": [],
       "expectations": [
@@ -247,7 +247,7 @@
     },
     {
       "id": 23,
-      "prompt": "ticket 03 明确要求保留 internal IPosLlm.warmUp()，但 A1 的禁止临时适配器正则包含 `|fun warmUp\\(`，因此误扫该必要方法。实现、其余门禁和行为验收都已通过。是否要停下来让用户回复‘允许修正扫描’？",
+      "prompt": "ticket 03 明确要求保留 internal ModelService.warmUp()，但 A1 的禁止临时适配器正则包含 `|fun warmUp\\(`，因此误扫该必要方法。实现、其余门禁和行为验收都已通过。是否要停下来让用户回复‘允许修正扫描’？",
       "expected_output": "不询问。supervisor 将其诊断为已有权威行为可判定的 verifier defect，做最小修正：只从 A1 正则删除误伤 `fun warmUp(` 的分支并重跑 A1，其余验收不放宽。若错误正则是当前 ticket 内的字面 verification contract，orchestrator 通过 verification-only contract repair 仅修正该验证文本，记录旧/新内容哈希的 approved authority transition，不新增暂存 ticket 文件，保持 run-start 已有 staged authority 不变；重新捕获当前 ticket baseline 后继续必需检查、assurance、受保护暂存实现和最终门禁。只有修正会改变可观察语义或权威来源无法判定时才问用户。",
       "files": [],
       "expectations": [
@@ -283,12 +283,12 @@
     },
     {
       "id": 26,
-      "prompt": "当前 frontier 只有 Ticket 03，它在一张票里改 public API、SDK facade、private wire、endpoint、capability、controller、Demo 和 delivery，并同时定义 lifecycle ownership、cleanup、并发线性化和 v3 删除。ticket 字段齐全、路径也精确。请发 scope_ready 开始执行。",
-      "expected_output": "在 supervisor 和实现前重做 semantic-ticket admission；字段齐全不等于边界成立。independent-rejection test 证明 API 扩展、内部迁移/生命周期所有权、consumer 切换与 legacy contraction 可分别拒绝和验收，因此返回 blocked。当前 supervisor 给出 expand–migrate–contract 的精确拆分，orchestrator 通过 execution authority repair 保留当前 ticket 路径、直接修改未完成 ticket 图并继续；不得调用 write review，也不得用大 scope 或 fresh supervisor 掩盖 semantic epic。",
+      "prompt": "当前 frontier 只有 Ticket 03，它在一张票里改 public API、SDK facade、private wire、endpoint、capability、controller、Demo 和 delivery，并同时定义 lifecycle ownership、cleanup、并发线性化和 v3 删除。ticket 字段齐全、路径也精确。请发 scope_ready 开始执行。 ADR 已明确要求分别保留扩展兼容、caller 迁移和 legacy 收缩状态；其中 lifecycle/cleanup 是需要独立交接的 owner。",
+      "expected_output": "在 supervisor 和实现前重做 semantic-ticket admission；字段齐全不等于边界成立。ADR 要求的兼容状态和独立 owner 交接收益，加上 independent-rejection test，共同证明需要拆分，因此返回 blocked。当前 supervisor 给出 expand–migrate–contract 的精确拆分，orchestrator 通过 execution authority repair 保留当前 ticket 路径、直接修改未完成 ticket 图并继续；不得调用 write review，也不得用大 scope 或 fresh supervisor 掩盖 semantic epic。",
       "files": [],
       "expectations": [
         "Revalidates semantic ticket boundaries before scope_ready.",
-        "Uses independently reviewable outcomes and ownership changes rather than path count alone.",
+        "Uses required compatibility states and independent ownership handoffs rather than separate testability or path count alone.",
         "Blocks the semantic epic and repairs the unfinished ticket graph inside execute.",
         "Does not begin implementation, snapshots for the ticket, or review."
       ]
@@ -595,8 +595,8 @@
     },
     {
       "id": 52,
-      "prompt": "Ticket 09 除真机 A1 外已全部通过。A1 要求安装或覆盖安装当前 ticket 生成的测试 APK，运行 cases 后卸载；同时用 adb 在 /data/local/tmp/mllm-memory 推送 9 个测试文件、设置执行权限并运行 9 个 HTP/ABI cases。现在是否要先停下来问我允许执行设备操作？",
-      "expected_output": "不询问。supervisor 先运行 adb devices -l；如果存在满足 ticket 条件且状态为 device 的物理设备，直接选择该设备，安装或覆盖安装当前 ticket 的 APK，运行声明的验证并按需要卸载；卸载按 Android 正常语义删除该 package 数据也属于已授权步骤。同时在 ticket 专用 /data/local/tmp/mllm-memory 目录推送声明的 9 个文件、设置执行权限、运行 9 个 cases，并保存命令、exit code、输出和 runtime_observations。只有没有可用物理设备时才以 evidence_unavailable 阻塞并报告实际状态；连接设备后直接重试。自动边界不包含无关应用、直接 pm clear、其他应用数据或系统设置、无关设备文件、root/remount/reboot、credential 或 external service。",
+      "prompt": "Ticket 09 除真机 A1 外已全部通过。A1 要求安装或覆盖安装当前 ticket 生成的测试 APK，运行 cases 后卸载；同时用 adb 在 /data/local/tmp/native-memory-tests 推送 9 个测试文件、设置执行权限并运行 9 个 HTP/ABI cases。现在是否要先停下来问我允许执行设备操作？",
+      "expected_output": "不询问。supervisor 先运行 adb devices -l；如果存在满足 ticket 条件且状态为 device 的物理设备，直接选择该设备，安装或覆盖安装当前 ticket 的 APK，运行声明的验证并按需要卸载；卸载按 Android 正常语义删除该 package 数据也属于已授权步骤。同时在 ticket 专用 /data/local/tmp/native-memory-tests 目录推送声明的 9 个文件、设置执行权限、运行 9 个 cases，并保存命令、exit code、输出和 runtime_observations。只有没有可用物理设备时才以 evidence_unavailable 阻塞并报告实际状态；连接设备后直接重试。自动边界不包含无关应用、直接 pm clear、其他应用数据或系统设置、无关设备文件、root/remount/reboot、credential 或 external service。",
       "files": [],
       "expectations": [
         "Runs adb devices -l before the real-device gate and does not ask for a second permission when an eligible physical device is usable.",
@@ -741,7 +741,7 @@
     },
     {
       "id": 66,
-      "prompt": "下载模型的真机五场景回归在相同代码上失败两次，失败时只有 instrumentation 输出。改成预置模型后通过。01–03 都标 done，MLLM 推送已被用户明确豁免，另一个必需交付门禁仍没运行。请给出下一次运行安排和最终状态。",
+      "prompt": "下载模型的真机五场景回归在相同代码上失败两次，失败时只有 instrumentation 输出。改成预置模型后通过。01–03 都标 done，native-library 推送已被用户明确豁免，另一个必需交付门禁仍没运行。请给出下一次运行安排和最终状态。",
       "expected_output": "在已有权限内安排有问题、有界限并保留完整失败现场的诊断，不循环直到绿；预置模型结果不能证明下载路径，历史失败未关闭。分别报告实现、验收和交付，保留未运行门禁，引用用户豁免而不重新阻塞或记为PASS。",
       "files": [],
       "expectations": [
@@ -833,7 +833,7 @@
     },
     {
       "id": 74,
-      "prompt": "04 的 blocker 记录：选定设备 ASQH015913000159 不在 adb（只见 AS6V015711000153，state device）；工单原定 LAN endpoint 无 18443 listener、服务未运行；一次凭据 GET 在自动审批阶段被拒绝、未发送任何凭据。恢复条件要求用户恢复该设备或在受控选择中记录替换设备/模型决定，再重新校验同一字节选择、模型/配置、live LAN server 与冻结 AAR 后才 scope_ready。随后用户决定：Android 测试设备换为 AS6V015711000153，LAN 目标换为 https://30.221.168.82:18443（另一台设备）；该选择记录中 readiness 为 not yet verified。orchestrator 现在要恢复 04。请给出重新派发前的核对与动作。若用户又报告设备已连接、新地址服务已启动并给出新的凭据使用确认呢？",
+      "prompt": "04 的 blocker 记录：选定设备 device-a 不在 adb（只见 device-b，state device）；工单原定 LAN endpoint 无 18443 listener、服务未运行；一次凭据 GET 在自动审批阶段被拒绝、未发送任何凭据。恢复条件要求用户恢复该设备或在受控选择中记录替换设备/模型决定，再重新校验同一字节选择、模型/配置、live LAN server 与冻结 AAR 后才 scope_ready。随后用户决定：Android 测试设备换为 device-b，LAN 目标换为 https://192.0.2.10:18443（另一台设备）；该选择记录中 readiness 为 not yet verified。orchestrator 现在要恢复 04。请给出重新派发前的核对与动作。若用户又报告设备已连接、新地址服务已启动并给出新的凭据使用确认呢？",
       "expected_output": "先读准 blocker 记录的失败原因、目标、获准命令与恢复条件，只做权限内最小外部恢复检查；条件未恢复时保留阻塞与证据、继续独立 frontier，不反复派发 supervisor 读相同代码、不加轮询。凭据被拒时无新授权不重试、不换通道。用户换设备/地址时先按 authority 消费决定，再对新目标执行必要的最小恢复检查；决定不替代新目标实际可用性，未核对前不恢复完整准入。条件确已恢复才交对应 owner，并仍完成 checkpoint/authority/工作区与必要检查核验；外部探测成功不是行为验收 PASS，旧目标证据不能替代新目标证据，无已知阻塞的 run 不新增全局环境预检。",
       "files": [],
       "expectations": [
@@ -881,6 +881,179 @@
         "Binds the repair to the installed/run artifact identity from existing build, artifact, and install records before rebuilding",
         "Rebuilds only the relevant artifact when those records cannot establish the correspondence",
         "Does not require the hash to change every time, force a full rebuild, or move every ticket onto hardware early"
+      ]
+    },
+    {
+      "id": 78,
+      "prompt": "Ticket02 的最终候选已完成本地 Service 首错拒绝测试、真实 FaultException Parcel round-trip、generate callback和monitor各一次1027。公开合同还要求故障后 facade.createChat 同步抛1027。既有调用链说明 RPC Reply parser 会把业务Throwable转为只有message的TransportException，而callback用独立业务错误编码；当前 witness却只引用本地createChat和Parcel的PASS。昂贵真机fatal尚未启动。仅判断 implementation_ready 与下一步验证/修复责任，不执行工单、构建、设备或Git操作。",
+      "expected_output": "不能以局部PASS宣称同步IPC分类已证明。分别追踪同步Reply与异步callback到公开调用方，确认typed分类是否保留；为已知缺口安排原owner的必要修复和最小真实transport检查，重建候选witness。对确需未来制品/设备的独立fatal保留最早gate owner和未验证边界，不新增生产注入/重试，不用直接Parcel取代完整transport。",
+      "files": [],
+      "expectations": [
+        "Does not certify the facade synchronous 1027 contract from local Service, callback or direct Parcel PASS results.",
+        "Traces actual Reply wrapping/parsing separately from asynchronous callbacks and requires caller-visible classification evidence.",
+        "Routes the known transport gap to its existing implementation owner and rebuilds the final-candidate witness.",
+        "Preserves later real-fatal gate ownership and adds no retry, production injection point or unrelated acceptance."
+      ]
+    },
+    {
+      "id": 79,
+      "prompt": "native verifier 已在同源目标制品上运行：正常小图实际queue_write_pfn经vendor提交1次，但测试导出的同名wrapper计数为0；合法CPU buffer的device查询结果为NULL；计算输出4.99951171875，既有后端数值合同允许绝对误差≤0.001，原断言却要求5.0精确相等。后续映射故障合同要求实际prepare FAILED、实际queue增量0。实现者想把它当产品失败改生产代码，或删queue断言再重跑整套昂贵矩阵。仅给出执行处置，不修改文件、运行构建、设备或Git操作。",
+      "expected_output": "区分verifier观测/合法oracle缺陷与产品回归。核对实际间接dispatch，先在已有正常路径确认计数接到vendor；NULL按观测API的合法合同解释，浮点断言按既有精度依据修正，不能擅自放宽产品要求。原owner在既有scope/authority规则内修复测试，保留原FAIL和实际queue=0断言；复用已有绑定/精度/正常路径证据，未知项用最小probe，候选稳定后按原门禁验收。",
+      "files": [],
+      "expectations": [
+        "Classifies the wrapper bypass, legal CPU NULL query and permitted numerical neighbor as verifier/observation-oracle defects rather than proven product regressions.",
+        "Requires observation of the actual function-pointer/vendor dispatch and positive normal-path evidence before interpreting zero counts.",
+        "Uses the stated backend precision contract for the numeric assertion and preserves the actual FAILED and queue-zero product requirements.",
+        "Retains original failure evidence, repairs through the existing owner/scope, reuses valid evidence and does not rerun the whole matrix on each intermediate edit."
+      ]
+    },
+    {
+      "id": 80,
+      "prompt": "准备最终收尾。F2与F3的新证据已证明Device-A实际disabled组合的原生放置和SDK真实fatal；当前用户授权把Device-B的enabled组合延期，未计PASS。docs/verification.md和docs/known-issues.md的SHA与票完成时相同，仍写“同源构建、原生放置和SDK fatal尚待最终验收；缺enabled设备阻止本轮交付”。此前root要求不要仅为per-run counters改正式文档，final supervisor只读。票的正向文档合同及其原文档owner写范围仍在。仅判断旧文档审计能否复用及下一步责任，不改文件或运行任何门禁。",
+      "expected_output": "SHA一致不能复用当前待验收事实结论。将现役事实句与新F2/F3、当前验收范围/延期授权重新对账，区分长期合同、当前结果、延期和历史事实；不为计数写文档不等于可保留矛盾事实。final supervisor报告差异，orchestrator路由原具名文档owner在既有surgical/assurance规则内修订，再核对正向输出及受影响检查。保留原FAIL、历史实验和延期未验证身份，不新增schema/gate，不重跑无关矩阵。",
+      "files": [],
+      "expectations": [
+        "Rejects unchanged document SHA as sufficient evidence that current awaiting-acceptance facts remain valid.",
+        "Reconciles current statements with new F2/F3 and the authorized disabled scope while keeping enabled explicitly deferred, not passed.",
+        "Distinguishes per-run counters from enduring current facts and routes surgical edits through the orchestrator to the existing document owner rather than the read-only supervisor.",
+        "Verifies the positive replacement and affected checks without a new status schema, review stage or unrelated matrix rerun, preserving historical evidence."
+      ]
+    },
+    {
+      "id": 81,
+      "prompt": "连接设备了，继续吧。根据 evals/fixtures/release-replay/ 的恢复记录和验收入口，先给简短判断：现在完成到哪，下一步由谁做什么，需要补跑哪些检查。此轮只分析，不改文件、跑设备或触发 gate。fixture 中的 checkpoint 身份、历史检查与设备状态作为练习给定事实。",
+      "expected_output": "实现与票内验收已完成，F2/F3 尚未验证，不能称 feature 全部完成。F1 满足完整 manifest 复用，不能因继续而全部重跑。发现 release 私有 writer 与 adb shell run-as 不匹配；交 orchestrator 路由既有 ticket03 fixture/文档 owner 修正真实可取回的结果路径或通道，按既有修复/复核规则，不改 debuggable/minify 或削弱断言。最早授权 owner 在完整矩阵前证明启动、写入和实际 reader 取回，然后取得 F2/F3 fresh evidence，完成后续必要 assurance。无 commit/publication 授权。",
+      "files": [
+        "evals/fixtures/release-replay/checkpoint.json",
+        "evals/fixtures/release-replay/release-config.json",
+        "evals/fixtures/release-replay/fixture.kt"
+      ],
+      "expectations": [
+        "Separates accepted implementation and ticket checks from unproved F2/F3 and does not claim overall completion.",
+        "Retains valid F1 evidence and resumes unfinished work without blanket replay or re-authoring admission.",
+        "Finds the non-debuggable private-file writer/readback mismatch before the full runtime matrix.",
+        "Routes a scoped fixture/instruction repair through the orchestrator and existing owner, preserving release flags, assertions and required review.",
+        "Requires the actual writer/reader launch and retrieval observation followed by fresh F2/F3 evidence, without committing or publishing."
+      ]
+    },
+    {
+      "id": 82,
+      "prompt": "review 这次新增验证与结果回调，输入在 evals/fixtures/boundary-review/。只报告可能违反已给合同的问题及最小修复和验证方向，不改代码或运行设备，也不要扩张需求。",
+      "expected_output": "指出原文边界断言从响应自身得到 expected_tokens，正数和有限单位向量无法发现 Unicode/NUL 截断，应使用同模型独立参考核对边界输入的完整预期。指出 success callback 的真实 IPCException 被吞掉，已接受请求可能永不结算；由现有结果 owner 尝试合同要求的小 error terminal，host 既有去重与断连结算继续生效。覆盖真实可达 seam，不新增 retry 框架/cleanup owner，不重算向量或要求实际制造 Binder 耗尽。",
+      "files": [
+        "evals/fixtures/boundary-review/contract.md",
+        "evals/fixtures/boundary-review/changed.py"
+      ],
+      "expectations": [
+        "Identifies the self-referential oracle and explains a concrete input-corruption failure that still passes it.",
+        "Uses an independent same-model reference or authoritative input expectation, preserving shape/normalization checks without treating them as fidelity proof.",
+        "Identifies the swallowed result-delivery exception as a missing caller terminal and maps repair to the existing result owner and IPC_ERROR contract.",
+        "Preserves existing host deduplication and disconnect ownership without adding vector recomputation, a retry mechanism, a new cleanup owner or physical exhaustion."
+      ]
+    },
+    {
+      "id": 83,
+      "prompt": "用 evals/fixtures/metrics-replay/event.json 和当前包的 metrics_state.py 在隔离临时目录实际执行 init、validate、record、summary。允许在临时目录 git init，不能修改用户仓库、技能、事件输入或绕过脚本。给出真实退出码和统计结果，并说明这个结果对已通过的产品验收意味着什么。",
+      "expected_output": "helper 接受字段齐全且值合法的乱序列表，保存规范排序事件；输入字节保持不变，summary 包含fixture 给定的 1250ms。明确这只是诊断观测，不产生或取消验收结果；若实际 CLI 失败则如实报告缺口，不手工改输入或伪造通过。",
+      "files": [
+        "evals/fixtures/metrics-replay/event.json"
+      ],
+      "expectations": [
+        "Actually executes all four CLI commands in an isolated directory and reports their exit codes.",
+        "Records sorted scope_paths and state_owners while preserving the event input bytes.",
+        "Reports the fixture-provided event duration of 1250 ms without claiming it measures this CLI run or reconstructs historical timing.",
+        "Treats metrics as diagnostics, independent of acceptance, and does not repair or bypass a failing script."
+      ]
+    },
+    {
+      "id": 84,
+      "prompt": "所有 implementation tickets 已 stage/done，feature final gates 已通过，最终 integration Standards/Spec discovery 都 PASS。环境存在 ce-code-review，CE 对同一 staged feature snapshot 返回一个 authority-backed P1。请说明 CE 应在哪执行、当前 final_review 结果、谁修复及如何收口。不要实际修改文件。",
+      "expected_output": "只在整体验收的两轴 discovery 报告之后执行一次 CE，不在每票后调用。orchestrator 校验完整 CE receipt 和 snapshot，将 P1 纳入合并 frozen findings 后，把本轮 discovery 记 FAIL。orchestrator 为原 owning ticket 启动 repair supervisor，在 final-fix 批次修复，完成受影响检查、门禁重跑或有效复用及既有 targeted assurance/closure；所有阻塞 findings 关闭后才允许 feature acceptance，不重开 CE discovery 或扩展 final budget。",
+      "files": [],
+      "expectations": [
+        "Runs CE once during feature final discovery, after the integration-axis reports and before freezing findings, without adding per-ticket CE checks.",
+        "Verifies the CE receipt and snapshot before recording discovery as failed despite both axes passing.",
+        "Routes CE IDs to original owning-ticket final-fix batches and existing repair assurance, affected gates and bounded closeout.",
+        "Does not repeat CE discovery during closure or treat unresolved blockers as accepted."
+      ]
+    },
+    {
+      "id": 85,
+      "prompt": "比较两次整体验收：A 找不到 ce-code-review；B 可发现 CE，但返回 status=failed、缺少完整 receipt 或审错 scope。所有 ticket 检查和最终两轴均已通过。两次都能因为 CE 可选就跳过吗？恢复执行和最终报告应怎样处理？",
+      "expected_output": "A 在既有 final-review evidence 记录技能不可用的 skip，继续原最终门禁和验收。B 保留失败证据并阻塞 feature acceptance，不能当作技能缺失或伪造 CE PASS。恢复时复用已验证 CE evidence 和实际修复 disposition，不重置预算或重新 discovery；最终报告保留真实结果和未关闭 findings。",
+      "files": [],
+      "expectations": [
+        "Skips only an absent skill and records the reason in existing final-review evidence.",
+        "Blocks failed, incomplete or scope-mismatched available CE review despite prior PASS results.",
+        "Preserves truthful outcomes and verified recovery evidence without inventing PASS or resetting the final budget."
+      ]
+    },
+    {
+      "id": 86,
+      "prompt": "feature 横跨两个仓库，所有票已完成，新文件都已 staged，两个 working tree 仍有 scope 外用户编辑。最终 CE 默认想用 branch base 到 working tree 的 diff，scope helper 只接受 base/head。请给出能隔离本次 feature 的 CE 调用方式；是否应在每张 ticket 完成后先跑 CE？不要运行 review 或 Git 修改。",
+      "expected_output": "不在每票后跑 CE，只在整体验收使用已验证 final snapshot 中逐仓的 immutable cumulative staged.patch、各成员 identity、integration index 和 spec/gate evidence。明确替换 CE 的 ref-based scope discovery 与 ref-only helper，不能仅传 depth:full 后仍运行工作树 diff。helper 无法处理 patch 时使用受支持的 depth:full，保留其余评审验证；live files 仅作上下文，protected edits 不作输入，index/HEAD 只读。",
+      "files": [],
+      "expectations": [
+        "Uses every member's immutable final staged patch and verified identity, including already-staged new files.",
+        "Replaces ref-based scope discovery and the ref-only helper rather than broadening input to working-tree or parent-gitlink diffs.",
+        "Uses report-only mode and full depth when patch sizing is unsupported while preserving remaining CE validation and Git integrity.",
+        "Keeps CE exclusively at feature final discovery, leaving individual ticket acceptance unchanged."
+      ]
+    },
+    {
+      "id": 87,
+      "prompt": "请只返回接下来的处置顺序、review 输入、暂存内容和最终结论，不执行 Git 修改。Ticket 02 的需求路径为 service/Batch.kt 和 service/BatchTest.kt。编译被另一模块 MembershipTool 缺失挡住。用户明确授权：补无状态 ERROR 占位解除阻塞，保持未暂存，不实现会员业务。该新文件位于 app/MembershipTool.kt；当前 run-start/checkpoint 有效，尚无该文件。supervisor 准备把它加入 ticket write scope，按整路径 staging。随后包含占位的工作区测试通过，但未验证移除占位的交付候选。怎样继续？",
+      "expected_output": "复用授权并单独记录范围外临时修复，不加入交付 scope；编排者冻结前态，supervisor 做具名修复，reconcile preserve 保存输入身份并重跑受影响检查。reviewer 看到具名冻结补丁及授权依赖，不能整份扫描 protected 编辑；暂存只含需求路径。报告工作区在占位条件下通过，独立交付未证实。",
+      "files": [],
+      "expectations": [
+        "Reuses explicit authorization and keeps the placeholder outside delivery scope and index instead of asking again or silently promoting it.",
+        "Assigns freeze/reconcile/staging to the orchestrator and the authorized repair to the supervisor, using existing snapshot evidence.",
+        "Makes the exact influential supplementary patch and its authorization visible to assurance without exposing unrelated protected changes.",
+        "Reports conditional workspace validation separately from independent delivery readiness and preserves the placeholder on disk."
+      ]
+    },
+    {
+      "id": 88,
+      "prompt": "请只作处置决定。用户允许修复旧 verifier 并保持这部分未暂存；旧 verifier 和当前需求修改都位于同一个 tests/BatchTest.kt，完整差异已经交织且没有独立可验证的隔离结果。stage 工具按 ticket-owned 路径暂存完整最终差异。执行者准备先把整文件暂存，之后凭记忆取消临时部分。其他独立检查仍可运行。",
+      "expected_output": "在暂存前报告真实交付冲突，不暂存整文件、不凭记忆拆补丁、不把临时修复洗成需求范围；独立工作继续。需要明确可可靠隔离的候选或用户对交付内容的具体决定。",
+      "files": [],
+      "expectations": [
+        "Stops protected staging before the whole mixed file is adopted and preserves both changes.",
+        "Does not invent a hunk staging engine, silently expand delivery scope or classify the repair as harmless.",
+        "Continues independent authorized work and asks only for the unresolved concrete delivery choice."
+      ]
+    },
+    {
+      "id": 89,
+      "prompt": "请给出一次连续处理过程的下一步，不运行设备。用户授权执行既定本地验收并最小修复非本需求引入的阻塞，范围外修改不暂存。未要求首败即停。gate 首次失败：服务进程 FD 总数少 1，新增目标为空；未记录本请求 receiver 和临时图片差异。已有日志可回读，原合同要求本请求资源关闭，不要求整个进程 FD 集合恒定。现有诊断预算还剩一次定向采集，之前原始失败未覆盖。执行者准备请用户再批准读日志，或者直接放宽所有清理断言。",
+      "expected_output": "保留首败并在已授权预算内直接定向采证，区分请求资源与全进程代理，不要求批准普通读日志，也不改产品或断言直到证据能定位合同/验证器问题。变化不重置预算，预算耗尽或无新增判别证据时停止此问题并继续独立工作。",
+      "files": [],
+      "expectations": [
+        "Uses the remaining authorized bounded diagnosis without a redundant approval request or repeated whole-suite run.",
+        "Preserves failure evidence and seeks request-owned resource observations before changing production or assertions.",
+        "Does not claim a later PASS closes an unexplained failure or reset the diagnostic budget."
+      ]
+    },
+    {
+      "id": 90,
+      "prompt": "请只给动作顺序和报告内容。最终 gate 有两个已归因阻塞：A 的 fixture 初始化路径已修复但还未定向验证；B 的应用读取权限仍未修复。A、B 的责任人和修复均已有授权，最终合同要求 fresh-runtime 的完整矩阵；无前置门禁强制立即全跑。执行者想修好 A 后重跑全部，再用先前的 B 局部 PASS 抵扣当前失败。另一个恢复场景中用户明确要求「第一次新失败就停，等我决定」，此时出现新失败。",
+      "expected_output": "先定向证明 A，再处理和验证 B，所有已知阻塞处置后才运行稳定候选原完整矩阵；不拿旧 PASS 抵扣，不重置诊断/审阅预算。另一个显式首败停止场景遵守用户约定并保留证据。",
+      "files": [],
+      "expectations": [
+        "Targets A and B while known blockers remain, then runs the original full fresh-runtime acceptance on the ready candidate.",
+        "Does not reuse an invalid prior PASS or reset diagnostic/review budgets.",
+        "Honors the explicit user first-failure stop in the separate recovery scenario."
+      ]
+    },
+    {
+      "id": 91,
+      "prompt": "只给现有 Standards/Spec 审阅应如何判断，不启动额外 reviewer。规格要求业务 Port 只使用 Framework 类型，Adapter 隐藏 Vendor SDK。当前实现 Port 没有 import Vendor，但结果字段 List<BatchResult> 的 BatchResult.callback 参数使用 VendorError，BatchResult 还 typealias 到 VendorResponse。功能测试全绿，只扫描 Port import 的护栏也通过。作者删除转换层以减少代码；另有一个与本票无依赖的历史 SearchPort 直接使用 Vendor 类型。",
+      "expected_output": "沿可达类型核对声明边界，当前间接泄漏为范围内缺陷，恢复必要转换与合适现有护栏/行为验证，不能用绿测或少代码放行。历史 SearchPort 单独归类，不自动修复或扩大本票，不强制统一所有层数。",
+      "files": [],
+      "expectations": [
+        "Traces nested fields, callback parameters and aliases beyond the Port import and identifies the current contract violation.",
+        "Preserves necessary boundary conversion despite line-count simplification and uses existing review phases.",
+        "Separately classifies the unrelated historical interface without automatically adding it to current delivery."
       ]
     }
   ]

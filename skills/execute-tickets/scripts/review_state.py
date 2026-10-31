@@ -16,6 +16,14 @@ from pathlib import Path
 from typing import Any
 
 
+REVIEW_CONTENT_FIELDS = (
+    "repo_root", "nested_repository_paths", "head", "index_entries_sha256",
+    "staged_patch_sha256", "authority", "authority_transitions",
+    "ticket_scope_paths", "ticket_tracked", "ticket_untracked",
+    "ticket_tracked_patch_sha256", "ticket_untracked_patch_sha256",
+)
+
+
 class StateError(RuntimeError):
     pass
 
@@ -433,6 +441,14 @@ def load_snapshot(path: Path) -> dict[str, Any]:
         validate_backup_records(path, backups)
     else:
         snapshot.setdefault("backups", [])
+    binding = snapshot.get("review_rebinding")
+    if binding is not None:
+        source_path = Path(binding["source_snapshot"])
+        if snapshot_sha256(source_path) != binding.get("source_snapshot_sha256"):
+            raise StateError("rebound review source snapshot was modified")
+        source = load_snapshot(source_path)
+        if any(source.get(field) != snapshot.get(field) for field in REVIEW_CONTENT_FIELDS):
+            raise StateError("rebound snapshot changed reviewed content")
     return snapshot
 
 
@@ -580,7 +596,8 @@ def compare_snapshot(expected: dict[str, Any], actual: dict[str, Any]) -> list[s
 
 
 def validate_against_baseline(
-    baseline: dict[str, Any], current: dict[str, Any]
+    baseline: dict[str, Any], current: dict[str, Any],
+    authority_transition_paths: list[str] | None = None,
 ) -> tuple[list[str], list[dict[str, Any]]]:
     if baseline["repo_root"] != current["repo_root"]:
         raise StateError("baseline belongs to a different repository")
@@ -591,8 +608,9 @@ def validate_against_baseline(
     if baseline["staged_patch_sha256"] != current["staged_patch_sha256"]:
         raise StateError("staged diff changed after the ticket started")
     scope_paths = set(baseline.get("ticket_scope_paths", []))
-    before_tracked = tracked_unstaged_by_path(baseline)
-    after_tracked = tracked_unstaged_by_path(current)
+    transitions = set(authority_transition_paths or [])
+    before_tracked = {path: record for path, record in tracked_unstaged_by_path(baseline).items() if path not in transitions}
+    after_tracked = {path: record for path, record in tracked_unstaged_by_path(current).items() if path not in transitions}
     if before_tracked and not scope_paths and not baseline.get("scope_declared"):
         raise StateError(
             "pre-ticket baseline already had tracked unstaged changes; capture it with exact --scope-path values"
@@ -631,8 +649,8 @@ def validate_against_baseline(
             + ", ".join(unexpected_tracked)
         )
 
-    before = untracked_by_path(baseline)
-    after = untracked_by_path(current)
+    before = {path: record for path, record in untracked_by_path(baseline).items() if path not in transitions}
+    after = {path: record for path, record in untracked_by_path(current).items() if path not in transitions}
     if scope_paths or baseline.get("scope_declared"):
         protected_untracked = {
             path: record for path, record in before.items() if path not in scope_paths
@@ -1136,6 +1154,7 @@ def write_snapshot(
     scope_paths: list[str],
     authority_transitions: list[dict[str, Any]],
     approved_drift: list[dict[str, Any]],
+    authority_parent: Path | None = None,
 ) -> None:
     output.mkdir(parents=True, exist_ok=False)
     for name, content in files.items():
@@ -1173,6 +1192,12 @@ def write_snapshot(
     snapshot["authority_transitions"] = authority_transitions
     snapshot["approved_drift"] = approved_drift
     snapshot["backups"] = backups
+    parent = authority_parent or baseline_path
+    if parent is not None:
+        snapshot["authority_parent"] = {
+            "path": str(parent.resolve()),
+            "sha256": snapshot_sha256(parent),
+        }
     (output / "snapshot.json").write_text(
         json.dumps(snapshot, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
@@ -1203,6 +1228,8 @@ def command_capture(args: argparse.Namespace, repo: Path | None = None) -> str:
     if args.baseline:
         baseline_path = Path(args.baseline)
         baseline = load_snapshot(baseline_path)
+        if getattr(args, "scope_declared", False):
+            baseline["scope_declared"] = True
         if not authority_paths:
             authority_paths = [
                 record["path"] for record in baseline.get("authority", [])
@@ -1286,7 +1313,7 @@ def command_capture(args: argparse.Namespace, repo: Path | None = None) -> str:
         else:
             effective_baseline = baseline
         ticket_tracked, ticket_untracked = validate_against_baseline(
-            effective_baseline, state
+            effective_baseline, state, transition_paths
         )
     elif args.drift_resolution and handoff is None:
         raise StateError("a drift resolution requires a baseline snapshot")
@@ -1307,6 +1334,7 @@ def command_capture(args: argparse.Namespace, repo: Path | None = None) -> str:
         scope_paths,
         authority_transitions,
         approved_drift,
+        authority_parent=handoff_path,
     )
     return str(output / "snapshot.json")
 
@@ -1338,6 +1366,48 @@ def snapshot_authority_paths(snapshot: dict[str, Any]) -> list[str]:
     return [record["path"] for record in snapshot.get("authority", [])]
 
 
+def verify_authority_lineage(repo: Path, snapshot_path: Path, receipt: str) -> list[str]:
+    """Bind the current authority set to the unchanged admission receipt."""
+    receipt_paths = receipt_authority_paths(repo, receipt)
+    [receipt_path] = normalize_authority_paths(repo, [receipt])
+    receipt_record = authority_records(repo, [receipt_path])[0]
+    current = load_snapshot(snapshot_path)
+    paths = snapshot_authority_paths(current)
+    visited: set[Path] = set()
+    while True:
+        resolved = snapshot_path.resolve()
+        if resolved in visited:
+            raise StateError("authority snapshot lineage contains a cycle")
+        visited.add(resolved)
+        if current.get("repo_root") != str(repo):
+            raise StateError("authority snapshot belongs to a different repository")
+        recorded_receipt = next((item for item in current.get("authority", []) if item["path"] == receipt_path), None)
+        if recorded_receipt != receipt_record:
+            raise StateError("admission receipt changed along the authority lineage")
+        parent = current.get("authority_parent")
+        if parent is None:
+            if sorted(snapshot_authority_paths(current)) != receipt_paths:
+                raise StateError("authority lineage does not start with the receipt's authority set")
+            return paths
+        if not isinstance(parent, dict) or not isinstance(parent.get("path"), str):
+            raise StateError("invalid authority snapshot parent")
+        parent_path = Path(parent["path"])
+        if snapshot_sha256(parent_path) != parent.get("sha256"):
+            raise StateError("authority parent snapshot was modified")
+        before = load_snapshot(parent_path)
+        transitions = current.get("authority_transitions", [])
+        if not isinstance(transitions, list) or any(not isinstance(item, dict) or not isinstance(item.get("path"), str) for item in transitions):
+            raise StateError("invalid authority transitions")
+        transition_paths = [item["path"] for item in transitions]
+        if len(set(transition_paths)) != len(transition_paths):
+            raise StateError("duplicate authority transitions")
+        if validate_authority(before, current, transition_paths) != transitions:
+            raise StateError("authority transition evidence does not match its snapshots")
+        if before.get("head") != current.get("head"):
+            raise StateError("HEAD changed along the authority lineage")
+        snapshot_path, current = parent_path, before
+
+
 def command_verify(args: argparse.Namespace) -> str:
     snapshot_path = Path(args.snapshot)
     expected = load_snapshot(snapshot_path)
@@ -1347,6 +1417,42 @@ def command_verify(args: argparse.Namespace) -> str:
     if changed:
         raise StateError("review input drifted: " + ", ".join(changed))
     return "review snapshot still matches HEAD, index, working tree, untracked files, and authority"
+
+
+def command_rebind(args: argparse.Namespace) -> str:
+    """Retain a reviewed candidate while rebinding classified protected state."""
+    source_path, baseline_path, output = Path(args.snapshot), Path(args.baseline), Path(args.output)
+    source = load_snapshot(source_path)
+    expected_baseline = source.get("baseline_snapshot") or str(source_path.resolve())
+    if expected_baseline != str(baseline_path.resolve()):
+        raise StateError("review rebinding requires the original ticket baseline")
+    if output.exists():
+        raise StateError(f"review snapshot already exists: {output}")
+    capture = argparse.Namespace(
+        output=str(output), baseline=str(baseline_path), handoff=None,
+        receipt=None, authority_path=snapshot_authority_paths(source),
+        authority_transition_path=[item["path"] for item in source.get("authority_transitions", [])],
+        scope_path=[], scope_declared=True, allowed_staged_prefix=[],
+        drift_resolution=args.drift_resolution, drift_output=None,
+    )
+    try:
+        command_capture(capture, Path(source["repo_root"]))
+        rebound = load_snapshot(output)
+        changed = [field for field in REVIEW_CONTENT_FIELDS if source.get(field) != rebound.get(field)]
+        if changed:
+            raise StateError("review content changed; cannot rebind: " + ", ".join(changed))
+        _, protected_changes = drift_changes(Path(source["repo_root"]), source, rebound)
+        rebound["review_rebinding"] = {
+            "source_snapshot": str(source_path.resolve()),
+            "source_snapshot_sha256": snapshot_sha256(source_path),
+            "protected_changes": protected_changes,
+        }
+        (output / "snapshot.json").write_text(json.dumps(rebound, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    except Exception:
+        if output.exists():
+            shutil.rmtree(output)
+        raise
+    return str(output / "snapshot.json")
 
 
 def prepare_stage(
@@ -1367,8 +1473,11 @@ def prepare_stage(
     effective_baseline = baseline_with_approved_drift(
         baseline, reviewed.get("approved_drift", [])
     )
+    transition_paths = [item["path"] for item in reviewed.get("authority_transitions", [])]
+    if validate_authority(baseline, reviewed, transition_paths) != reviewed.get("authority_transitions", []):
+        raise StateError("authority transition evidence does not match its snapshots")
     expected_ticket_tracked, expected_ticket_untracked = validate_against_baseline(
-        effective_baseline, reviewed
+        effective_baseline, reviewed, transition_paths
     )
     if expected_ticket_tracked != reviewed.get("ticket_tracked", []):
         raise StateError("review snapshot ticket-tracked manifest is inconsistent")
@@ -1379,13 +1488,13 @@ def prepare_stage(
         set(expected_ticket_tracked)
         | {record["path"] for record in expected_ticket_untracked}
     )
-    if not paths:
-        raise StateError("reviewed ticket has no changes to stage")
-    staged_authority = sorted(set(paths) & set(authority_paths))
+    staged_authority = sorted((set(paths) | set(baseline.get("ticket_scope_paths", []))) & set(authority_paths))
     if staged_authority:
         raise StateError(
             "refusing to stage process-document authority: " + ", ".join(staged_authority)
         )
+    if not paths:
+        raise StateError("reviewed ticket has no changes to stage")
     if allow_paths is not None:
         allowed_paths = set(allow_paths)
         unexpected_paths = sorted(set(paths) - allowed_paths)
@@ -1401,15 +1510,15 @@ def prepare_stage(
                 + ", ".join(missing_paths)
             )
 
-    scope_paths = set(baseline.get("ticket_scope_paths", []))
+    scope_paths = set(baseline.get("ticket_scope_paths", [])) | set(paths)
     protected_tracked = [
         record
-        for record in effective_baseline["tracked_unstaged"]
+        for record in reviewed["tracked_unstaged"]
         if record["path"] not in scope_paths
     ]
     protected_untracked = {
         record["path"]: record
-        for record in effective_baseline["untracked"]
+        for record in reviewed["untracked"]
         if record["path"] not in scope_paths
     }
     temporary_env = {"GIT_INDEX_FILE": str(temporary_index)}
@@ -1514,13 +1623,55 @@ def replace_index(repo: Path, reviewed: dict[str, Any], temporary_index: Path) -
 
 
 def command_stage(args: argparse.Namespace) -> dict[str, Any]:
-    reviewed = load_snapshot(Path(args.snapshot))
+    snapshot_path = Path(args.snapshot)
+    reviewed = load_snapshot(snapshot_path)
+    repo = Path(reviewed["repo_root"])
+    output = Path(args.output) if args.output else None
+    binding = {"baseline_sha256": snapshot_sha256(Path(args.baseline)), "snapshot_sha256": snapshot_sha256(snapshot_path)}
+    evidence = None
+    if output:
+        ensure_output_excluded_from_candidates(output, repo)
+        if output.exists():
+            evidence = load_json_file(output / "staging.json", "staging evidence")
+            if any(evidence.get(key) != value for key, value in binding.items()):
+                raise StateError("staging evidence belongs to a different reviewed boundary")
+            accepted = load_snapshot(output / "accepted")
+            if snapshot_sha256(output / "accepted") != evidence.get("accepted_snapshot_sha256"):
+                raise StateError("accepted staging snapshot was modified")
+            current, _ = collect_state(repo, None, snapshot_authority_paths(accepted), accepted.get("nested_repository_paths"))
+            if not compare_snapshot(accepted, current):
+                return {**evidence["result"], "accepted_snapshot": str((output / "accepted").resolve())}
     with tempfile.TemporaryDirectory(prefix="execute-tickets-index-") as temp_dir:
         temporary_index = Path(temp_dir) / "index"
         result = prepare_stage(
-            Path(args.baseline), Path(args.snapshot), temporary_index, args.allow_path
+            Path(args.baseline), snapshot_path, temporary_index, args.allow_path
         )
-        replace_index(Path(reviewed["repo_root"]), reviewed, temporary_index)
+        if output and evidence:
+            if result != evidence["result"]:
+                raise StateError("prepared index differs from retained staging evidence")
+        elif output:
+            state, files = collect_state(repo, {"GIT_INDEX_FILE": str(temporary_index)}, snapshot_authority_paths(reviewed), reviewed.get("nested_repository_paths"))
+            scope = set(reviewed["ticket_scope_paths"]) | set(result["staged_paths"])
+            if (
+                state["head"] != reviewed["head"]
+                or state["index_entries_sha256"] != result["index_sha256"]
+                or state["authority"] != reviewed["authority"]
+                or state["tracked_unstaged"] != [item for item in reviewed["tracked_unstaged"] if item["path"] not in scope]
+                or state["untracked"] != [item for item in reviewed["untracked"] if item["path"] not in scope]
+            ):
+                raise StateError("worktree drifted while preparing the accepted index")
+            state["ticket_tracked_patch_sha256"] = sha256(b"")
+            state["ticket_untracked_patch_sha256"] = sha256(b"")
+            files.update({"ticket-tracked.patch": b"", "ticket-untracked.patch": b""})
+            write_snapshot(repo, output / "accepted", state, files, [], [], None, [], [], [], authority_parent=snapshot_path)
+            from repository_state import write_staging_evidence
+            write_staging_evidence(output / "staging.json", {
+                **binding, "accepted_snapshot_sha256": snapshot_sha256(output / "accepted"), "result": result,
+            })
+        replace_index(repo, reviewed, temporary_index)
+    if output:
+        command_verify(argparse.Namespace(snapshot=str(output / "accepted")))
+        result["accepted_snapshot"] = str((output / "accepted").resolve())
     return result
 
 
@@ -1571,11 +1722,18 @@ def build_parser() -> argparse.ArgumentParser:
     verify.add_argument("--snapshot", required=True)
     verify.set_defaults(func=command_verify)
 
+    rebind = subparsers.add_parser("rebind", help="retain reviewed content after harmless protected-state drift")
+    rebind.add_argument("--baseline", required=True)
+    rebind.add_argument("--snapshot", required=True)
+    rebind.add_argument("--drift-resolution", required=True)
+    rebind.add_argument("--output", required=True)
+    rebind.set_defaults(func=command_rebind)
+
     stage = subparsers.add_parser("stage", help="stage exactly one verified ticket delta")
     stage.add_argument("--baseline", required=True)
     stage.add_argument("--snapshot", required=True)
     stage.add_argument("--allow-path", action="append")
-    stage.add_argument("--output", help="durable staging evidence directory for a repository set")
+    stage.add_argument("--output", help="durable staging evidence and accepted snapshot directory")
     stage.set_defaults(func=command_stage)
     return parser
 

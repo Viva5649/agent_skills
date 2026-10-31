@@ -102,7 +102,8 @@ The actors execute this sequence:
    state from prose.
 5. The orchestrator appends the transition to `admission_basis`, reruns only the
    affected deterministic scope/preflight checks, discards any old unaccepted
-   scope snapshot, captures a new `pre` snapshot from the corrected exact scope,
+   scope snapshot, captures a new `pre` snapshot with `--handoff` pointing to
+   the verified repair snapshot and the corrected exact scope,
    and tells the same supervisor to resume the same ticket. Its dependants remain
    blocked until the repaired ticket completes normally.
 
@@ -163,24 +164,23 @@ test**:
 > Could a reviewer independently accept or reject one required result while the
 > remaining result is still a coherent, green repository state?
 
-If yes, the ticket is a **semantic epic** and blocks before implementation. The
-supervisor must name the independently acceptable units and their required
-`Consumes` / `Produces` edge. The orchestrator applies that exact split through
-execution authority repair while retaining the current ticket path, then the
-same supervisor resumes the first slice. It must not implement the easiest part,
-add an internal batch plan, or invoke write review. If the split exposes an
-unsettled behavior, owner, or public interface, obtain that decision first and
-then apply the split directly.
+An affirmative answer alone does not require splitting. Reuse the admitted
+handoff rationale while its evidence holds. A **semantic epic** combines units
+that require independent delivery, a design-selecting prerequisite, a necessary
+migration compatibility state, or independently changeable lifecycle/state/
+cleanup owners; it also includes work that cannot fit one fresh supervisor
+context. Such a ticket blocks before implementation. Name the concrete missing
+boundary and its `Consumes` / `Produces` edge; separately testable internal steps
+are insufficient grounds to reopen an admitted graph.
 
-Also reject a ticket when it changes independently separable lifecycle, state,
-or cleanup owners; asks implementation to choose a public API or wire contract;
-combines expand, caller migration, old-contract removal, and delivery closure;
-or cannot be reasoned about within one fresh supervisor context from its
-declared cold-start inputs.
-
-Do not reject one vertical invariant merely because it crosses many files or
-technical layers. The decisive question is whether either half could be
-accepted independently without leaving the repository inconsistent.
+When current authority determines a necessary split, the orchestrator applies
+that exact split through execution authority repair while retaining the current
+ticket path, then the same supervisor resumes the first slice. Do not implement
+the easiest part, conceal the split in an internal batch plan, or invoke write
+review. An unsettled public API, wire contract, behavior, or owner needs its
+decision first. Preserve required expand–migrate–contract states and explicit
+prerequisite gates. A single bounded invariant may cross technical layers;
+file count or the ability to compile an intermediate step does not invalidate it.
 
 ## Ordering and ownership admission
 

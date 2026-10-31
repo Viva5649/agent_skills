@@ -9,6 +9,23 @@ compatibility: Requires Git, Python 3.10+, ripgrep, sub-agents with fresh-contex
 Convert one repository spec into implementation tickets that a fresh executor can
 implement and verify without conversation history or design guesswork.
 
+State the delivery boundary in the first proposal: whether this request covers
+the full implementation graph or only prerequisite evidence, what remains after
+it, and which explicit gates prevent implementation. Reuse an established release
+decision; ask only when the remaining choice changes delivery or acceptance.
+Release granularity does not by itself determine ticket count.
+
+Default to covering the requested implementation. Resolve bounded feasibility
+questions through authorized reads or experiments before ticket publication;
+do not silently replace implementation tickets with a research-only graph.
+If evidence is still missing, identify the affected requirements and resumption
+condition without inventing executable contracts for them. Separate evidence
+tickets only under `references/ticket-boundaries-and-verification-preflight.md`.
+An explicit prerequisite gate remains binding, including when a quick experiment
+cannot satisfy it. A later isolated change without dependency handoffs may use
+direct implementation when the user has not requested tickets; do not reopen a
+completed graph merely because it exists.
+
 Resolve `<write-implementation-tickets-skill-root>` to this `SKILL.md`'s
 absolute parent. Never resolve bundled resources through a repository-local
 skill path.
@@ -120,12 +137,10 @@ If the sources disagree about observable behavior or the real owner is unclear,
 stop and ask the user. Ticket authoring must expose the conflict rather than
 average it.
 
-Before slicing tickets, ask the user for the delivery and release granularity
-preference: which deliverables may ship independently and which must ship as
-one batch. A granularity decision that arrives after tickets are reviewed is a
-user-authority change that forces a new exhaustive review epoch over every
-affected ticket, so an unasked preference is expensive rework, not a neutral
-omission.
+Before slicing tickets, resolve delivery and release granularity from current
+authority and recorded user decisions. Ask only for an unresolved material
+choice, and explain the concrete deliverables in each option. Do not ask the
+user to decide ticket count or repeat an established release decision.
 
 ### 2. Build the implementation map
 
@@ -154,6 +169,27 @@ Build a private implementation map with one row per required behavior:
 | Verification | Stable behavior seam or existing deterministic check, plus the applicable production producer, legal fixture, reachability, complete oracle, direct observation, and absence detector |
 | Constraints | Non-goals, state budget, compatibility, ticket-scoped checks, feature final gates, baseline preflight, and reusable-gate assessment |
 
+For a new or changed capability interface, or work crossing an existing boundary
+between a shared service and a model, engine, backend or provider, trace the real
+caller → capability interface → adapter → SDK path using the repository's actual
+owners. Inspect request/result types,
+callbacks, errors and their reachable nested types, not only direct imports.
+Use one plausible alternate implementation as a reasoning check: which shared
+callers would change, and why? Record the responsibility and conversion owner
+in the existing owner/interface rows. Same-process, internal, unpublished or
+currently unused interfaces do not by themselves justify provider coupling.
+Keep necessary isolation even when direct SDK reuse needs fewer lines; SDK
+types inside their owning adapter are valid, and different capabilities need
+not have identical layers, forwarding facades or duplicate DTOs.
+
+Compare the proposed design itself with applicable architecture authority;
+matching the spec alone does not settle a conflicting boundary. Surface that
+conflict for the requirements owner before publication or interface changes.
+Honor an explicit approved coupling exception without reopening it merely for
+style. Without a requirement or demonstrated boundary violation, do not make
+an architectural preference a blocker. Do not implement a second provider or
+add a capability registry for this reasoning check.
+
 Keep direct repository facts, evidence-backed inferences, and unknowns distinct
 in the map. For each inference that could change observable behavior, ownership,
 an interface, write scope, production state, or verification, name the cheapest
@@ -168,28 +204,10 @@ and the condition that returns the work to diagnosis. Do not derive a write
 scope from an untested cause or ticket a second symptom workaround after the
 evidence breaks the causal model.
 
-Exact paths are implementation evidence, not observable requirements. List every
-known write path. When a path cannot be known until a scoped search, declare the
-search condition and inclusion rule; never use a directory, glob, "as needed",
-or "related files" as write scope.
-
-Run every permitted-discovery command against the current authoring baseline.
-Classify each repository-relative result exactly once as a declared write path,
-an exact read-only input, or a named false positive with a reason. Require the
-set of undisposed results to be empty. Also inspect each blocker's exact write
-scope and `Produces` contract for a known caller-topology change and place every
-such known future caller in this ticket's declared scope before approval. Do
-not defer a currently knowable caller to execution merely because the command
-will run again after blockers complete.
-
-When a ticket modifies existing Markdown, default its documentation edit mode to
-`surgical`. Name the exact headings, fenced-block responsibilities, or facts
-that authority permits the executor to delete, rewrite, or move; everything
-else is preserve-by-default. An exact write-scope path permits editing bytes but
-does not authorize a whole-document rewrite. Use `whole-document` only when a
-spec, ADR, or recorded user approval explicitly requires it. If an existing
-responsibility still applies, require a positive replacement output and target
-location; a stale-token negative scan is not preservation evidence.
+Use `references/ticket-boundaries-and-verification-preflight.md` for exact
+write scope, executed discovery dispositions, known blocker-created callers,
+and surgical documentation edits. The implementation map records those results;
+do not duplicate their definitions in each section.
 
 Choose a technical detail autonomously only when current code and authoritative
 sources establish one valid choice without changing observable behavior. Ask
@@ -197,15 +215,9 @@ the user before choosing between multiple plausible owners or interfaces,
 changing a public interface, adding mutable state, sharing cleanup ownership,
 adding retry/recovery behavior, or introducing a new production seam.
 
-For lifecycle, concurrency, cancellation, retry, cleanup/resource ownership,
-routing, or cross-process ordering, apply the bundled ordering-decision
-contract. Resolve every actor/thread, state owner, resource owner, linearization
-point, competing operation, failure owner, observable result, and deterministic
-interleaving before drafting. Use a small runnable `/prototype` or deterministic
-latch test when discussion cannot answer one ordering question, then record the
-verdict in the spec or a superseding ADR. If the destination or migration states
-remain too foggy to bound, return the effort to `/wayfinder`. A ticket must not
-become the first authority for either decision.
+Resolve the bundled ordering/ownership decision before drafting affected
+lifecycle or cross-process work. A prototype may settle an ordering question;
+the spec or ADR records its verdict. A ticket never becomes its first authority.
 
 ### 3. Draft tracer-bullet tickets
 
@@ -213,36 +225,17 @@ Apply the product-contract boundary in
 `references/ticket-boundaries-and-verification-preflight.md` before splitting:
 temporary implementation states do not create independent behavior acceptance.
 
-Create narrow vertical slices:
+Apply the bundled independent-rejection test, handoff-benefit and adjacent-merge
+rules. Each ticket delivers one bounded acceptance unit across the layers it
+needs, including setup, tests and documentation. Reject a semantic epic while
+preserving required independent owners, prerequisite gates and migration states.
+Record the rationale in `## Slice boundary`; layer/file count is not a split rule.
 
-- Each ticket delivers one complete, observable or deterministically verifiable
-  result across every layer it needs.
-- Each ticket fits one fresh supervisor context and earns an independent review
-  gate.
-- Fold required setup, configuration, tests, and documentation into the ticket
-  whose result needs them.
-- Split tickets only when a reviewer could accept one and reject its neighbor
-  without leaving the accepted repository inconsistent.
-- Give each ticket only genuine blocking edges. A blocker must produce an
-  interface, contract, migration state, or evidence that the dependant consumes.
-
-Apply the bundled independent-rejection test and require each ticket to include
-the template's slice-boundary proof. Reject a semantic epic before presenting
-the proposal: multiple independently acceptable results, independently
-changeable lifecycle/state/cleanup owners, or a combined expand + migrate +
-contract effort belong in separate tickets. Layer count, file count, and diff
-size never decide the split. Keep one invariant across multiple technical layers
-when neither half can remain coherent and green on its own.
-
-Do not create horizontal schema/API/UI/test tickets for one behavior. A
-prefactor ticket is allowed only when current structure prevents the behavior
-slice from landing independently; name the production reason and keep the
-prefactor behavior-preserving.
-
-For a mechanical wide refactor that cannot remain green as one slice, use
-expand–migrate–contract: add the new form beside the old, migrate callers in
-independently green batches, then delete the old form after every batch
-completes. Declare the exact compatibility interface between those tickets.
+Every blocker must produce an interface, contract, migration state or evidence
+the dependant consumes. Do not create horizontal API/UI/test tickets. A
+behavior-preserving prefactor needs a production reason that prevents the
+behavior slice from landing independently. Required expand–migrate–contract
+states retain exact compatibility interfaces between tickets.
 
 ### 4. Write complete ticket contracts
 
@@ -278,38 +271,17 @@ Instead, give that owner the facts needed to route mechanically:
 - the exact acceptance commands or interaction protocols and their expected
   results, separated into ticket-scoped checks and feature final gates.
 
-For browser, desktop UI, device, or other live-app behavior, name the exact
-interaction path in the real target runtime before prescribing tool use. The
-ticket must name the refresh or reset action and the direct observation that
-distinguishes success from a mock, cached result, screenshot-only state, forced
-state, or stale renderer. Builds, tests, logs, and screenshots may support that
-acceptance item but do not replace the real-runtime observation when the
-authoritative requirement demands it. If the runtime is genuinely unavailable,
-the ticket names the owner that stops and the evidence it reports; it does not
-substitute a weaker check and call the behavior verified. Declare first-failure
-captures and bounded diagnosis under `references/verification-realizability.md`.
+Use the template and `references/verification-realizability.md` for legal
+fixtures, complete oracles, direct observations, absence detection and live-runtime
+evidence. Required real interaction is not replaced by a build, mock or screenshot.
+Declare first-failure captures and bounded diagnosis in the existing witness.
 
-For every named boundary test, lifecycle/resource proof, negative scan,
-generated-consumer check, or other correctness-critical acceptance item,
-instantiate the bundled verification witness. A test name or runnable command
-does not prove that a legal production fixture reaches the asserted boundary,
-that the oracle accepts every legal race or no-op, that the observation measures
-the exact property, or that the command fails when required evidence is absent.
-Return an unrealizable witness to authoring rather than adding fake-only data or
-weakening the expected result.
+For existing Markdown, include the template's surgical documentation edit
+contract and positive replacement outputs for responsibilities that still apply.
 
-For every ticket that modifies existing Markdown, include the template's
-`## Documentation edit contract`. Split mixed content: stale facts may be
-superseded only by current authority, while responsibilities that still exist
-must have an explicit replacement acceptance. Do not authorize deleting a
-whole section merely because one fact inside it is obsolete.
-
-Assign every command to exactly one verification tier. The current ticket
-supervisor owns `## Ticket-scoped checks`; the final-gate supervisor owns
-`## Feature final gates` after all implementation tickets are accepted. Declare
-each feature final gate exactly once in the graph or execution plan. Do not copy
-a whole-repository build into each ticket's scoped checks merely because it is
-important at feature closure.
+Assign each command exactly once: the current supervisor runs ticket-scoped
+checks; the final-gate supervisor runs feature final gates after implementation.
+Do not repeat a cumulative build in every ticket.
 
 For every feature final gate, attempt to prove a deterministic repository-only
 input boundary. When every source, test, build, packaging, lockfile, and consumed
@@ -323,30 +295,14 @@ reusable-input section.
 
 For authority-permitted historical runtime evidence after repairs, use `ticket-template.md`; freshness requirements still run.
 
-Before candidate publication, perform the bundled baseline verification preflight for
-every ticket-scoped check and feature final gate. Account for shared-prerequisite
-masking under the bundled preflight contract without claiming masked checks pass.
-Run applicable exact `pass` and `intentional-fail` commands; run the declared cheapest non-mutating probe for an
-`implementation-dependent` command. Classify an expensive cumulative gate as
-`implementation-dependent` when the preflight question is its command syntax,
-target existence, retained-interface exclusions, or runtime prerequisites rather
-than the not-yet-built feature result. Record the exact preflight command,
-expected result, exact observed exit code or interaction result, and bounded
-diagnostic signature in the ticket. A malformed regex, stale path, missing
-target, wrong red signature, or contradiction with a retained interface returns
-the ticket to authoring. Do not pre-run an expensive whole-repository build when
-a smaller probe decides the baseline question.
-
-Separately, record the completed scope-closure preflight in each ticket that
-declares permitted discovery: the exact discovery command, authoring baseline,
-one disposition for every observed path, the blocker caller-topology
-assessment, and exact result `0 undisposed paths`. This preflight proves scope
-completeness, not behavior verification. A command failure, duplicate
-disposition, or any undisposed path returns the ticket to authoring.
-
-Apply `references/verification-realizability.md` to correctness-critical checks.
-Reuse execution-integrity evidence, inspect behavioral assertions, and probe only
-concrete gaps. A command that cannot prove its claimed property returns to authoring.
+Before candidate publication, follow the bundled baseline verification preflight
+and scope-closure preflight. Record the exact observed exit code or interaction
+result, expected result and bounded diagnostic signature. Use the smallest
+non-mutating probe for an implementation-dependent check and account for shared
+prerequisite masking without claiming a masked check passed. Reuse applicable
+execution-integrity evidence; probe concrete gaps under
+`references/verification-realizability.md`. Unresolved feasibility or undisposed
+scope paths return the candidate to authoring.
 
 Acceptance criteria trace to the spec, ADR, or recorded user decision. A ticket
 is invalid if it contains placeholders such as `TBD`, `TODO`, "appropriate",
@@ -355,47 +311,23 @@ undefined identifiers.
 
 ### 5. Author self-review before candidate publication
 
-Review the whole graph with fresh eyes:
+Review the complete graph against the contracts already loaded:
 
-1. **Spec coverage:** every observable requirement maps to at least one
-   acceptance item; no ticket adds unrequested behavior.
-2. **Authority and evidence:** every acceptance item and technical constraint
-   names its source; superseded inputs cannot decide current behavior; facts,
-   inferences, and unknowns are separated; every consequential inference names
-   a decisive check, and no consequential unknown remains.
-3. **Interface consistency:** each dependant's `Consumes` exactly matches a
-   blocker's `Produces`, including identifiers and types.
-4. **Graph correctness:** every edge represents a real gate; ticket numbering
-   is blockers-first; there are no cycles.
-5. **Scope closure:** write path exactness, discovery-rule baseline execution,
-   one-of-three disposition, blocker-caller assessment, and undisposed-set
-   emptiness per [scope-closure-preflight](references/ticket-boundaries-and-verification-preflight.md#scope-closure-preflight).
-6. **Verification:** acceptance seam, command, and expected result
-   ([acceptance-and-verification](references/ticket-template.md#acceptance-and-verification));
-   bug failure model ([failure-model](references/ticket-template.md#failure-model));
-   live-app target-runtime evidence; command assignment
-   ([feature-final-gates](references/ticket-template.md#feature-final-gates));
-   baseline classification
-   ([baseline-verification-preflight](references/ticket-boundaries-and-verification-preflight.md#baseline-verification-preflight));
-   gate reuse ([reusable-gate-inputs](references/ticket-template.md#reusable-gate-inputs));
-   verification witness
-   ([verification-witness](references/verification-realizability.md#verification-witness));
-   shared evidence and prerequisite masking per the bundled preflight contract.
-7. **Slice and ordering:** every ticket passes the independent-rejection test;
-   applicable lifecycle/concurrency work cites a complete ordering decision.
-8. **Documentation edits:** surgical edit contract default, whole-document mode
-   authority, replacement outputs, and preserve-by-default per
-   [documentation-edit-contract](references/ticket-boundaries-and-verification-preflight.md#documentation-edit-contract).
-9. **State and architecture:** every mutable field, lock, retry, abstraction,
-   cleanup owner, and test seam has a stated production requirement; remove
-   unsupported structure.
-10. **Cold start:** a fresh executor with only the declared inputs can implement
-   and verify the ticket without conversation history.
-11. **Placeholder and terminology scan:** no vague instruction, undefined name,
-   or invented alias remains.
+1. Every requested behavior is covered or explicitly identified as awaiting a
+   prerequisite; acceptance cites authority without adding behavior.
+2. Facts, inferences and unknowns are distinguished; consequential unknowns and
+   owner/interface decisions are resolved before publication.
+3. `Consumes` matches `Produces`; edges are real, acyclic and blockers-first.
+4. Scope closure and documentation preservation satisfy the boundary contract.
+5. Verification witnesses, baseline preflights, tiers and reuse declarations
+   satisfy the template and realizability contract.
+6. Slice boundaries include handoff benefit and adjacent-ticket merge assessment;
+   applicable ordering decisions and production-state justifications are complete.
+7. A fresh executor can act from the declared inputs without hidden context,
+   placeholders, undefined terms or unrequested abstractions.
 
-Fix failures before presenting the breakdown. This check improves the proposal
-but does not replace the independent repository-alignment review.
+Fix failures before presenting the proposal. This self-review does not replace
+the independent repository-alignment review.
 
 ### 6. Publish deterministic candidates or request a material decision
 

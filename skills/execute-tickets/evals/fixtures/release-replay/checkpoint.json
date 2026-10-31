@@ -1,0 +1,18 @@
+{
+  "fixture_only": true,
+  "instruction": "These are stipulated facts for a decision replay, not executable admission or runtime evidence.",
+  "implementation": "all three tickets accepted and staged; no outstanding production edit",
+  "checkpoint_identity": "verified and unchanged for this replay",
+  "ticket_scoped_checks": "passed",
+  "final_gates": {
+    "F1": {"kind": "static", "result": "PASS", "current_inputs": "match the declared complete reusable manifest"},
+    "F2": {"kind": "debug SDK on physical device", "result": "unproved", "fresh_runtime_required": true},
+    "F3": {"kind": "release consumer on physical device", "result": "unproved", "fresh_runtime_required": true}
+  },
+  "device_at_pause": "adb devices -l returned no usable physical device",
+  "device_at_resume": "one physical device is in state device and meets the declared ABI/SDK conditions",
+  "scope": "fixture result location and verification instructions belong to ticket03; production API, assertions and release build flags are fixed",
+  "model": "same fixed GGUF; readable to the release app through the declared input parameter",
+  "full_runtime_matrix_started": false,
+  "delivery": "commit and publication not requested"
+}

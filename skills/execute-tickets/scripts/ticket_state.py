@@ -200,9 +200,34 @@ def complete_with_evidence(
     """Atomically complete one ticket and retain content-hash transition evidence."""
     relative = ticket.relative_to(repo).as_posix()
     authority_paths = review_state.receipt_authority_paths(repo, receipt)
+    accepted = None
+    ticket_repository = None
+    authority_snapshot = None
+    aggregate = False
+    if snapshot_raw:
+        snapshot_path = Path(snapshot_raw)
+        accepted = review_state.load_snapshot(snapshot_path)
+        aggregate = accepted.get("kind") == "repository-set"
+        if aggregate:
+            accepted = repository_state.with_states(snapshot_path, accepted)
+            repository_state.check_output(Path(output_raw), repository_state.identities(accepted))
+            for name, item in accepted["repositories"].items():
+                if Path(item["repo_root"]) == repo:
+                    ticket_repository = name
+            if ticket_repository is None:
+                raise TicketStateError("ticket repository is missing from the accepted repository set")
+            authority_snapshot = repository_state.member_path(snapshot_path, ticket_repository)
+            states = [item["state"] for item in accepted["repositories"].values()]
+        else:
+            authority_snapshot = snapshot_path
+            states = [accepted]
+        for state in states:
+            if state.get("ticket_scope_paths") or state.get("ticket_tracked") or state.get("ticket_untracked"):
+                raise TicketStateError("completion requires post-stage or validation-only repository snapshots")
+        authority_paths = review_state.verify_authority_lineage(repo, authority_snapshot, receipt)
     if relative not in authority_paths:
         raise TicketStateError(
-            f"ticket is not part of the receipt's authority set: {relative}"
+            f"ticket is not part of the {'verified snapshot' if accepted else 'receipt'}'s authority set: {relative}"
         )
 
     record = read_completion_record(record_file)
@@ -235,25 +260,7 @@ def complete_with_evidence(
     if output.exists():
         raise TicketStateError(f"completion evidence already exists: {output}")
 
-    accepted = None
-    ticket_repository = None
-    if snapshot_raw:
-        accepted = review_state.load_snapshot(Path(snapshot_raw))
-        if accepted.get("kind") != "repository-set":
-            raise TicketStateError("--snapshot requires an accepted repository-set snapshot")
-        accepted = repository_state.with_states(Path(snapshot_raw), accepted)
-        repository_state.check_output(output, repository_state.identities(accepted))
-        for name, item in accepted["repositories"].items():
-            state = item["state"]
-            if state.get("ticket_scope_paths") or state.get("ticket_tracked") or state.get("ticket_untracked"):
-                raise TicketStateError("completion requires post-stage or validation-only repository snapshots")
-            if Path(item["repo_root"]) == repo:
-                ticket_repository = name
-        if ticket_repository is None:
-            raise TicketStateError("ticket repository is missing from the accepted repository set")
-        expected_authority = review_state.snapshot_authority_paths(accepted["repositories"][ticket_repository]["state"])
-        if not set(authority_paths).issubset(expected_authority):
-            raise TicketStateError("accepted snapshot does not freeze the receipt authority")
+    if aggregate:
         before_members = repository_state.collect_states(accepted)
         for name, (state, _) in before_members.items():
             changed = review_state.compare_snapshot(accepted["repositories"][name]["state"], state)
@@ -262,9 +269,13 @@ def complete_with_evidence(
         before = before_members[ticket_repository][0]
     else:
         before, _ = review_state.collect_state(repo, None, authority_paths)
+        if accepted:
+            changed = review_state.compare_snapshot(accepted, before)
+            if changed:
+                raise TicketStateError(f"accepted completion input drifted: {', '.join(changed)}")
     complete_ticket(ticket, record_file)
     try:
-        if accepted:
+        if aggregate:
             after_members = repository_state.collect_states(accepted)
             after, after_files = after_members[ticket_repository]
             for name, (state, _) in after_members.items():
@@ -284,20 +295,21 @@ def complete_with_evidence(
         output.mkdir(parents=True, exist_ok=False)
         output_owned = True
         handoff = output / "handoff"
-        members = after_members if accepted else {None: (after, after_files)}
+        members = after_members if aggregate else {None: (after, after_files)}
         for name, (state, files) in members.items():
             state["ticket_tracked_patch_sha256"] = review_state.sha256(b"")
             state["ticket_untracked_patch_sha256"] = review_state.sha256(b"")
             files["ticket-tracked.patch"] = b""
             files["ticket-untracked.patch"] = b""
-            if accepted:
+            if aggregate:
                 state["scope_declared"] = True
             review_state.write_snapshot(
                 Path(state["repo_root"]),
-                repository_state.member_path(handoff, name) if accepted else handoff,
-                state, files, [], [], None, [], [], [],
+                repository_state.member_path(handoff, name) if aggregate else handoff,
+                state, files, [], [], None, [], transitions if name == ticket_repository else [], [],
+                authority_parent=(repository_state.member_path(Path(snapshot_raw), name) if aggregate else authority_snapshot),
             )
-        if accepted:
+        if aggregate:
             repository_state.write_snapshot(handoff, repository_state.identities(accepted))
         evidence = {
             "ticket": relative,
@@ -311,6 +323,7 @@ def complete_with_evidence(
         }
         if accepted:
             evidence["accepted_snapshot_sha256"] = review_state.snapshot_sha256(Path(snapshot_raw))
+        if aggregate:
             evidence["repositories"] = {
                 name: {key: state[key] for key in ("repo_root", "head", "index_entries_sha256")}
                 for name, (state, _) in after_members.items()
@@ -343,7 +356,7 @@ def build_parser() -> argparse.ArgumentParser:
     complete.add_argument("--record-file", required=True)
     complete.add_argument("--receipt", required=True)
     complete.add_argument("--output", required=True)
-    complete.add_argument("--snapshot", help="accepted repository-set snapshot to bind to completion")
+    complete.add_argument("--snapshot", help="accepted snapshot with retained authority lineage to bind to completion")
     complete.add_argument("--tickets-dir", help="repository-relative feature ticket directory")
     return parser
 

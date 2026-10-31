@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>连续分层（通用示例）</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --page: #f3f5f6; --panel: #ffffff; --ink: #17212b; --muted: #5b6874;
+      --line: #c9d1d8; --line-strong: #7d8b98; --neutral-chip: #eef1f3;
+      --blue: #1d5fb8; --blue-bg: #f0f5fc; --blue-chip: #dce8f8;
+      --purple: #7048b0; --purple-bg: #f5f1fb; --purple-chip: #e6ddf5;
+      --green: #2f7d4a; --green-bg: #f1f8f3; --green-chip: #dcefe2;
+      --gold: #8a6a0a; --gold-bg: #fff9e6; --gold-chip: #f4e8b3;
+      --red: #b0405e; --red-bg: #fcf1f4; --red-chip: #f6dbe3;
+      --teal: #0f766e; --teal-bg: #dff2ef; --teal-chip: #dff2ef;
+      --orange: #c2410c; --orange-bg: #fff3eb; --orange-chip: #ffdfc8;
+      --grey: #5b6570; --grey-bg: #eceff2; --grey-chip: #eef1f3;
+      --font-body: "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+      --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    }
+    :root[data-theme="dark"] {
+      color-scheme: dark;
+      --page: #11161b; --panel: #182028; --ink: #e4e9ee; --muted: #97a4b0;
+      --line: #2d3a46; --line-strong: #6b7c8b; --neutral-chip: #1f2931;
+      --blue: #7fb0f0; --blue-bg: #152131; --blue-chip: #1d3350;
+      --purple: #b69af0; --purple-bg: #1f1a2d; --purple-chip: #332850;
+      --green: #72c48f; --green-bg: #16241c; --green-chip: #1f3a29;
+      --gold: #d9bd59; --gold-bg: #28220f; --gold-chip: #433916;
+      --red: #f08aa5; --red-bg: #2a161c; --red-chip: #4a2430;
+      --teal: #5ecfc2; --teal-bg: #133330; --teal-chip: #133330;
+      --orange: #fb923c; --orange-bg: #2b1c12; --orange-chip: #4a2b18;
+      --grey: #a7b1bc; --grey-bg: #1d2329; --grey-chip: #1f2931;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 24px 16px 32px; background: var(--page); color: var(--ink); font-family: var(--font-body); }
+    .arch-document { max-width: 1400px; margin: 0 auto; }
+    h1 { margin: 0 0 14px; font-size: 22px; font-weight: 700; line-height: 1.5; }
+    figure { margin: 0 0 40px; }
+    .diagram-scroll { overflow-x: auto; }
+    .architecture { display: block; width: 100%; min-width: 1040px; height: auto; }
+    figcaption { margin-top: 14px; color: var(--muted); font-size: 12px; line-height: 1.8; overflow-wrap: anywhere; }
+    .architecture text { fill: var(--ink); font-family: var(--font-body); font-size: 12px; }
+    .role-business { --role: var(--blue); --role-bg: var(--blue-bg); --role-chip: var(--blue-chip); }
+    .role-orchestration { --role: var(--purple); --role-bg: var(--purple-bg); --role-chip: var(--purple-chip); }
+    .role-contract, .role-governance { --role: var(--green); --role-bg: var(--green-bg); --role-chip: var(--green-chip); }
+    .role-tools { --role: var(--gold); --role-bg: var(--gold-bg); --role-chip: var(--gold-chip); }
+    .role-isolation { --role: var(--red); --role-bg: var(--red-bg); --role-chip: var(--red-chip); }
+    .role-transport { --role: var(--teal); --role-bg: var(--teal-bg); --role-chip: var(--teal-chip); }
+    .role-infrastructure { --role: var(--orange); --role-bg: var(--orange-bg); --role-chip: var(--orange-chip); }
+    .role-neutral { --role: var(--grey); --role-bg: var(--grey-bg); --role-chip: var(--grey-chip); }
+    .architecture .boundary { fill: none; stroke: var(--line-strong); stroke-width: 1.5; stroke-dasharray: 7 5; }
+    .architecture .frame { fill: var(--role-bg); stroke: var(--role); stroke-width: 1.5; rx: 10; }
+    .architecture .card, .architecture .mini { fill: var(--panel); stroke: var(--role, var(--line)); stroke-width: 1; rx: 8; }
+    .architecture .chip, .architecture .pill { fill: var(--role-chip, var(--neutral-chip)); stroke: var(--role, var(--line-strong)); stroke-width: 1; rx: 5; }
+    .architecture .band { fill: var(--teal-bg); stroke: var(--teal); stroke-width: 1.5; rx: 10; }
+    .architecture .step { fill: var(--ink); stroke: none; }
+    .architecture .step-label { fill: var(--page); font-family: var(--font-mono); font-size: 10.5px; font-weight: 700; }
+    .architecture .node-title { font-size: 15px; font-weight: 700; }
+    .architecture .frame-title { fill: var(--role); font-size: 14px; font-weight: 700; }
+    .architecture .mini-title { font-size: 12.5px; font-weight: 700; }
+    .architecture .boundary-title { font-size: 14px; font-weight: 700; }
+    .architecture .band-title { fill: var(--teal); font-size: 13.5px; font-weight: 700; }
+    .architecture .note { fill: var(--muted); font-size: 12px; }
+    .architecture .mono { font-family: var(--font-mono); font-size: 12px; }
+    .architecture .chip-label { font-size: 11.5px; }
+    .k-flow { --edge: var(--blue); --edge-width: 2; }
+    .k-alt { --edge: var(--gold); --edge-width: 2; --edge-dash: 7 4; }
+    .k-event { --edge: var(--teal); --edge-width: 1.8; --edge-dash: 2 4; }
+    .k-plain { --edge: var(--line-strong); --edge-width: 1.6; }
+    .k-cfg { --edge: var(--line-strong); --edge-width: 1.6; --edge-dash: 6 4; }
+    .k-fail { --edge: var(--red); --edge-width: 2; }
+    .architecture .edge { fill: none; stroke: var(--edge, var(--line-strong)); stroke-width: var(--edge-width, 1.6); stroke-dasharray: var(--edge-dash, none); }
+    .architecture .arrowhead { fill: var(--edge, var(--line-strong)); stroke: none; }
+    .architecture .edge-label { fill: var(--edge, var(--muted)); font-size: 11.5px; }
+    .architecture .edge-operation { font-size: 12.5px; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <main class="arch-document">
+    <h1>连续分层（通用示例）</h1>
+    <figure>
+      <div class="diagram-scroll">
+        <svg xmlns="http://www.w3.org/2000/svg" class="architecture" viewBox="0 0 1400 790" role="img" aria-labelledby="sample-title" aria-describedby="sample-description"><title id="sample-title">连续分层（通用示例）</title><desc id="sample-description">R1、R2 是关系索引，不表示执行顺序。配置与存储只接收图中明确画出的依赖；不同列不暗示共享实例。</desc>
+<defs>
+            <marker id="sample-arrow-flow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead k-flow" d="M0,0 L10,5 L0,10 z"/></marker>
+            <marker id="sample-arrow-alt" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead k-alt" d="M0,0 L10,5 L0,10 z"/></marker>
+            <marker id="sample-arrow-event" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead k-event" d="M0,0 L10,5 L0,10 z"/></marker>
+            <marker id="sample-arrow-plain" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead k-plain" d="M0,0 L10,5 L0,10 z"/></marker>
+            <marker id="sample-arrow-cfg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead k-cfg" d="M0,0 L10,5 L0,10 z"/></marker>
+            <marker id="sample-arrow-fail" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead k-fail" d="M0,0 L10,5 L0,10 z"/></marker>
+          </defs>
+<g class="role-business"><rect class="frame" x="40" y="50" width="1320" height="140"/><text class="frame-title" x="60" y="78" >公开能力</text></g>
+<g class="role-orchestration"><rect class="frame" x="40" y="280" width="1320" height="140"/><text class="frame-title" x="60" y="308" >编排与协调</text></g>
+<g class="role-infrastructure"><rect class="frame" x="40" y="510" width="1320" height="140"/><text class="frame-title" x="60" y="538" >公共基础设施</text></g>
+<path id="query-call" class="edge k-flow" d="M370,170 L370,330" marker-end="url(#sample-arrow-flow)"/><text class="edge-label k-flow edge-operation" x="386" y="240" data-edge-label="query-call" text-anchor="start">R1 · 提交查询</text><text class="edge-label k-flow" x="386" y="260" data-edge-label="query-call" text-anchor="start">调用查询编排接口</text>
+<path id="task-call" class="edge k-flow" d="M1030,170 L1030,330" marker-end="url(#sample-arrow-flow)"/><text class="edge-label k-flow edge-operation" x="1046" y="240" data-edge-label="task-call" text-anchor="start">R2 · 提交任务</text><text class="edge-label k-flow" x="1046" y="260" data-edge-label="task-call" text-anchor="start">调用任务编排接口</text>
+<path id="read-config" class="edge k-plain" d="M370,400 L370,560" marker-end="url(#sample-arrow-plain)"/><text class="edge-label k-plain" x="386" y="480" data-edge-label="read-config" text-anchor="start">读取通用配置</text>
+<path id="write-result" class="edge k-plain" d="M1030,400 L1030,560" marker-end="url(#sample-arrow-plain)"/><text class="edge-label k-plain" x="1046" y="480" data-edge-label="write-result" text-anchor="start">写入任务结果</text>
+<g id="query" class="role-business"><rect class="card" x="60" y="100" width="620" height="70"/><text class="node-title" x="78" y="131" >查询入口</text><text class="note" x="78" y="156" >接收查询请求</text></g>
+<g id="submit" class="role-business"><rect class="card" x="720" y="100" width="620" height="70"/><text class="node-title" x="738" y="131" >任务入口</text><text class="note" x="738" y="156" >接收提交请求</text></g>
+<g id="query-runtime" class="role-orchestration"><rect class="card" x="60" y="330" width="620" height="70"/><text class="node-title" x="78" y="361" >查询编排</text><text class="note" x="78" y="386" >组织查询步骤</text></g>
+<g id="task-runtime" class="role-orchestration"><rect class="card" x="720" y="330" width="620" height="70"/><text class="node-title" x="738" y="361" >任务编排</text><text class="note" x="738" y="386" >组织任务步骤</text></g>
+<g id="config" class="role-infrastructure"><rect class="card" x="60" y="560" width="620" height="70"/><text class="node-title" x="78" y="591" >通用配置</text><text class="note" x="78" y="616" >提供查询参数</text></g>
+<g id="storage" class="role-infrastructure"><rect class="card" x="720" y="560" width="620" height="70"/><text class="node-title" x="738" y="591" >结果存储</text><text class="note" x="738" y="616" >保存任务结果</text></g>
+<path id="legend-flow" class="edge k-flow" d="M40,710 L92,710" marker-end="url(#sample-arrow-flow)"/><text class="edge-label k-flow" x="108" y="714" data-legend="true">能力调用</text><path id="legend-plain" class="edge k-plain" d="M40,738 L92,738" marker-end="url(#sample-arrow-plain)"/><text class="edge-label k-plain" x="108" y="742" data-legend="true">组件依赖</text>
+</svg>
+      </div>
+      <figcaption>来源：内置通用示例，不描述真实项目。R1、R2 是关系索引，不表示执行顺序。配置与存储只接收图中明确画出的依赖；不同列不暗示共享实例。</figcaption>
+    </figure>
+  </main>
+</body>
+</html>

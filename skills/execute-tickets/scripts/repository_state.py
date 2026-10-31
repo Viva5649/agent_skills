@@ -106,6 +106,19 @@ def load_snapshot(path: Path, snapshot: dict[str, Any]) -> dict[str, Any]:
         state = review.load_snapshot(member)
         if state.get("kind") == "repository-set" or state["repo_root"] != item["repo_root"]:
             raise review.StateError(f"repository snapshot belongs to a different root: {name}")
+    binding = snapshot.get("review_rebinding")
+    if binding is not None:
+        source_path = Path(binding["source_snapshot"])
+        if review.snapshot_sha256(source_path) != binding.get("source_snapshot_sha256"):
+            raise review.StateError("rebound review source snapshot was modified")
+        source = review.load_snapshot(source_path)
+        if source.get("kind") != "repository-set" or identities(source) != identities(snapshot):
+            raise review.StateError("rebound snapshot changed the repository set")
+        for name in repositories:
+            member = review.load_snapshot(member_path(path, name))
+            expected = {"source_snapshot": str(member_path(source_path, name).resolve()), "source_snapshot_sha256": review.snapshot_sha256(member_path(source_path, name))}
+            if any(member.get("review_rebinding", {}).get(key) != value for key, value in expected.items()):
+                raise review.StateError(f"rebound member has a different review source: {name}")
     return snapshot
 
 
@@ -385,6 +398,7 @@ def stage(args: argparse.Namespace, snapshot: dict[str, Any]) -> dict[str, Any]:
                 review.write_snapshot(
                     Path(repositories[name]["repo_root"]), member_path(accepted_path, name),
                     state, files, [], [], None, [], [], [],
+                    authority_parent=member_path(snapshot_path, name),
                 )
             accepted = write_snapshot(accepted_path, repositories)
             evidence = {
@@ -401,6 +415,36 @@ def stage(args: argparse.Namespace, snapshot: dict[str, Any]) -> dict[str, Any]:
     verify(accepted_path, review.load_snapshot(accepted_path))
     return {"repositories": results, "staging_evidence": str(evidence_path.resolve()),
             "accepted_snapshot": str(accepted_path.resolve())}
+
+
+def rebind(args: argparse.Namespace, snapshot: dict[str, Any]) -> str:
+    baseline_path, source_path, output = Path(args.baseline), Path(args.snapshot), Path(args.output)
+    repositories = identities(snapshot)
+    baseline = review.load_snapshot(baseline_path)
+    if baseline.get("kind") != "repository-set" or identities(baseline) != repositories:
+        raise review.StateError("review rebinding requires the same repository set")
+    check_output(output, repositories)
+    if output.exists():
+        raise review.StateError(f"review snapshot already exists: {output}")
+    resolutions = resolution_paths(args.drift_resolution, baseline_path, repositories)
+    with tempfile.TemporaryDirectory(prefix="execute-tickets-rebind-") as temporary:
+        candidate = Path(temporary) / "snapshot"
+        for name in repositories:
+            review.command_rebind(argparse.Namespace(
+                baseline=str(member_path(baseline_path, name)),
+                snapshot=str(member_path(source_path, name)),
+                output=str(member_path(candidate, name)), drift_resolution=resolutions[name],
+            ))
+        rebound = write_snapshot(candidate, repositories)
+        rebound["review_rebinding"] = {
+            "source_snapshot": str(source_path.resolve()),
+            "source_snapshot_sha256": review.snapshot_sha256(source_path),
+        }
+        (candidate / "snapshot.json").write_text(json.dumps(rebound, indent=2) + "\n", encoding="utf-8")
+        output.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(candidate, output)
+    return str(output / "snapshot.json")
+
 
 def dispatch(args: argparse.Namespace) -> tuple[bool, Any]:
     declared = getattr(args, "repository", [])
@@ -434,6 +478,8 @@ def dispatch(args: argparse.Namespace) -> tuple[bool, Any]:
         return True, "review snapshot still matches every registered repository"
     if args.command == "stage":
         return True, stage(args, snapshot)
+    if args.command == "rebind":
+        return True, rebind(args, snapshot)
     if args.command == "drift":
         check_output(Path(args.output), repositories)
         report = make_drift_report(Path(args.baseline), snapshot, args.drift_resolution)

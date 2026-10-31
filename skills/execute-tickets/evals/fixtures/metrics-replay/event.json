@@ -1,0 +1,10 @@
+{
+  "kind": "ticket_scope",
+  "ticket": "03",
+  "phase": "scope_accepted",
+  "reason": "declared_contract",
+  "result": "pass",
+  "scope_paths": ["tests/RuntimeTest.kt", "src/Runtime.kt"],
+  "state_owners": ["RuntimeController", "ConnectionOwner"],
+  "duration_ms": 1250
+}

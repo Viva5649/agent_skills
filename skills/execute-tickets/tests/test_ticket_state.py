@@ -136,16 +136,54 @@ class TicketStateTest(unittest.TestCase):
         self.assertTrue(completed.endswith(self.record.read_text(encoding="utf-8")))
         self.assertEqual("done", self.tool("show").stdout.strip())
 
+    def test_completion_retains_repaired_authority_for_the_next_ticket(self) -> None:
+        self.write_ticket("ready-for-agent")
+        with (self.repo / ".git/info/exclude").open("a") as destination:
+            destination.write("\n.spec/\n")
+        pre, repair = (Path(self.temp.name) / name for name in ("pre", "repair"))
+        run(sys.executable, str(REVIEW_SCRIPT), "capture", "--output", str(pre),
+            "--receipt", self.receipt.relative_to(self.repo).as_posix(), cwd=self.repo)
+        added = self.ticket.with_name("02-added.md")
+        added.write_text("**Status:** ready-for-agent\n", encoding="utf-8")
+        paths = [path.relative_to(self.repo).as_posix() for path in (self.spec, self.ticket, self.receipt, added)]
+        flags = [value for path in paths for value in ("--authority-path", path)]
+        run(sys.executable, str(REVIEW_SCRIPT), "capture", "--output", str(repair),
+            "--baseline", str(pre), *flags, "--authority-transition-path",
+            added.relative_to(self.repo).as_posix(), cwd=self.repo)
+
+        self.assertEqual("done", self.tool("complete", "--snapshot", str(repair)).stdout.strip())
+        handoff = self.output / "handoff"
+        state = json.loads((handoff / "snapshot.json").read_text(encoding="utf-8"))
+        self.assertIn(added.relative_to(self.repo).as_posix(), [entry["path"] for entry in state["authority"]])
+        self.ticket = added
+        self.output = Path(self.temp.name) / "added-completion"
+        self.assertEqual("done", self.tool("complete", "--snapshot", str(handoff)).stdout.strip())
+        self.assertEqual("done", self.tool("complete", "--snapshot", str(handoff)).stdout.strip())
+
+    def test_completion_rejects_added_authority_without_a_transition(self) -> None:
+        self.write_ticket("ready-for-agent")
+        added = self.ticket.with_name("02-added.md")
+        added.write_text("**Status:** ready-for-agent\n", encoding="utf-8")
+        snapshot = Path(self.temp.name) / "unproved"
+        run(sys.executable, str(REVIEW_SCRIPT), "capture", "--output", str(snapshot),
+            "--receipt", self.receipt.relative_to(self.repo).as_posix(),
+            "--authority-path", added.relative_to(self.repo).as_posix(), cwd=self.repo)
+        self.ticket = added
+        result = self.tool("complete", "--snapshot", str(snapshot), check=False)
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("does not start with the receipt's authority set", result.stderr)
+        self.assertIn("ready-for-agent", added.read_text(encoding="utf-8"))
+
     def test_completion_binds_every_repository_and_rejects_child_drift(self) -> None:
         self.write_ticket("ready-for-agent")
-        other = Path(self.temp.name) / "MLLM"
+        other = Path(self.temp.name) / "library"
         run("git", "clone", "--quiet", str(self.repo), str(other), cwd=self.repo)
         pre, candidate, staging = (Path(self.temp.name) / name for name in ("pre", "candidate", "staging"))
         run(
             sys.executable, str(REVIEW_SCRIPT), "capture", "--output", str(pre),
-            "--repository", f"QIFramework={self.repo}", "--repository", f"MLLM={other}",
-            "--scope-path", "QIFramework:app.py", "--scope-path", "MLLM:app.py",
-            "--receipt", "QIFramework:.spec/example/implementation-ticket-admission.json", cwd=self.repo,
+            "--repository", f"service={self.repo}", "--repository", f"library={other}",
+            "--scope-path", "service:app.py", "--scope-path", "library:app.py",
+            "--receipt", "service:.spec/example/implementation-ticket-admission.json", cwd=self.repo,
         )
         for repo in (self.repo, other):
             (repo / "app.py").write_text("print('accepted')\n", encoding="utf-8")
@@ -160,8 +198,8 @@ class TicketStateTest(unittest.TestCase):
         completed = self.tool("complete", "--snapshot", str(accepted), check=False)
         self.assertEqual(0, completed.returncode, completed.stderr)
         evidence = json.loads((self.output / "completion.json").read_text(encoding="utf-8"))
-        self.assertEqual({"QIFramework", "MLLM"}, set(evidence["repositories"]))
-        for name, repo in (("QIFramework", self.repo), ("MLLM", other)):
+        self.assertEqual({"service", "library"}, set(evidence["repositories"]))
+        for name, repo in (("service", self.repo), ("library", other)):
             entries = subprocess.check_output(["git", "ls-files", "--stage", "-z"], cwd=repo)
             self.assertEqual(hashlib.sha256(entries).hexdigest(), evidence["repositories"][name]["index_entries_sha256"])
         verified = run(sys.executable, str(REVIEW_SCRIPT), "verify", "--snapshot", str(self.output / "handoff"), cwd=self.repo, check=False)

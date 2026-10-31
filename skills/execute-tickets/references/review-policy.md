@@ -181,6 +181,12 @@ repair delta; the modified test, fixture, regex, scan, or command cannot approve
 itself. Do not ask for ticket order, scope, test additions, or mechanical
 verification corrections that existing authority uniquely determines.
 
+A pre-existing prerequisite failure can leave a required gate unproved without
+authorizing unrelated feature work. Route an authorized temporary prerequisite
+repair through `working-tree-drift.md`; otherwise report the required missing
+authority or evidence. Backlogging an unrelated defect never turns that gate
+green. Repair authorization alone never includes the repair in delivery scope.
+
 Apply these rules mechanically:
 
 | Classification | Disposition |
@@ -284,7 +290,9 @@ budget or opens discovery. Micro repairs still dispatch zero reviewers.
 
 ## Incremental re-review
 
-Any repository edit invalidates the prior snapshot. Capture a new snapshot, but
+Any assurance-input edit invalidates the prior review. If only harmless protected
+state changed, use `working-tree-drift.md`'s deterministic rebinding with the
+original passing reports and unchanged review budget. Otherwise capture a new snapshot, but
 do not force reviewers to re-audit byte-identical paths. Supply the prior passing
 report and exact prior/current per-path hashes:
 
@@ -310,7 +318,11 @@ The final level has at most three cumulative feature-review rounds:
    exhaustively while treating previously accepted byte-identical ticket-local
    logic as established evidence. They may still report a new P0/P1 anywhere in
    the full patch when necessary to establish an integration or lifecycle
-   boundary. Freeze the finding set when both reports complete.
+   boundary. After both reports, run available `ce-code-review` once under
+   `final-gate.md` and freeze the combined finding set. Its authority-backed
+   blockers make discovery fail even when both integration axes pass; repair
+   and closure cover CE IDs within the same final budget. Per-ticket assurance
+   and later closure rounds do not invoke CE.
 2. One closure review after accepted non-micro repairs are staged, unless the
    single-owner targeted closeout below applies. If all frozen
    findings are closed by verified micro inspection and required final gates

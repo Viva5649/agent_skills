@@ -91,13 +91,20 @@ file.
     acceptance identifier>`, or
   - `None — every authorized deletion is superseded by the authority above.`
 
+If a replacement depends on a later gate, name its gate ID, a document owner
+with the declared write scope, the exact location and the acceptance item
+proving the update. A read-only gate supervisor hands the result to that owner;
+it does not gain write authority. Interim "unverified" wording is not the final
+replacement output.
+
 ## Slice boundary
 
 - Acceptance unit: `<the one bounded result this ticket delivers>`.
 - Changed lifecycle/state/cleanup owners: `<exact owners>`, or
   `None — this ticket changes no lifecycle, state, or cleanup owner.`
-- Independent rejection: `<why no required result can be independently accepted
-  or rejected as a separate green ticket>`.
+- Independent rejection: `<whether required results could be accepted separately;
+  the concrete handoff benefit or reason to keep related steps together; why
+  adjacent tickets cannot merge without losing a required boundary>`.
 - Fresh-context fit: `<why the declared authority, scope, interfaces, ordering
   contract, and verification fit one fresh supervisor context>`.
 - Split trigger: `<evidence discovered before editing that returns this ticket
@@ -114,6 +121,12 @@ file.
 
 If the ticket has no cross-ticket interface, state which existing interface it
 uses and why no new interface is produced.
+
+When error semantics change, list each affected operation's actual return,
+throw, callback, or stream channel, its production encoding/wrapping, and the
+classification visible to the caller. Evidence for one channel does not prove
+another; direct service calls and error-object serialization do not prove RPC
+reply handling or facade classification.
 
 ## Behavior contract
 
@@ -197,7 +210,9 @@ author runs this preflight before candidate publication.
 - Expected baseline result: `<exit code, failure signature, target/path result,
   or runtime prerequisite>`.
 - Observed baseline result: `<exact observed exit code or interaction result and
-  bounded diagnostic signature; if masked by a proven shared prerequisite failure, reference its evidence and the condition for running this check>`.
+  bounded diagnostic signature; facts proved and still unproved, with the earliest
+  ticket/final-gate owner and resumption condition for deferred evidence; if masked
+  by a proven shared prerequisite failure, reference that evidence>`.
 - Counterfactual failure probe: `<reference to applicable execution-integrity/red
   evidence, or cheapest non-mutating probe for a specific remaining gap>`, or
   `Not applicable — <why this check has no separate correctness witness>`.

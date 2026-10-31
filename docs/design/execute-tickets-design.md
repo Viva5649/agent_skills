@@ -63,7 +63,7 @@ tracked unstaged/untracked 内容直接进入当前 ticket candidate；scope 外
 | 不执行 | commit、push、branch 创建、并行 ticket implementation；同一 ticket 内只允许满足独立性条件的 bounded work-package 并行 |
 | 调度方式 | blocker-first frontier，始终一次只运行一个 ticket supervisor |
 | review | micro 为 orchestrator inspection；standard/high-risk 为 fresh Standards + Spec 双轴 review |
-| 兼容性 | bundled scripts 要求 Python 3.10+ |
+| 兼容性 | bundled scripts 要求 Python 3.10+；外部 skill 使用完整名称 `mattpocock-tdd` 和 `mattpocock-code-review`。`tdd` 仍是执行模式名，不作为 skill 别名 |
 | 运行证据 | snapshot、patch、log、review report、checkpoint 放在被 Git 忽略的 `.execute-tickets/<feature>/...` |
 | 完成含义 | feature 已完整 stage 且通过 verification/review/final gate；不等于 committed、pushed、deployed 或 target-runtime verified，除非后者本身是 authority gate 且已被直接观察 |
 
@@ -369,13 +369,14 @@ ticket-scoped checks 已由 supervisor 完成后，supervisor 才能发送 `impl
 
 | 加载时点 | reference | 内容 owner |
 | --- | --- | --- |
-| 新 run snapshot 或 resume validation 前 | `references/run-preflight.md` | required inputs、admission、run-start identity、独立 review-budget ledger 初始化或续用、可选统计，以及 ticket-state command contract |
-| 每个 fresh ticket supervisor 启动前 | `references/supervisor-protocol.md` | cold-start context、status envelope、execution mode 与 assurance lane routing |
+| 新 run snapshot 或 resume validation 前 | `references/run-preflight.md` | required inputs、admission、run-start identity、独立 review-budget ledger 初始化或续用、可选统计、进度与恢复报告，以及 ticket-state command contract |
+| 每个 fresh ticket supervisor 启动前 | `references/supervisor-protocol.md` | cold-start context、implementation sequence、status envelope、execution mode 与 assurance lane routing |
 | scope 外变化可能影响当前 ticket，或下一张 ticket 比较 handoff 时 | `references/working-tree-drift.md` | 影响判断、自动隔离、必要时的 reconciliation、ticket 间交接与性能边界 |
 | 所有 implementation tickets stage 后 | `references/final-gate.md` | feature gate、integration review、final repair 与 completion report |
 
 每个 actor 按当前阶段读取适用章节，在同一 context 内复用未变化的已读内容；截断只补读缺失范围。
-supervisor 先读 `Context boundary`、`Supervisor status protocol`、`Execution mode routing` 与 `Assurance lane routing` 四个既有标题，首次 discovery 才读 review mechanics，closure 只加载 closure 与差异合同。
+supervisor 先读 `Context boundary`、`Ticket implementation sequence`、`Supervisor status protocol`、
+`Execution mode routing` 与 `Assurance lane routing`，首次 discovery 才读 review mechanics，closure 只加载 closure 与差异合同。
 已有的 `review-policy.md`、`review-mechanics.md`、`implementation-delegation.md`、
 `reusable-gates.md`、`review-budget.md` 和 `run-metrics.md` 继续按各自决策点加载。resume 时先加载 run-preflight 合同并验证
 checkpoint，再加载当前恢复阶段的 reference；不能因为预计后面会用到就提前加载 final-gate 或 reviewer 细节。
@@ -386,6 +387,8 @@ checkpoint，再加载当前恢复阶段的 reference；不能因为预计后面
 这个拆分是上下文边界，不改变运行状态机：reference 只移动合同 owner，不能删除 stop condition、
 缩短 assurance budget 或改变 protected staging。`SKILL.md` 保持低于 500 行，portability test 固定验证
 入口中的加载时点和每个阶段合同中的关键不变量。
+入口只交接已验证 receipt、`admission_basis` 与当前票输入；scope、实现、检查、deletion audit 和修复的操作细则
+由 supervisor reference 维护。orchestrator 继续独占 snapshot、index 与 completion，不因文档收拢转移权限。
 
 ## 8. 端到端执行流程
 
@@ -487,12 +490,11 @@ orchestrator 把两个仓库相对目录通过 `--spec-dir`、`--tickets-dir` �
 改名不会使 receipt 失效；block 一旦畸形则整文件退回 authority，ticket 字节永远全部是 authority。
 边界定义只能在两份副本中同时修改，否则一个 skill 会准入另一个拒绝的字节。
 
-receipt 通过 `--receipt` 传入 capture；`review_state.py` 从 receipt 派生 exact authority
-集合——`spec.md`、receipt 本身和每张 ticket——并记录每个路径当前字节的 SHA-256，因此冻结集合永远不会与
-admission 校验的路径集不一致。字节与 receipt 记录哈希的一致性由 run-start 的
-`admission_state.py verify` 保证；capture 之后的任何 authority 漂移由 snapshot `verify`
-与 baseline 连续性检测。snapshot 的承诺比 admission 更强——本次 run 期间不允许任何 authority 字节移动——
-因此它冻结整文件字节，包含 presentation label。
+orchestrator 在 run-start capture 时传入 `--receipt`；`review_state.py` 从 receipt 派生 initial authority 集合，包含 `spec.md`、receipt 本身和每张 ticket，并记录每个路径当前字节的 SHA-256。初始冻结集合与 admission 校验的路径集一致。字节与 receipt 记录哈希的一致性由 run-start 的 `admission_state.py verify` 保证；capture 之后的任何 authority 漂移由 snapshot `verify` 与 baseline 连续性检测。snapshot 冻结包含 presentation label 在内的整文件字节；本次 run 只允许有转换证据的 authority 修订。
+
+后续 capture 从 `--baseline` 或 `--handoff` 继承当前 authority 集合，并以 `authority_parent` 保存父快照路径与 SHA-256。发生已批准的票据增删后，不再通过 `--receipt` 重新引入初始路径。
+
+完成命令沿父快照逐项验证转换、原 receipt 路径集与 receipt 字节，再使用当前集合生成 completion/handoff。缺失或修改的父快照不能由文字说明替代。
 
 因此 authority 输入（receipt、`spec.md` 和每张 ticket）在 Git 中的状态可以是：
 
@@ -542,12 +544,16 @@ checkpoint 证明属于同一 run。checkpoint 丢失时停止，不能从 ticke
 
 `restore` 表示 retained assignment/patch/tool evidence 将其唯一归因为执行侧误改。`reconcile` 先把当前 path 移到 resolution 的 `quarantine/`，
 再从未变化的 index、baseline backup 或上一份 approved resolution 恢复 bytes、kind 和 mode。
-`preserve` 表示该 scope 外变化不影响当前 ticket：path 保留在 working tree，记录为新的 protected state，但不进入 ticket scope、
-`ticket-tracked.patch`、`ticket-untracked.patch` 或 Git index。classified path 再次变化时必须重新报告和分类。
+`preserve` 保留无关变化，也可保留已明确授权的临时前提修复。path 留在 working tree，记录为新的 protected state，不进入 ticket scope、`ticket-tracked.patch`、`ticket-untracked.patch` 或 Git index。保留不等于无影响；classified path 再次变化时必须重新报告和分类。
+
+临时前提修复开始前，orchestrator 在现有运行记录中保存授权、精确路径、修改前内容与 hash、修复负责人和保留或恢复要求。具名 supervisor 只修改获准路径；orchestrator 冻结修复差异与结果内容，经原有 drift/reconcile 保留在 scope 和 index 外。影响编译或验证的补丁必须声明依赖、重跑受影响检查，并按 §14.3 提供具名冻结证据，不得按无害漂移复用旧评审。已有授权不重复询问，也不靠扩大 ticket scope 接纳临时补丁。
+
+现有工具按路径隔离。临时修复与需求差异交织在同一 scope 文件、无法可靠隔离时，orchestrator 在暂存或接受候选前停止，保留全部内容并报告需要决定的交付边界。不能整文件暂存后承诺再撤回临时差异；其他独立工作继续。
 
 report 在分类期间如果变旧，`reconcile` 会在任何恢复动作前拒绝；备份 hash 或 blob path 被篡改时也在 quarantine 前失败。
-如果 reconciliation 发生在 checks 或 review 之后，supervisor 重跑所有能观察该 external path 的 checks；任何 repository edit
-都会使旧 review snapshot 失效，必须按原 assurance lane 重新 capture/review。
+如果 reconciliation 发生在 checks 或 review 之后，supervisor 重跑所有能观察该 external path 的 checks。改变验收或评审输入时，必须按原 assurance lane 重新 capture/review。
+
+已验证 PASS 后，如果每个变化路径都不影响实现、验证、standards、reviewer context、接口和状态 owner，orchestrator 可按 `working-tree-drift.md` 使用 `rebind`。脚本证明候选补丁、scope、authority、HEAD 和 index 未变，将新保护状态与原快照/hash 关联。语义无关性由 orchestrator 记录证据；原报告和预算保留，不伪造新 PASS 或 reviewer round。
 
 ### 9.4.2 run-start、ticket handoff 与成本
 
@@ -570,7 +576,7 @@ orchestrator 机械检查：
 - 无依赖环；
 - `done` ticket 在同一 ticket 文件中有且仅有一个 readable completion record；
 - 当前 ticket 的 cold-start contract 包含 authority、owner、scope、interfaces、behavior、state budget、acceptance、commands/interaction protocols 和 stop conditions；
-- `Slice boundary` 通过 independent-rejection test，一个 semantic epic 即使 exact paths 齐全也会阻塞；
+- `Slice boundary` 给出 independent-rejection 结论与实际交接理由；必要迁移状态、独立 owner 或上下文无法容纳的 semantic epic 即使 exact paths 齐全也会阻塞；
 - lifecycle/concurrency/routing/cross-process ticket 的 ordering table 已由 spec/ADR 确定 actor/thread、state/resource owner、linearization point、failure owner 和 deterministic interleaving；
 - 每个 baseline preflight 都有结果或共享前置失败的证据与恢复条件；只有 completed blocker 的精确 `Produces` 和 immutable completion evidence 可以解释预期 drift；
 - 每个 correctness-critical acceptance 都有 production producer、legal fixture、reachability、完整合法 oracle、direct observation 和 observed or validly reused absence evidence；
@@ -581,6 +587,8 @@ orchestrator 机械检查：
 contract 缺失时 supervisor 不得读代码后替 ticket 发明行为。跨 facade/wire 的 hard ordering 若存在多个合理答案，
 必须先取得 material decision；decision owner 记录唯一答案后，由 execute 通过 authority repair 更新 spec/未完成 ticket。
 TDD、“选一个现有锁”或重新调用 write review 都不能替代 authority。
+supervisor 复用已准入的拆分与相邻合并理由，只有当前证据产生相关变化或矛盾才重判。
+两个部分可以分别测试不等于必须重拆；必要前置证据、迁移状态和独立 owner 仍不能合并消失。
 supervisor 同时复用已准入的职责证据，核对新增等待、计数、cleanup guard/retry 是否保护下层 owner 保证之外的独立业务义务；
 同步等待沿真实调用链检查线程、完成条件、外层预算和超时结果。下层 drain 保证不要求重复上层等待，也不替代独立业务清理。
 有冲突时走已有 authority repair/material decision，不静默删约束或增加保护。
@@ -657,6 +665,11 @@ exact scope 无需 replay，不制造无意义扫描。
 - observation 是否直接测量 value、identity、count、ordering、artifact 或 side effect；
 - absence evidence 是否证明所需测试存在并执行、真实目标被读取、失败能够传播；行为 oracle 则检查实际断言。
 
+数据保真变更还检查实际断言是否能识别相关截断、替换或重排，预期值是否来自输入或独立参考。
+从响应自身生成 expected，再核对正数、形状或有限值，不能证明输入内容保留。
+异步变更同时沿真实调用链核对计算完成、结果送达和调用方终态；真实结果传输失败时，
+既有 owner 必须按合同结算 pending 请求。这个检查不授权新增重试、资源 owner 或不可达 fake 场景。
+
 已有执行完整性证据和相关 red 证据在适用边界未变时直接引用；只有具体缺口才增加最小 non-mutating probe。
 执行完整性证据的复用不减免 baseline 行为/构建检查或实现后检查；只有专门证明执行完整性的预检可以直接引用。
 生产代码变异验证不是默认门禁，只执行有明确 authority 或具体假绿风险依据的声明 probe。
@@ -724,6 +737,9 @@ build、测试、日志和截图只能支持这项观察。真实 runtime、设�
 昂贵构建或真机运行前，执行该 gate 的 supervisor 在既有 verification_trace 中一次核对：当前权威要求的
 最小 target/selector、必需参数与环境来源、结果 writer 实际输出到哪个 artifact、parser 如何判定，以及可消费的
 blocker 证据和用户处置。范围不清或日志路径错误先修复，不默认跑整类/整套测试；契约确需全套时仍全套运行。
+对输入和结果路径，分别按实际 app/writer 与 shell/verifier 身份核对访问能力。
+私有目录写入成功不能证明非 debuggable release 结果可被取回；设备相关启动与取回探测交给最早获准的验证 owner，
+在完整矩阵前完成，保留原 release 配置和必需断言。
 需要 fresh-runtime evidence 的 gate 不能用 blocker PASS 替代。已有 gate 已声明的复用仍遵循原复用协议。
 
 新增或修改验收入口时，要写清由谁证明它能运行，以及什么时候验证：
@@ -761,6 +777,9 @@ cleanup owner，检查的是当前生产可达脚本路径，不新增产品 ins
 只有第 1 步找不到可用物理设备时才以 `evidence_unavailable` 暂停；`offline`、`unauthorized`、仅 emulator 或不满足 ticket 条件都算“没有可用真机”。这不是设备操作授权请求，连接设备后直接重试。
 
 真机首次失败时 supervisor 先保留已有完整日志、退出结果和运行条件，再决定下一次运行。
+
+读取日志、有界诊断、已授权修复和定向复验属于执行工作，不重复请求许可。用户明确要求首败停止时按要求停止；其他情况下，只暂停缺少决定或授权、预算耗尽或不再产生区分性证据的相关步骤。同一未解决问题的预算跨恢复、文件修改和运行目录累计，独立获准工作继续。
+
 每次后续诊断须说明要区分的原因、新增证据及 ticket 声明的次数/时长边界；若未声明，supervisor 在已有权限内
 选择并记录最小有界诊断，不启动“直到通过”的循环。没有新证据的重复失败结束本轮诊断并报告未解决项。
 不同模型来源、配置或环境的成功只证明那组条件，不能替代原路径；一次成功也不能覆盖相同代码/条件下的失败。
@@ -969,10 +988,12 @@ reviewer content inputs。`unstaged.patch`、`status.txt` 和完整 untracked ma
 protected-path summary 与相关 hashes，不能再次读取 `unstaged.patch`，避免把同一
 current-ticket delta 和 scope 外用户内容重复装入 review context。
 
+验证依赖已授权的临时前提补丁时，reviewer 另外接收具名冻结差异、结果内容、授权与依赖说明。orchestrator 将精确路径和 hash 绑定到现有评审输入记录，并在评审前后校验。reviewer 用这些证据判断验证是否依赖补丁，不把补丁当作交付差异，也不因此审阅全部 protected worktree。补丁变化使受影响的评审证据失效。
+
+supervisor 自查与现有 Standards reviewer 都沿调用方、能力接口、Adapter、SDK 检查最终职责和可达类型，包括嵌套结果、callback、错误与类型别名。功能测试或直接 import 扫描通过不能证明边界完整。必要转换必须保留，内部或未发布状态本身不构成例外；明确批准的耦合继续有效，Adapter 内部 SDK 使用合法，不为层数一致增加 facade 或重复 DTO。spec 与架构冲突沿已有 authority 流程处理，无关历史缺陷按现有 finding 分类处理。
+
 reviewer 可以读取 live full files 作为 context，但 finding 只能针对 current ticket delta 或其直接 boundary。
-review 结束后 orchestrator 再次 `verify` snapshot；任何 drift 都使两轴报告一起失效。
-若 drift 来自可归因的授权修复，orchestrator 自动捕获新 snapshot 并重跑受影响 review；
-只有无法归因或无法在新 snapshot 上复现的 drift 才安全停止并请求外部处理。
+review 结束后，orchestrator 先 `verify` snapshot，再记录两轴结论；这次校验失败时，尚未确认的报告失效。影响评审输入的变化按已有权限处理，orchestrator 在新 snapshot 上按原预算重跑受影响 review。记录 PASS 后若仅有无害 protected 变化，orchestrator 按 §9.4.1 保留原报告，通过 `rebind` 更新受保护状态。无法证明变化影响或安全隔离时，orchestrator 保留证据并停止相关操作。
 
 ## 15. finding 分类与收敛
 
@@ -1058,7 +1079,7 @@ discovery 独立冷启动；closure/regression closure 默认复用每个 axis �
 
 ### 15.3 incremental re-review
 
-任何 repository edit 都需要新 snapshot，但 byte-identical paths 不必完整重审：
+改变验收或评审输入时需要新 snapshot，但 byte-identical paths 不必完整重审。仅有无害 protected-state 变化时使用 §9.4.1 的确定性重绑定，不追加 review round：
 
 - production fix：审 changed production paths、boundary 和 affected verification；
 - 非 micro 的 test-only fix：两轴都审测试 delta 和 asserted contract，保留 production hash 不变的结论；micro test-only repair 走 orchestrator inspection；
@@ -1071,7 +1092,7 @@ ticket-scoped check 或 feature final gate 失败只阻止 acceptance，不阻�
 
 1. ticket supervisor 根据 acceptance source 和 expected result 判断失败来自 implementation 还是 verifier；
 2. implementation defect 及 normal owning scope 内的 test、fixture、regex、scan 或 command artifact 由 supervisor 做最小修正，并重跑受影响 gate；
-3. 如果错误 verifier 是当前 ticket 中的字面 verification contract，orchestrator 先以当前 ticket 为唯一 scope 捕获 repair baseline，使 production/test candidate 继续作为 scope 外内容受保护；随后只修改验证文本，以 `--authority-transition-path <current-ticket>` 将该编辑记录为已批准的 authority transition（repair bytes 不新增到 index，`stage` 也会拒绝它），再重新捕获正常的当前 ticket baseline；
+3. 如果错误 verifier 是当前 ticket 中的字面 verification contract，orchestrator 基于当前 `pre` 只修改验证文本，以 `--authority-transition-path <current-ticket>` 记录转换，并以修订快照作为新 baseline。已批准的 process-document 变化独立校验，不进入普通 scope 外漂移判断或 ticket patch；tracked、untracked 和 ignored 状态适用同一规则，生产 scope 和其他保护路径保持不变；
 4. verification-only repair 不得改变 observable behavior、acceptance sources、scope、non-goals、state budget、`Blocked by` 或 completed blocker contract；
 5. 只有修复需要新的 observable semantics、权威来源互相冲突，或需要外部/破坏性权限时才询问用户。
 
@@ -1097,7 +1118,7 @@ affected unfinished-ticket bytes 到 `authority-repair-N/pre`，然后只修改�
 `review_state.py` 通过 authority path-set transition 记录每个 added/removed/changed path，并证明 receipt、
 未列出的 process documents、HEAD、index、accepted implementation、completed tickets/checkpoints 与 protected
 outside-scope state 都没有变化。orchestrator 把 verified transition 追加到 `admission_basis`，只重跑受影响的
-scope/preflight，丢弃旧未接受 snapshot，重新 capture `pre`，让同一 supervisor 从当前 ticket 继续。
+scope/preflight，丢弃旧未接受 snapshot，以修订快照作为 `--handoff` 重新 capture `pre`，让同一 supervisor 从当前 ticket 继续。
 原 run-start receipt 始终不变；execution 既不刷新 admission，也不重新进行 write review。
 
 如果多个 observable behavior、public interface、production owner 或 lifecycle/concurrency/retry/recovery/
@@ -1113,7 +1134,7 @@ assurance 或 staging。生产编辑已经开始时，必须先结束 worker/rev
 
 ## 16. Protected staging
 
-stage 使用的必须是已经通过 assurance 的现有 immutable snapshot，不能重新 capture 一个名字更好看的“final”目录。
+stage 使用已经通过 assurance 的 immutable snapshot，或按 §9.4.1 验证的 protected-state 重绑定快照；不能重新 capture 一个名字更好看的「final」目录。
 
 ### 16.1 前置验证
 
@@ -1144,6 +1165,8 @@ orchestrator 立即在 stage 前执行 `review_state.py verify`，要求 live HE
 
 stage 成功后返回 `staged_paths` 和 accepted-content `index_sha256`，后者进入 completion record。
 
+单仓和多仓均传入 `--output <ticket>/staging`，保留 `staging.json` 与 `staging/accepted`。accepted 快照绑定当前 authority lineage。暂存中断后重用同一命令和输出目录，只接受冻结的暂存前或暂存后状态，不从新 index 猜测基线。
+
 ## 17. Ticket completion protocol
 
 实现 stage 成功并不立即解锁 dependant。orchestrator 还要完成独立的 metadata transition。
@@ -1173,6 +1196,7 @@ python3 <execute-tickets-skill-root>/scripts/ticket_state.py complete \
   --ticket "<tickets-dir>/<ticket>.md" \
   --record-file .execute-tickets/<feature>/<ticket>/completion-record.md \
   --receipt "<spec-dir>/implementation-ticket-admission.json" \
+  --snapshot .execute-tickets/<feature>/<ticket>/staging/accepted \
   --output .execute-tickets/<feature>/<ticket>/completion
 ```
 
@@ -1208,6 +1232,8 @@ integration-review index，cumulative `staged.patch` 与历史报告只作为 on
 evidence paths，并证明 Git index 未变。
 它没有 implementation delta，但仍通过同一条原子 `ticket_state.py complete` 写入 `done` 与 authority transition 证据。
 
+validation-only ticket 将未变化且 scope 为空的 `pre` 作为 `--snapshot`，不制造空实现暂存。
+
 如果 feature 已有明确 owning final gate 的 validation-only ticket，就不再合成第二个 final gate。
 
 ## 19. Final gate 与 feature-level review
@@ -1232,10 +1258,18 @@ evidence paths，并证明 Git index 未变。
    logs 只作为 on-demand paths，reviewer 只读取 checklist 所需的 exact path hunks
    和直接相关报告，不能因为 path 可用就线性通读完整 patch 或所有历史报告；完整
    patch 仍可见，因此不会隐藏 accepted bytes；
-7. 冻结 integration finding set；按 owning ticket/state owner 和 compatible scope 分批串行修复；
+7. final-gate supervisor 在两轴 discovery 出报告后，执行下文规定的可选 `ce-code-review`，再冻结合并的 integration finding set；按 owning ticket/state owner 和 compatible scope 分批串行修复；
 8. 每次 final repair 后只更新 affected index rows，随新 snapshot/gate evidence
    验证并冻结新 SHA-256；旧 index/hash 保留为 discovery evidence；
 9. 非 micro 修复先按 §15.2 完成 owner-batch targeted review；满足下方单 owner 直接收尾条件时由 orchestrator 关闭，否则进入累计 closure；只有原 finding 未关闭或 repair 导致 direct boundary P0/P1 时，允许一次 regression closure。全 micro 已经 inspection 关闭的 findings 直接收尾，不追加 reviewer。
+
+CE review 只在整体验收的 discovery 阶段执行一次，每张 ticket 的检查和双轴 review 保持原流程。找到技能时，final-gate supervisor 读取实际 `SKILL.md`，以 report-only `mode:agent` 调用，评审同一 final snapshot 的累计 `staged.patch`。
+
+final-gate supervisor 用已验证的 snapshot 输入替换 CE 默认的 ref-based scope discovery 和只支持 Git ref 的 scope helper，避免把 scope 外用户编辑带入评审。helper 无法处理 patch 时，supervisor 使用 CE 支持的 `depth:full`，继续执行其余评审和验证阶段。多仓输入逐成员提供 staged patch，不能只审 parent gitlink。
+
+找不到 CE 技能时，supervisor 在既有 final-review evidence 中记录跳过；技能存在但执行失败、receipt 不完整或评审范围错误时，整体验收阻塞。orchestrator 校验 CE receipt 的路径、SHA-256 和 snapshot identity 后，才能记录本轮 discovery 结果或允许修复。两轴 PASS 但 CE 有阻塞 finding 时，本轮仍记 FAIL。
+
+orchestrator 为原 owning ticket 启动 repair supervisor，交接该 ticket、冻结的 finding IDs 和新的 `final-fix-N/pre`，不要求已结束的 ticket supervisor 继续存活。repair supervisor 执行现有 final-fix 批次，受影响门禁按原规则重跑或复用，CE findings 沿用既有 targeted review、closure 和预算收口。closure 和恢复执行不重新开启 CE discovery；最终报告保留 CE 实际结果或跳过原因。
 
 单 owner 直接收尾只省略下一次累计 closure，不能省略初次 integration discovery 或 targeted 双轴审查。
 orchestrator 必须从同一失败 final round 的完整 frozen finding set、之后全部修复与报告确认：所有需修 findings
@@ -1283,6 +1317,8 @@ orchestrator 的 completion 与最终汇总分别说明实现/暂存、验收、
 不新增状态字段或第二套事实副本。`done` 不证明整个 feature 完成；必需项未证明/失败时不能用 `PASS (qualified)`
 覆盖。用户已豁免项标明决定及范围，不自动恢复为 blocker，也不改记为 PASS。摘要更正引用既有权威结果行；
 不能静默篡改 frozen 历史证据。
+
+验证使用未暂存的临时前提补丁时，orchestrator 报告补丁授权、路径/hash 和受影响的 check IDs，分别说明「含补丁的工作区通过」与「不含补丁的交付候选已验证」。合同要求后者而证据不足时，仍记为未证明；允许保留补丁未暂存不构成验收豁免。只有用户明确改变交付边界，补丁才可进入交付。
 
 ## 20. Final-gate evidence reuse
 
@@ -1355,16 +1391,17 @@ device、network、credential、clock、mutable cache、ignored/generated files 
 |  | `drift` | 相对 baseline 或上一份 approved resolution 输出 `clean`、`confirmation_required` 或 `restart_required`，只报告 exact path/category/change/hash，不修改工作树 |
 |  | `reconcile` | 校验 report 未过期和用户逐路径决定后，对 `restore` 先 quarantine 再精确恢复，对 `preserve` 记录新的 protected state；不改变 scope/index |
 |  | `verify` | live Git 与 working-tree state 未偏离 snapshot |
-|  | `stage` | 从 frozen artifacts 构建临时 index，原子 stage ticket-owned 完整 candidate，保留 scope 外用户 work |
+|  | `rebind` | 在已分类的无害保护状态变化后，证明候选和 authority 不变，保存原 review snapshot/hash 关联；不增加审阅事件 |
+|  | `stage` | 从 frozen artifacts 构建临时 index，原子 stage ticket-owned 完整 candidate，保留 scope 外用户 work，并用 `--output` 保存 accepted snapshot 与恢复证据 |
 | [scripts/repository_state.py](../../skills/execute-tickets/scripts/repository_state.py) | 由 `review_state.py` / `ticket_state.py` 调用 | 绑定显式仓库集合及 per-member snapshot，隔离嵌套仓库 ownership，复用单仓保护/恢复/暂存机制；保存 aggregate accepted 和 completion/handoff 证据；部分 stage 失败不回滚、不完成 ticket |
 | [scripts/ticket_state.py](../../skills/execute-tickets/scripts/ticket_state.py) | `show` | 读取唯一 status line |
-|  | `complete` | 单条命令内原子且幂等地执行 `ready-for-agent -> done`、追加 supplied record、按 receipt 派生 authority 证明只有该 ticket 字节变化，并从已有 post-state collection 写出 authority transition 与 handoff 证据；任一证明失败则恢复原字节 |
+|  | `complete` | 从 accepted snapshot 验证当前 authority 集合到原 receipt 的转换链，原子且幂等地执行 `ready-for-agent -> done`、追加 supplied record，证明只有该 ticket 字节变化，并从已有 post-state collection 写出 transition 与 handoff；任一证明失败则恢复原字节 |
 | [scripts/gate_state.py](../../skills/execute-tickets/scripts/gate_state.py) | `capture` | 冻结 exact command + declared indexed input object manifest |
 |  | `compare` | 只有 manifest identity 完全相同时允许复用 prior PASS |
 | [scripts/review_budget.py](../../skills/execute-tickets/scripts/review_budget.py) | `init` | 从已验证执行证据的五字段历史初始化独立 `review-budget.jsonl`；拒绝覆盖和非 canonical feature path，不读取 metrics |
 |  | `validate` / `record` | 派发前校验审查预算；报告验证后追加执行结果；保留 ticket/final/targeted 原有轮次约束 |
 | [scripts/metrics_state.py](../../skills/execute-tickets/scripts/metrics_state.py) | `init` | 初始化独立 `run-metrics.jsonl` 统计日志，保护已有统计数据 |
-|  | `validate` / `record` | 仅校验统计数据格式，或追加观测；不判断审查轮次、执行准入和收尾资格 |
+|  | `validate` / `record` | 将传入事件的 path/owner 列表排序后校验统计格式，或追加观测；不判断审查轮次、执行准入和收尾资格 |
 |  | `summary` | 汇总 operation duration 与不重叠 workflow wall-time spans，不生成质量分；所有统计命令均为 best-effort |
 
 `repository_state.py` 是架在 `review_state.py` 命令层之上的外层装饰器，不是它的对等模块：它按成员仓库构造 `argparse.Namespace`，再进入 `review_state` 的 `command_capture`／`command_verify`／`command_assess`／`command_reconcile`／`prepare_stage`／`replace_index`，所以依赖方向是 `repository_state` → `review_state`。`review_state` 只在两处反向依赖它，且都使用函数内导入以避免模块初始化期成环：`load_snapshot` 对 `kind == "repository-set"` 的数据派发，以及 `main()` 对 repository-set 命令的拦截。
@@ -1401,8 +1438,13 @@ cumulative closure 分别检查前置失败 final review 之后是否完成过 n
 
 metrics 还记录 scope path/state owner、repair class/reason、ticket check、feature gate execution/reuse/invalidated reason 和 duration。
 这些值用于诊断 ticket 粒度与重复成本，永远不能替代 acceptance、assurance 或 gate evidence。
+`scope_paths` 与 `state_owners` 的顺序由 helper 统一规范化，调用方不必预排序。
+重复值、空值、错误类型和非法路径仍拒绝。输入文件保持原样；排序只作用于传入事件，
+已有日志仍按原规则校验，损坏的历史记录不自动修复。
 任何 metrics 缺失、损坏、格式校验、读写或 summary 失败会显式标记 summary 不完整并停止继续追加，但不会阻塞 implementation、review、stage 或
 completion 或 resume；停止可选统计，最终报告缺口，不重试或重建统计，不估算丢失事件。
+报告把耗时缺口与验收结果分开。只有验收证据确已通过，才能说「执行耗时统计不完整，已验证的验收结果不受影响」；
+有未验项目时另行列明，不用统计说明掩盖验收阻塞。
 
 schema v2 保留已有字段与历史记录，只新增上述 `run_phase` 映射并允许 `duration_ms: null` 表示未测量。orchestrator 在核心阶段边界读取机器时钟并计算 elapsed duration；暂停时把已测区间保存在既有 provisional event，恢复时记录 resume，再继续当前阶段计时。最终只追加一次实际结果 event，耗时为活动区间之和，不能用暂停制造重复统计观测。任一区间无法确定时 duration 记 null；可观察的边界必须按 §7.5 实测，并把缺口计入 `phase_timings` 的 `unmeasured_count`，容量调度等待记入 dispatch schedule 证据、不混入执行时长；不能把会话空闲时间或 mtime 差值补进成本。0 仅用于瞬时结果或复用决定；历史非瞬时 0 在 summary 中视为未测量，不改写日志。
 
@@ -1462,6 +1504,11 @@ checkpoint 丢失时 fail closed，不能 reset、stash、吸收或从 prose 推
 resume 不对执行演进后的完整 ticket 集合重新运行 authoring receipt verify；这会把合法 completion
 误判为 drift。只有 retained checkpoint 能授权 run-start 之后的 ticket byte change。
 resume 也不重新初始化 review-budget ledger；新 run-start identity 不会让已经使用或耗尽的 ticket/final phase 消失。
+orchestrator 分别报告实现、验收和交付状态，列出精确未验项、责任 owner 和下一步。
+缺设备只阻塞需要该设备的检查及其依赖，独立工作继续；final-only gate 不被静默前移成每张票的完成条件。
+设备恢复后从尚未完成的动作继续。有效证据按原复用合同保留，输入变化或 freshness 要求使证据失效时才补跑；
+一句「继续」本身不要求全套复跑，也不授权用旧 PASS 覆盖未关闭 FAIL。
+恢复摘要引用已有权威和证据；当前事实文档由既有 owner 在授权范围内核对，不另建一套进度状态。
 
 ### 22.3 外部不可用
 
@@ -1524,13 +1571,14 @@ feature 就卡在两个 skill 之间，因此边界变更必须同时落到两�
 
 ## 24. 测试与 eval 策略
 
-当前目录包含 139 个 Python 单元测试和 75 个 eval 场景。
+当前目录包含 149 个 Python 单元测试和 84 个 eval 场景。
 
 ### 24.1 `review_state.py` 测试
 
 覆盖：
 
 - tracked + new file 的完整 snapshot；
+- 未显式声明 scope 时，暂存推导出的 ticket 文件，保留 scope 外用户文件，并生成可验证、可恢复的 staging evidence；
 - supervisor 修改 index 后拒绝；
 - scope 自动接管既有 tracked unstaged/untracked 内容，并 stage 相对 index 的完整最终 diff；
 - scope 外 frozen 或 classified protected tracked/untracked 内容不进入 ticket delta/index；
@@ -1551,7 +1599,7 @@ feature 就卡在两个 skill 之间，因此边界变更必须同时落到两�
 
 覆盖 ready-to-done、同 record 幂等、不同/missing/malformed/duplicate record 拒绝、
 非法 status、多个 status、untracked ticket、布局外路径、authority transition 证据与 index 不变证明，
-以及 receipt 派生 authority 中缺少该 ticket 时的拒绝；completion evidence 还验证 post-state handoff snapshot/hash。
+以及拒绝没有转换证明的新增 ticket；completion evidence 还验证当前 authority lineage、合法新增票的连续交接与 post-state handoff snapshot/hash。
 
 ### 24.3 `gate_state.py` 测试
 
@@ -1563,6 +1611,7 @@ ignored untracked 不进入 manifest、tampered prior hash，以及 output 必�
 
 `test_metrics_state.py` 覆盖统计路径、strict schema、追加和汇总；重复审查观测能够记录，
 不能据此批准或拒绝执行；统计始终输出 `quality_proxy: false`。
+测试还覆盖乱序输入按规范顺序记录、输入与既有日志字节保留、非法列表拒绝，以及损坏历史不能借输入排序被修复。
 `test_review_budget.py` 独立覆盖 ticket/final/targeted 次序与轮次上限、micro 后不再派 reviewer、
 后续 micro 不抹去历史已审大修，以及从已验证历史恢复预算。
 隔离回归制造缺失、损坏、无法写入的统计文件，及完全没有 metrics 脚本的运行包：
@@ -1598,6 +1647,14 @@ working-tree drift 场景覆盖：与 ticket 无关的 scope 外变化不调查�
 execution authority repair、保留 run-start receipt、记录 path/hash transition 并 same-ticket resume；若 mapping
 failure semantics 本身不明确，则先取得 material decision，再由 execute 更新 spec/affected unfinished tickets，
 仍不进入 write review。
+
+三组原始回放输入补充决策提示：`release-replay/` 提供恢复 checkpoint、release 配置与实际 writer；
+`boundary-review/` 提供原文保真及回调失败合同和有缺陷的代码摘录；`metrics-replay/` 提供可直接送入 CLI 的乱序事件。
+旧版与候选版分别消费同一输入，不读取评分要求或对方输出。检查恢复是否保留有效证据、结果访问是否先于昂贵矩阵修复、
+断言与终态缺陷是否被识别，以及统计是否按实际 CLI 结果报告。fixture 的给定设备事实不替代真实验收，
+少量回放也不代表完整工作流或所有模型的表现。
+
+补充决策案例覆盖：已授权临时前提补丁的冻结、审阅与暂存隔离；同一文件混合差异的暂存前停止；预算内自主诊断与显式首败停止；已知多个阻塞先定向修复、再完整验收；嵌套 callback 或类型别名泄漏 SDK 时保留必要转换，并单独处理无关历史缺陷。案例检验处置结果，不以新增规则是否出现某个关键词代替行为验证。
 
 ### 24.6 `admission_state.py` 测试
 
@@ -1726,7 +1783,7 @@ review finding 分类和 repair。代价是需要 work-package admission、exact
 31. 首张 ticket 必须以 `run-start` 为 handoff；completion handoff 必须复用转换证明已有的 post-state collection；后续 ticket 的 clean handoff comparison 与 `pre` capture 共用一次 collection，不引入额外 repository scan。
 32. admitted ticket 顺序、下一张唯一 frontier、authority-backed verifier repair、不影响当前 ticket 的 scope 外变化和行为不变的 execution authority repair 都不得升级为用户授权点；只有 material decision 才提问。
 33. 每条 permitted discovery 必须在 blocker 完成后重放并得到 `0 undisposed paths`；任何新 write path 要么由 bounded rule 纳入 exact scope，要么在编辑前阻塞并进入 execution authority repair 或 material decision。
-34. `SKILL.md` 与每个 reference 只写仓库中立的协议规则。宿主仓库特有的约定属于宿主仓库自己的 instructions；协议层要么写成由 ticket 或 authority 自己声明的通用条件式，要么不写。portability test 固定验证协议层不出现以宿主仓库为限定语的条款。
+34. `SKILL.md` 与每个 reference 只写仓库中立的协议规则。宿主仓库特有的约定属于宿主仓库自己的 instructions；协议层要么写成由 ticket 或 authority 自己声明的通用条件式，要么不写。portability test 固定验证协议层不出现以宿主仓库为限定语的条款。包内示例、测试和 eval 使用虚构的仓库、模块、设备标识与示例地址，不保留具体工作项目名称或真实环境标识。
 
 ## 28. 主要源码索引
 

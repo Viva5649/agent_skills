@@ -132,7 +132,7 @@ creating its `pre` snapshot. Every later ticket uses the prior ticket's
 receipt: `spec.md`, the receipt itself, and every recorded ticket path. The
 check records each path's SHA-256 and rejects a missing or unreadable authority
 file, and the derived set can never disagree with what admission verified. It
-does not require Git to track these process documents. Carry the same authority set
+does not require Git to track these process documents. Carry the current authority set
 through every later capture so any unapproved authority edit is detected as
 drift. `staged.patch` may be empty or contain any documentation, code,
 configuration, or spec content that the user staged
@@ -144,7 +144,7 @@ restoration is retained in `backups.json` and content-addressed `blobs/`.
 Pre-existing untracked files are recorded in `untracked.json`; a `.gitignore`-excluded process document appears in neither
 manifest and is governed only by its recorded authority hash. When
 resuming, use the retained temporary checkpoint to account for the exact staged
-accepted-ticket output, and keep the same receipt-derived authority check.
+accepted-ticket output, and verify the current authority set through its retained lineage to the unchanged run-start receipt.
 
 After a new run-start capture succeeds, initialize or recover the independent
 `.execute-tickets/<feature>/review-budget.jsonl` under `references/review-budget.md`.
@@ -197,6 +197,7 @@ python3 <execute-tickets-skill-root>/scripts/ticket_state.py complete \
   --ticket "<tickets-dir>/<ticket>.md" \
   --record-file .execute-tickets/<feature>/<ticket>/completion-record.md \
   --receipt "<spec-dir>/implementation-ticket-admission.json" \
+  --snapshot .execute-tickets/<feature>/<ticket>/staging/accepted \
   --output .execute-tickets/<feature>/<ticket>/completion
 ```
 
@@ -204,4 +205,29 @@ Require exact output `done`. Any invalid transition, malformed status field, or
 path outside the bundled layout stops completion. The tool never requires the
 ticket to be tracked by Git.
 
+For validation-only work, pass the unchanged empty-scope `pre` as `--snapshot`
+instead. Completion uses its verified authority lineage, not the original
+receipt path list, so checkpointed additions and removals survive the handoff.
+
 These records are orchestration metadata, not production output. Do not modify them between a ticket's pre snapshot and successful staging because that would change the frozen ticket boundary. Keep interim review results in the ignored run-artifact tree and update the records after the ticket is staged. The completion transition retains `completion/handoff/` from its existing post-state collection; combine that comparison with the next ticket's `pre` capture under `references/working-tree-drift.md`. An unchanged handoff adds no repository scan. Ordinary changed paths use that contract's conservative automatic classification and are never silently absorbed into the next ticket.
+
+## Progress and resume reports
+
+At a pause, resume or completion, distinguish implementation, acceptance and
+delivery using existing checkpoints and result entries. Name the exact unproved
+item, its owner and next action. Missing hardware blocks the checks requiring it
+and their declared dependants; continue independent authorized work without
+marking an unmet prerequisite done. When a check belongs only to the feature
+final gate, do not make it an additional ticket-completion prerequisite.
+
+On resume, validate retained checkpoints and evidence identities first. Continue
+from the unfinished action; do not repeat accepted scope/review/checks solely
+because the conversation resumed. Relevant changes invalidate the affected
+evidence; required fresh-runtime gates and `reusable-gates.md` still govern
+runtime results. Restored hardware does not revive an old FAIL or prove a new
+candidate. Report a timing gap separately from missing acceptance evidence.
+
+Existing handoff summaries should link to authoritative result entries rather
+than duplicate mutable progress. Correct stale summaries only within authorized
+document scope; never rewrite frozen authority or historical completion records
+to make them look current. This adds no status schema or progress ledger.
