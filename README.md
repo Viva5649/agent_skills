@@ -5,7 +5,7 @@
 本文档记录本机（macOS）当前的 skill 全貌，分三层：仓库自建、全局安装、项目级。全局安装的 skill 由 [`skillctl`](#六用-skillctl-管理全局-skill) 按仓库根目录的 `skills.json` 安装，来源仓库以它为准。
 
 - 自建 skill：16 个（`skills/`）
-- 全局安装：71 个（`~/.agents/skills/`，`~/.claude/skills/` 下是指向它的软链接）
+- 全局安装：70 个（`~/.agents/skills/`，`~/.claude/skills/` 下是指向它的软链接）
 - 项目级：6 个（`personal_ai_infrastructure/.claude/skills/`）
 - 外部聚合：7 个仓库，共 200 个 skill（`third_party/`）
 
@@ -18,7 +18,7 @@
 | `audit-docs-landscape` | 仓库级文档全景审计。找出文档缺口、导航与可发现性问题，梳理新人阅读路径；单篇文档的可读性交给 `optimize-docs-readability` | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
 | `clarify-life-direction` | 人生方向澄清。回溯经历、澄清愿景、定义反愿景、倒推路径，把「不知道自己想要什么」变成可执行方向 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
 | `clarify-thought` | 命题分解与决策澄清。维特根斯坦 + 苏格拉底 + 波兰尼三层架构，把模糊想法拆成精准指令或清晰决策 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills)（原作者 riiiku） | ✅ |
-| `create-blueprint` | 生成工程蓝图风格技术图表，支持箭头、连线、关系标注，用于架构图与流程图 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
+| `create-blueprint` | 生成工程蓝图风格技术图表，支持箭头、连线、关系标注，用于架构图与流程图 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ❌ |
 | `create-system-diagram` | 创建、更新和检查 HTML/SVG 系统图，覆盖架构分层、模块职责、局部流程与数据流，使用固定配色和布局规范 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ❌ |
 | `creator-signal-digest` | 创作者信号雷达周报。扫描中文圈/英语圈 AI 创作者账号，筛选 AI 实操与副业信号 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ❌ |
 | `deep-research-with-verification` | 带独立事实核查的深度研究。完整复用 `hv-analysis` 的研究流程，初稿后追加独立核查与修复，以 Markdown 交付 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
@@ -103,7 +103,6 @@
 | `apple-design` | Apple 式界面设计与流体动效的 Web 实现，手势、弹簧动画、材质层次、排版与减弱动效 | [emilkowalski/skills](https://github.com/emilkowalski/skills) | ❌ |
 | `emil-design-eng` | Emil Kowalski 的 UI 打磨理念，组件设计、动画取舍与让软件手感更好的细节 | [emilkowalski/skills](https://github.com/emilkowalski/skills) | ❌ |
 | `show-me` | 把当前话题讲成图。按内容挑最小够用的形式，伪代码、diff 草图、mermaid 或单页 HTML | [humanlayer/skills](https://github.com/humanlayer/skills) | ❌ |
-| `create-blueprint` | 工程蓝图风格技术图表 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | 本仓库 |
 | `publish-site` | Vantage 站点报告发布 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | 本仓库 |
 | `optimize-docs-readability` | 长文可读性优化 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | 本仓库 |
 
@@ -323,7 +322,7 @@ personal_ai_infrastructure 仓库的 `run-maintenance` 每天也会调一次校�
 
 add 一个清单里还没有的仓库时，取默认分支的最新提交并记下来。同一仓库已经有 skill 在用时，沿用记录的提交，免得顺带升级已装的那些；想装最新的，先运行 `skillctl update owner/repo`。
 
-本仓库（agent_skills）例外：它同时放着清单，每次提交清单都会产生新提交。所以 check 和 update 对它只看在用的 skill 目录有没有变化，只改了清单或 README 的提交既不提示更新，也不改记录的版本。
+本仓库（agent_skills）例外：它同时放着清单，每次提交清单都会产生新提交。所以 check 和 update 对它只看 skill 目录有没有变化：新增、删除、修改任何一个 skill（包括没安装的）都会推进记录的版本，这样之后 add 装到的是最新的；只改了清单、README 或文档的提交既不提示更新，也不改记录的版本。
 
 ### 命名规则
 

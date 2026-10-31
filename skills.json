@@ -156,8 +156,8 @@
     },
     "Viva5649/agent_skills:skills/create-blueprint": {
       "name": "create-blueprint",
-      "state": "present",
-      "updated_at": "2026-09-28T23:33:06+08:00"
+      "state": "removed",
+      "updated_at": "2026-10-31T16:46:12+08:00"
     },
     "Viva5649/agent_skills:skills/deep-research-with-verification": {
       "name": "deep-research-with-verification",

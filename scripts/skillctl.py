@@ -501,7 +501,7 @@ def self_repo(manifest):
     """返回清单里和工作 clone 是同一个仓库的键，没有则返回 None。
 
     这个仓库既放 skill 也放清单，每次提交清单都会让它出现新提交，
-    所以只看在用的 skill 目录有没有变化，不看提交号。
+    所以只看 skill 目录有没有变化，不看提交号。
     """
     if git_dir() is None:
         return None
@@ -518,11 +518,36 @@ def paths_in_use(manifest, repo):
 
 
 def skills_changed(d, old, new, paths):
-    """old 到 new 之间 paths 下有没有文件变化；在用整个仓库或无法比较时返回 None。"""
-    if "." in paths:
+    """old 到 new 之间 paths 下有没有文件变化；paths 含整个仓库或无法比较时返回 None。"""
+    if paths is None or "." in paths:
         return None
-    r = git(["diff", "--quiet", old, new, "--"] + paths, cwd=d, check=False)
+    if not paths:
+        return False
+    r = git(["diff", "--quiet", old, new, "--"] + list(paths), cwd=d, check=False)
     return {0: False, 1: True}.get(r.returncode)
+
+
+def skill_paths_at(d, commit):
+    """提交里所有含 SKILL.md 的目录，仓库根目录记为 .；读不到提交时返回 None。"""
+    out = git(["ls-tree", "-r", "--name-only", commit], cwd=d, check=False)
+    if out.returncode != 0:
+        return None
+    files = out.stdout.splitlines()
+    paths = set()
+    for f in files:
+        if f == "SKILL.md":
+            paths.add(".")
+        elif f.endswith("/SKILL.md"):
+            paths.add(f[: -len("/SKILL.md")])
+    return paths
+
+
+def skill_dirs(d, old, new):
+    """返回 (两个提交里所有 skill 目录的并集, 新增的, 删除的)；读不到提交时并集为 None。"""
+    old_paths, new_paths = skill_paths_at(d, old), skill_paths_at(d, new)
+    if old_paths is None or new_paths is None:
+        return None, [], []
+    return sorted(old_paths | new_paths), sorted(new_paths - old_paths), sorted(old_paths - new_paths)
 
 
 def prepare_repo(manifest, repo, report):
@@ -1241,9 +1266,18 @@ def cmd_update(args):
                 say(f"    {f}")
             if len(files) > 10:
                 say(f"    ... and {len(files) - 10} more")
-        if repo == own and skills_changed(rdir, old, new, paths_in_use(manifest, repo)) is False:
-            say(f"  no skill in use changed, keeping {old[:7]}")
-            continue
+        if repo == own:
+            # 任何 skill 目录有变化都推进版本，add 才能装到最新的；只改清单、README、文档不推进
+            dirs, added, removed = skill_dirs(rdir, old, new)
+            if skills_changed(rdir, old, new, dirs) is False:
+                say(f"  no skill changed, keeping {old[:7]}")
+                continue
+            in_use = paths_in_use(manifest, repo)
+            for path in added:
+                say(f"  new skill upstream: {path}; add it with skillctl add {repo} --skill {path}")
+            for path in removed:
+                if path not in in_use:
+                    say(f"  deleted upstream: {path}")
         try:
             checkout(rdir, new)
         except SkillctlError as e:
@@ -1452,10 +1486,13 @@ def check_issues():
         if (rdir / ".git").exists() and head(rdir) != pin:
             issues.append(f"{repo}: repo copy is not at the pinned version; run skillctl sync")
         if repo == own and up:
-            changed = skills_changed(WORK, pin, up, paths_in_use(manifest, repo))
+            changed = skills_changed(WORK, pin, up, skill_dirs(WORK, pin, up)[0])
             if changed is not None:
-                if changed:
+                if skills_changed(WORK, pin, up, paths_in_use(manifest, repo)):
                     issues.append(f"{repo}: skills in use changed upstream; run skillctl update {repo} to upgrade")
+                elif changed:
+                    issues.append(f"{repo}: skills not in use changed upstream; run skillctl update {repo} "
+                                  "so that add installs the latest")
                 continue
         remote = remotes[repo][0]
         if remote.returncode != 0 or not remote.stdout.strip():

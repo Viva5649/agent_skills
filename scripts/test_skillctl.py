@@ -598,7 +598,7 @@ class SelfRepoTest(Base):
         self.assertNotEqual(pin, self.env.tip("me/agent_skills"))
         self.check_clean(self.m)
         out = self.ok(self.m, "update", "me/agent_skills")
-        self.assertIn("no skill in use changed", out)
+        self.assertIn("no skill changed", out)
         self.assertEqual(self.m.pin("me/agent_skills"), pin)
         self.assertEqual(git(["status", "--porcelain"], self.m.work), "")
 
@@ -610,6 +610,60 @@ class SelfRepoTest(Base):
         self.ok(self.m, "update", "me/agent_skills")
         self.assertEqual(self.m.pin("me/agent_skills"), self.env.tip("me/agent_skills"))
         self.assertIn("v2", (self.m.agents / "own" / "SKILL.md").read_text())
+
+    def test_skill_additions_and_deletions_advance_pin(self):
+        """只增删 skill、没改在用 skill 的提交，update 也要换 pin，add 才能看到新 skill。"""
+        for name in ("own", "gone"):
+            p = self.m.work / "skills" / name / "SKILL.md"
+            p.parent.mkdir(parents=True)
+            p.write_text(skill_md(name))
+        git(["add", "skills"], self.m.work)
+        git(["commit", "-q", "-m", "add skills"], self.m.work)
+        git(["push", "-q"], self.m.work)
+        self.ok(self.m, "add", "me/agent_skills", "--skill", "own")
+        self.m.publish("install own")
+        pin = self.m.pin("me/agent_skills")
+
+        shutil.rmtree(str(self.m.work / "skills" / "gone"))
+        extra = self.m.work / "skills" / "extra" / "SKILL.md"
+        extra.parent.mkdir(parents=True)
+        extra.write_text(skill_md("extra"))
+        git(["add", "-A", "skills"], self.m.work)
+        git(["commit", "-q", "-m", "add extra, drop gone"], self.m.work)
+        git(["push", "-q"], self.m.work)
+
+        rc, out = self.m.run("check")
+        self.assertIn("me/agent_skills: skills not in use changed upstream", out)
+        out = self.ok(self.m, "update", "me/agent_skills")
+        self.assertIn("new skill upstream: skills/extra", out)
+        self.assertIn("deleted upstream: skills/gone", out)
+        self.assertNotEqual(self.m.pin("me/agent_skills"), pin)
+        self.assertEqual(self.m.pin("me/agent_skills"), self.env.tip("me/agent_skills"))
+        self.ok(self.m, "add", "me/agent_skills", "--skill", "extra")
+        self.assertEqual(self.m.skill_name("extra"), "extra")
+
+    def test_edit_to_unused_skill_advances_pin(self):
+        """只改了没安装的自建 skill，update 也要换 pin，之后 add 装到的是新版本。"""
+        for name in ("own", "idle"):
+            p = self.m.work / "skills" / name / "SKILL.md"
+            p.parent.mkdir(parents=True)
+            p.write_text(skill_md(name))
+        git(["add", "skills"], self.m.work)
+        git(["commit", "-q", "-m", "add skills"], self.m.work)
+        git(["push", "-q"], self.m.work)
+        self.ok(self.m, "add", "me/agent_skills", "--skill", "own")
+        self.m.publish("install own")
+        pin = self.m.pin("me/agent_skills")
+
+        (self.m.work / "skills" / "idle" / "SKILL.md").write_text(skill_md("idle", "v2"))
+        git(["commit", "-q", "-am", "edit idle"], self.m.work)
+        git(["push", "-q"], self.m.work)
+        rc, out = self.m.run("check")
+        self.assertIn("me/agent_skills: skills not in use changed upstream", out)
+        self.ok(self.m, "update", "me/agent_skills")
+        self.assertNotEqual(self.m.pin("me/agent_skills"), pin)
+        self.ok(self.m, "add", "me/agent_skills", "--skill", "idle")
+        self.assertIn("v2", (self.m.agents / "idle" / "SKILL.md").read_text())
 
 
 
