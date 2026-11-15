@@ -4,8 +4,8 @@
 
 本文档记录本机（macOS）当前的 skill 全貌，分三层：仓库自建、全局安装、项目级。全局安装的 skill 由 [`skillctl`](#六用-skillctl-管理全局-skill) 按仓库根目录的 `skills.json` 安装，来源仓库以它为准。
 
-- 自建 skill：16 个（`skills/`）
-- 全局安装：72 个（`~/.agents/skills/`，`~/.claude/skills/` 下是指向它的软链接）
+- 自建 skill：17 个（`skills/`）
+- 全局安装：73 个（`~/.agents/skills/`，`~/.claude/skills/` 下是指向它的软链接）
 - 项目级：6 个（`personal_ai_infrastructure/.claude/skills/`）
 - 外部聚合：7 个仓库，共 200 个 skill（`third_party/`）
 
@@ -30,6 +30,7 @@
 | `send-email` | 通过 SMTP 发送邮件，支持 Markdown 转 HTML、附件、多收件人与 CC/BCC | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
 | `write-implementation-tickets` | 把仓库里的规格拆成 agent 能独立执行的实现 ticket，写明边界、验证方式和依赖 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
 | `write-okr` | 把工作方向、技术规划或草稿整理成简洁、可验收的 OKR，区分交付承诺、探索验证和采用门槛 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
+| `write-technical-proposal` | 撰写、打磨和重组用于评审的技术方案，兼顾 PM、PD、评测和技术读者，需求较大时划分总览与专题并指导后续实施 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ❌ |
 | `write-work-summary` | 撰写、改写或审阅季度与阶段工作总结，把零散记录整理成主题成果并与已有 OKR 对应，保留性能数据和文档链接 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
 
 > `clarify-thought` 迁移自独立仓库 `Viva5649/clarify-skill`，原作者 riiiku（MIT，署名保留在 `skills/clarify-thought/LICENSE`）。
@@ -104,6 +105,7 @@
 | `apple-design` | Apple 式界面设计与流体动效的 Web 实现，手势、弹簧动画、材质层次、排版与减弱动效 | [emilkowalski/skills](https://github.com/emilkowalski/skills) | ❌ |
 | `emil-design-eng` | Emil Kowalski 的 UI 打磨理念，组件设计、动画取舍与让软件手感更好的细节 | [emilkowalski/skills](https://github.com/emilkowalski/skills) | ❌ |
 | `show-me` | 把当前话题讲成图。按内容挑最小够用的形式，伪代码、diff 草图、mermaid 或单页 HTML | [humanlayer/skills](https://github.com/humanlayer/skills) | ❌ |
+| `answer-me-with-html` | 把回答转成一页可视化 HTML 讲解，适合解释原理、对比、排障与步骤。模型写 Markdown 草稿，自带 CLI 生成页面 | [qingyuna/answer-me-with-html](https://github.com/qingyuna/answer-me-with-html) | ❌ |
 | `publish-site` | Vantage 站点报告发布 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | 本仓库 |
 | `optimize-docs-readability` | 长文可读性优化 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | 本仓库 |
 | `write-work-summary` | 撰写、改写或审阅季度与阶段工作总结，把零散记录整理成主题成果并与已有 OKR 对应 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | 本仓库 |
@@ -225,6 +227,7 @@
 | [Fenng/Tech-Doc-Style-Chinese](https://github.com/Fenng/Tech-Doc-Style-Chinese) | `tech-doc-style-chinese` |
 | [alchaincyf/huashu-art-motion](https://github.com/alchaincyf/huashu-art-motion) | `huashu-art-motion` |
 | [morluto/rea](https://github.com/morluto/rea) | `reverse-engineer-anything` |
+| [qingyuna/answer-me-with-html](https://github.com/qingyuna/answer-me-with-html) | `answer-me-with-html` |
 
 ### 拉取与更新
 

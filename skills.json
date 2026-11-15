@@ -17,8 +17,8 @@
       "updated_at": "2026-10-31T14:53:18+08:00"
     },
     "Viva5649/agent_skills": {
-      "commit": "46fdf3a42eafcdb7f707aaec3fc7b9b2287e3a1f",
-      "updated_at": "2026-10-31T22:00:55+08:00"
+      "commit": "4e241e5072d2115b5cdaefd3bbcd7068ed555999",
+      "updated_at": "2026-11-15T12:11:21+08:00"
     },
     "ailabs-393/ai-labs-claude-skills": {
       "commit": "1a12bc7aadcc7b211f77a7455db454b77a71f827",
@@ -79,6 +79,10 @@
     "op7418/guizang-ppt-skill": {
       "commit": "93d21bf4a73a851907a6eb00acbf30618236667a",
       "updated_at": "2026-10-31T14:53:39+08:00"
+    },
+    "qingyuna/answer-me-with-html": {
+      "commit": "edccab07c012e2141585f8ddb18a62e01664fa2b",
+      "updated_at": "2026-11-13T22:22:14+08:00"
     },
     "smallnest/goal-workflow": {
       "commit": "b06ab3c1c147dcf7ef8dd62a8927cd506d098135",
@@ -449,6 +453,11 @@
       "name": "guizang-ppt-skill",
       "state": "present",
       "updated_at": "2026-09-28T23:37:34+08:00"
+    },
+    "qingyuna/answer-me-with-html:skills/answer-me-with-html": {
+      "name": "answer-me-with-html",
+      "state": "present",
+      "updated_at": "2026-11-13T22:22:14+08:00"
     },
     "smallnest/goal-workflow:skills/refactor": {
       "name": "refactor",
