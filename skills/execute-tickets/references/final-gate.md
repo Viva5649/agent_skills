@@ -15,86 +15,96 @@ acceptance requirements from submodule or build relationships.
 
 After all implementation tickets are staged, use an explicitly validation-only ticket's supervisor when that ticket owns the final gate. Otherwise start one fresh read-only final-gate supervisor; do not accumulate the final build and cross-ticket review in the orchestrator context.
 
-1. Capture a final state snapshot, build the authoritative gate inventory, and
-   apply the bounded expensive-run preparation in `supervisor-protocol.md`
-   (required target, parameters, result writer/parser and admissible prior
-   evidence), then run each uniquely owned feature final gate once. Reject a duplicate gate id
-   whose owner, command, expected result, or reuse assessment differs. Classify
-   gates from explicit authority as `always-run` or `reusable`; never infer
-   dependencies from changed files. After repairs, apply
-   `references/reusable-gates.md`: deterministic reuse requires exact `reusable`
-   from the helper; historical runtime retention requires the gate's explicit
-   authority and the protocol's evidence checks. Otherwise rerun the gate.
-   When an authoritative gate requires fresh UI, browser, desktop, device, or live-app verification, the
-   final-gate supervisor repeats the real target-runtime interaction and records
-   fresh `runtime_observations`; a prior screenshot, cached result, forced state,
-   or stale renderer cannot satisfy that gate. A ticket-declared `adb` real-device
-   gate follows `supervisor-protocol.md`: detect and run it directly when a usable
-   physical device is connected, and block only when no eligible device is in
-   state `device`; do not ask for a second execution permission. The orchestrator records every
-   execution and every verified reuse as a separate `gate` event, preserving the
-   reason for rerun, reuse, or failure.
-2. Before freezing the integration index, the final-gate supervisor reconciles
-   affected documents' current verification facts with the latest authoritative
-   gate results, acceptance scope and user waivers. Unchanged document bytes do
-   not prove that "unverified" or "awaiting acceptance" statements still apply;
-   an earlier audit of enduring contracts cannot settle those current facts.
-   The orchestrator routes any required update to its declared document owner
-   as a surgical repair under the existing scope and assurance rules. Separate
-   proved, deferred and historical conditions; this does not require publishing
-   per-run counters or rerunning unaffected verification.
-
+1. Capture a final state snapshot and build the authoritative gate inventory.
+   Reject a duplicate gate id whose owner, command, expected result or evidence
+   conditions differ. Apply bounded expensive-run preparation under
+   `supervisor-protocol.md`. Run necessary builds and explicit prerequisite gates
+   in their declared order. Consume the critical cross-ticket witness from its
+   named owner, or have that owner run the smallest real producer-to-public-
+   consumer proof once dependencies are ready. Count applicable results for their
+   exact components; do not repeat them merely on entering final acceptance.
+   For release/published-consumer gates, include the early release witness under
+   `supervisor-protocol.md` here. Preserve explicit build prerequisites and
+   retain the required artifacts before temporary-output cleanup.
+2. The final-gate supervisor traces the cumulative implementation delta and
+   accepted contracts to affected maintained documentation and related entry
+   points. Start with the tickets' discovery inventory and completed updates;
+   inspect changed contracts, newly composed boundaries and missing dispositions,
+   including unchanged documents and paths absent from tickets. Reuse valid
+   document checks instead of repeating discovery over unchanged scope. Check
+   current API/error/default/example facts, enduring constraints, usable build
+   and verification instructions, and affected references under repository
+   policy. Reconcile record moves with still-valid responsibilities. Limit this
+   to actual feature effects; do not require a fixed document set or unrelated
+   repository cleanup. Record required updates or an evidence-backed no-impact
+   reason in the owning tickets' existing Completion/deviations rows. Feed
+   omissions into the same integration finding set and repair flow below.
    Complete and verify the incrementally retained compact
-   `.execute-tickets/<feature>/integration-review-index.md` defined by
-   `references/review-mechanics.md`. Add the final snapshot and final-gate rows
-   without rereading complete prior ticket or report bodies, then freeze its
-   SHA-256. It is the mandatory first-pass input for the one integration
-   discovery review. Give the fresh reviewers the complete
-   immutable `staged.patch`, accepted ticket reports, exact per-path hashes, and
-   gate evidence only as on-demand paths. Reviewers inspect exact boundary hunks
-   and directly relevant reports; they do not linearly read the complete patch
-   or every historical report. The complete patch remains available, but the
-   review focuses on cross-ticket contracts, shared state and cleanup owners,
-   lifecycle linearization, public API/wire compatibility, and delivery closure
-   instead of redoing ordinary ticket-local review. The capture produced the
-   patch from:
-
-   ```bash
-   git diff --cached --binary --no-ext-diff --no-textconv --no-color
-   ```
-
-3. For closure continue the original per-axis reviewers under review-policy;
-   replacement is only for unavailability or lost review context. Give both reviewers the verified index path/hash plus the on-demand evidence
-   paths and snapshot identity. On discovery, after both reports finish, run
-   the optional CE review below before freezing their combined finding set.
-   Closure does not repeat CE discovery. Then verify the integration-review-index
-   hash, every review report hash, HEAD, Git index, working tree, and snapshot
-   still match. Before dispatch, validate the intended `final_review`
-   event with `review_budget.py` against the independent ledger in
-   `references/review-budget.md`; record discovery only after both axes and
-   available CE review finish and verify. The outcome includes CE blockers:
-   two axis PASS reports with a blocking CE finding mean discovery FAIL.
-   A rejected transition prevents dispatch.
-4. Batch findings by owning ticket/state owner and compatible scope. Capture a
-   fresh `<ticket>/final-fix-N/pre` for each serial repair; never reuse the
-   ticket's original baseline or hide repair inside the final-audit ticket.
-   Bind each targeted review to this failed final round and its original owner
-   ticket via `final_repair_review`; validate its budget before dispatch and
-   retain the frozen finding IDs with its reports.
-   After each verified repair snapshot and gate rerun/reuse decision, update
-   only the affected integration-review-index rows and freeze a new index
-   SHA-256 before closure review or the single-owner closeout below.
-5. Apply the repair assurance lanes and bounded final closure in
-   `references/review-policy.md`: one integration discovery review, one closure, and at most
-   one regression closure. If every frozen finding closes by verified micro
-   inspection, finish after required gates without another final-review dispatch.
-   A non-micro repair may also finish through the single-owner targeted closeout
-   in `review-policy.md` only when every eligibility condition is proved. The
-   orchestrator verifies evidence identities and records that closeout in the
-   existing integration index; otherwise dispatch cumulative closure within the
-   remaining budget. Preserve original FAIL reports and actual dispositions. If that budget
-   fails with unresolved findings, stop with evidence instead of
-   starting another integration-discovery Final-N cycle.
+   `.execute-tickets/<feature>/integration-review-index.md` under
+   `review-mechanics.md`. Add the snapshot, available results and pending gate
+   IDs/owners, then freeze its SHA-256. This is the mandatory first-pass input for
+   the assurance coverage decision below, before the remaining full matrix.
+   When coverage cannot be reused, give fresh Standards and Spec reviewers the verified index, spec and authority;
+   supply the immutable cumulative `staged.patch`, accepted reports, per-path
+   hashes and gate evidence as on-demand paths. Review exact cross-ticket
+   contracts, shared owners, lifecycle, public API/wire and delivery boundaries,
+   not every already accepted ticket-local line. The capture produced the patch
+   using `git diff --cached --binary --no-ext-diff --no-textconv --no-color`.
+   Pending post-review gates remain unproved acceptance; their scheduling alone
+   is not a code-review finding. Broken verification or missing prerequisites are.
+3. Validate the selected `final_review` or `final_assurance` event with
+   `review_budget.py` under `review-budget.md`. After both axes finish, or ticket
+   coverage is verified, run the optional CE review below once, verify index/report hashes and HEAD/index/tree/
+   snapshot identities, and freeze the combined finding set. Record the actual
+   result, including CE blockers; reused coverage is not a new reviewer PASS.
+   Batch accepted findings by original
+   owner and compatible scope; the orchestrator routes serial repairs with fresh
+   `<ticket>/final-fix-N/pre`, never the original ticket baseline. Complete focused
+   checks, targeted assurance and necessary cumulative closure under
+   `review-policy.md` before the full matrix. For closure, continue the original
+   per-axis reviewers unless unavailable or lacking review context; never repeat
+   integration or CE discovery. Update affected index rows and freeze a new index
+   SHA-256 after each accepted repair. If only full gate results are missing from
+   otherwise eligible single-owner closeout, proceed to those gates instead of
+   dispatching a redundant cumulative review. Feature acceptance remains pending.
+4. On the reviewed stable candidate, run each uniquely owned feature final gate once,
+   completing the remaining components of the inventory. Apply
+   `reusable-gates.md` after repairs: exact helper `reusable` permits deterministic
+   reuse; declared runtime conditions govern PASS retention or raw reevaluation.
+   Otherwise execute the affected gate. Fresh UI/browser/desktop/device/live-app
+   requirements need actual interactions and fresh `runtime_observations`; cached
+   results or screenshots cannot replace them. For an authorized `adb` gate,
+   detect and use an eligible physical device directly under
+   `supervisor-protocol.md`; block only when no eligible device is in state
+   `device`, without requesting execution permission again. Record every actual
+   execution or verified reuse as a separate existing `gate` event with reason.
+5. If acceptance fails, establish product, verifier, orchestration or environment/
+   evidence cause under `reusable-gates.md`. Preserve FAIL and run only the checks
+   needed for attribution and repair while known blockers remain. A production,
+   test or build repair needs current assurance even after early review PASS.
+   Freeze the new authority-backed failure IDs and original owner in the existing
+   index, then use `review-policy.md` and `review-budget.md` for targeted repair
+   and bounded closure. Do not relabel early PASS as FAIL, restart discovery or
+   extend budgets. Once the repaired candidate has current assurance, execute or
+   validly retain affected acceptance evidence; incomplete evidence blocks completion.
+6. After required gates have valid outcomes, the final-gate supervisor reconciles
+   tested artifacts, the staged candidate and affected documents' current facts.
+   Unchanged document bytes do not prove that "unverified" or "awaiting acceptance"
+   still applies. Recheck step 2's documentation outcomes and gate-dependent
+   handoffs against the final candidate and actual results. The orchestrator
+   routes surgical updates to the document owner or the affected behavior's
+   repair supervisor under the documentation repair rule below; distinguish
+   proved, deferred and historical conditions. Batch compatible gate-result
+   updates for the same owner in one repair after the needed results arrive;
+   contract/instruction updates should already be complete. Pure factual updates
+   use their applicable assurance, checks and protected staging, without repeating
+   unaffected device gates or cumulative code review. Update affected index rows
+   and snapshot hashes. Required documentation still missing blocks completion.
+7. Apply bounded final closeout under `review-policy.md`: verified all-micro
+   inspection, eligible single-owner targeted closeout, or required cumulative
+   closure within the existing three-round budget. Code review and gate evidence
+   must both remain valid. Preserve actual reports and dispositions; an exhausted
+   budget with unresolved findings stops with evidence, never another Final-N cycle.
 
 A final repair batch follows `supervisor-protocol.md` for the order between
 bounded intermediate diagnosis and stable-candidate acceptance: intermediate
@@ -105,18 +115,91 @@ ready for acceptance. While any known issue still blocks that round's full
 acceptance, its existing failure evidence stands and the suite is not
 re-triggered on an unrelated sub-fix, as defined in `supervisor-protocol.md`. Explicit prerequisite gates keep their declared order.
 
+## Reuse ticket assurance when integration is already covered
+
+The final-gate supervisor checks coverage before dispatching the integration
+discovery review. Reuse is allowed only when all of these facts are proved:
+
+- The run has exactly one implementation ticket and no other ticket activity.
+  Its accepted Standards/Spec reports, or eligible micro inspection, are valid
+  and every finding has a verified disposition.
+- The final staged candidate matches that accepted candidate, including any
+  accepted micro repairs. The snapshot, per-path hashes, authority and executable
+  verification plan still match the evidence used for acceptance.
+- The complete cumulative `staged.patch`, including the user-staged run-start
+  baseline, is covered by the retained assurance. An empty baseline needs no
+  separate proof; a nonempty baseline needs explicit bound coverage. Being
+  unchanged does not make an unreviewed baseline reviewed.
+- The retained evidence covers every affected owner, lifecycle, public API/wire,
+  build and delivery boundary. There is no newly composed or uncovered boundary,
+  unresolved contract judgment or documentation omission from step 2.
+
+Record the coverage decision, accepted snapshot/report hashes, baseline coverage
+and any uncovered boundary in the existing integration index; freeze its hash.
+The orchestrator verifies these identities without repeating semantic review.
+Missing evidence takes the normal integration review route. One ticket or a
+zero-finding report alone is insufficient. Do not start another review to prove
+that the previous review can be reused.
+
+Eligible reuse omits only the initial integration Standards/Spec dispatch. CE
+still runs once when available, all required gates remain, and documentation
+reconciliation still applies. Record `final_assurance/integration_review/ticket_coverage`
+with `reused` when coverage and CE leave no blocker, `fail` for
+actionable CE findings, or `blocked` for incomplete required evidence. Record no
+`final_review/integration_risk` event for this route. The reuse event consumes
+the same discovery slot and anchors later CE/runtime repairs under
+`review-budget.md`; it cannot create another discovery opportunity.
+
+On resume, verify the retained coverage decision and its bound candidate. Later
+repairs require their own assurance; they do not inherit the initial reuse claim.
+Use the same targeted repair, micro inspection and bounded closure rules as a
+reviewed discovery. If cumulative closure is required without original final
+reviewers, dispatch fresh reviewers only for the frozen findings and repair
+boundaries, with the retained ticket reports; do not reopen discovery.
+
+## Documentation repair scope
+
+Documentation reconciliation is required even when the graph has no dedicated
+documentation ticket. The final-gate supervisor remains read-only. For each
+omission caused by the accepted feature delta, it names the affected behavior's
+original owning ticket and records the exact document/reference paths, sections,
+stable authority, required output and checks in that ticket's existing
+integration-review-index Completion/deviations row. Include the bounded edit
+contract and preservation/replacement responsibilities for existing Markdown.
+
+An unfinished ticket's missing scope uses execution authority repair. For a
+completed ticket, the orchestrator validates and freezes this repair entry with
+the index hash, accepts only those documentation paths as the final-fix scope,
+and captures a fresh `<ticket>/final-fix-N/pre` before the repair supervisor
+edits. This is a documentation-only scope trace for that final repair, not a
+rewrite of the completed ticket, its admission or historical checkpoint. The
+entry must cite existing accepted behavior, this workflow's documentation
+completion requirement and any applicable repository policy. It cannot
+authorize new product, interface or architecture decisions, unrelated cleanup,
+or overwriting protected work. Ambiguous decisions follow the existing
+material-decision boundary.
+
+Use the same scope assessment, surgical edit/deletion audit, assurance, protected
+staging, snapshot verification and review budget as other final repairs. Retain
+repair evidence and current hashes in the existing index without rewriting prior
+PASS/FAIL evidence. Merely listing a document or passing a code gate does not
+prove that the required content and references were updated.
+
 ## Optional feature review with `ce-code-review`
 
 The final-gate supervisor resolves `ce-code-review` from the session skill
 catalog or configured skill locations. If absent, record an unavailable-skill
 skip in the existing final-review evidence and continue. If present, read its
 resolved `SKILL.md` and invoke it once in report-only `mode:agent`, after the
-initial integration Standards/Spec reports and before findings are frozen.
+initial integration Standards/Spec reports or verified ticket coverage, and
+before findings are frozen.
 This is a feature-level review, never a per-ticket check or an extra final gate.
 
 Give CE the verified final snapshot's immutable cumulative `staged.patch`, the
 integration-review index, feature spec, applicable standards, accepted ticket
-evidence and final-gate results. For multiple repositories, supply every
+evidence, available prerequisite results and explicitly pending final gates.
+CE reviews the candidate and executable verification plan before the full matrix;
+pending runtime proof is not a claim of feature acceptance. For multiple repositories, supply every
 member's staged patch and verified identity under `multi-repository.md`.
 Explicitly replace CE's ref-based scope discovery and ref-only scope-signal
 helper with these verified snapshot inputs; never substitute its default
@@ -138,7 +221,7 @@ skipping. The orchestrator verifies the receipt and snapshot before repair.
 Freeze source-qualified CE finding IDs with the integration findings and apply
 `review-policy.md` to the combined set. For each original owning ticket, the
 orchestrator starts a repair supervisor with that ticket, frozen finding IDs and
-step 4's fresh `final-fix-N/pre`; the completed ticket's ended supervisor need
+step 3's fresh `final-fix-N/pre`; the completed ticket's ended supervisor need
 not remain alive. That repair supervisor implements the authorized serial batch.
 Rerun or validly reuse affected gates and verify every blocking ID through the existing repair
 assurance and final closeout rules. CE does not apply fixes or reopen discovery
@@ -148,11 +231,49 @@ skip and any unresolved findings without relabelling historical FAIL as PASS.
 
 ## Completion report
 
+### Collect existing evidence
+
+When a handoff or closeout needs several artifact identities, build its explicit
+input list from the existing check results, reports and snapshot outputs. Reuse
+identities already returned by those tools. For remaining aggregation, invoke
+the bundled helper once rather than retyping hashes or parsing outcomes in prose:
+
+```bash
+python3 <execute-tickets-skill-root>/scripts/evidence_summary.py \
+  --artifact G1 <existing-gate-result.json> \
+  --artifact G2-initial <retained-failure-result.json> \
+  --artifact G2-repaired <current-gate-result.json> \
+  --artifact standards <existing-standards-report.md> \
+  --output .execute-tickets/<feature>/final/evidence-summary.json
+```
+
+Use only the run's actual entries, including retained failures and pending
+results when present. The helper reads those exact files, records their paths
+and SHA-256, and copies scalar top-level JSON `status`, `result`, `exit_code` and
+`verdict` fields into `reported` without interpretation. Text reports and JSON
+without those fields have empty `reported`; read their original outcome when
+needed. It refuses missing/malformed inputs, duplicate IDs and output overwrite.
+Its successful exit means collection succeeded, not that the gates passed.
+
+The supervisor still matches required gate IDs/components to the original
+results, checks candidate applicability and closes failures under the existing
+protocol. The summary is a derived reference list, not a new acceptance ledger
+or a completeness/reuse decision. Reference it from the existing integration
+index/completion evidence; keep raw results authoritative and do not duplicate
+their bodies. If inputs change, collect only the affected handoff's explicit
+list into a new output. A collection error calls for correcting that input or
+using the original evidence, never rerunning a passed gate to rebuild a summary.
+
+### Report the outcome
+
 Completion means the requested feature is fully staged and verified against its
 current authoritative acceptance. In both ticket completion records and the
 final report, distinguish these three facts without adding a new status schema:
 
-- Implementation: accepted/staged work and any implementation still outstanding.
+- Implementation: accepted/staged work and any implementation still outstanding,
+  including required documentation updates or the inspected no-impact reason.
+  Reference the existing index outcomes; documentation synchronization is a
+  completion condition regardless of whether it had a separate ticket.
 - Acceptance: required check/gate IDs proved, failed, or unproved, with references
   to the authoritative result entries and the runtime conditions they cover.
 - Delivery: whether committing, publishing, deployment or other required delivery

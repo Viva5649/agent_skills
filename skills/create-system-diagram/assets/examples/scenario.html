@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>场景能力与验收（通用示例）</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --page: #f3f5f6; --panel: #ffffff; --ink: #17212b; --muted: #5b6874;
+      --line: #c9d1d8; --line-strong: #7d8b98; --neutral-chip: #eef1f3;
+      --blue: #1d5fb8; --blue-bg: #f0f5fc; --blue-chip: #dce8f8;
+      --purple: #7048b0; --purple-bg: #f5f1fb; --purple-chip: #e6ddf5;
+      --green: #2f7d4a; --green-bg: #f1f8f3; --green-chip: #dcefe2;
+      --gold: #8a6a0a; --gold-bg: #fff4d6; --gold-chip: #f4e8b3;
+      --red: #b0405e; --red-bg: #fcf1f4; --red-chip: #f6dbe3;
+      --teal: #0f766e; --teal-bg: #edf7f5; --teal-chip: #d2eae5;
+      --orange: #c2410c; --orange-bg: #fff3eb; --orange-chip: #ffdfc8;
+      --grey: #5b6570; --grey-bg: #eceff2; --grey-chip: #dce2e7;
+      --font-body: "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+      --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    }
+    :root[data-theme="dark"] {
+      color-scheme: dark;
+      --page: #11161b; --panel: #182028; --ink: #e4e9ee; --muted: #97a4b0;
+      --line: #2d3a46; --line-strong: #6b7c8b; --neutral-chip: #1f2931;
+      --blue: #7fb0f0; --blue-bg: #152131; --blue-chip: #1d3350;
+      --purple: #b69af0; --purple-bg: #1f1a2d; --purple-chip: #332850;
+      --green: #72c48f; --green-bg: #16241c; --green-chip: #1f3a29;
+      --gold: #d9bd59; --gold-bg: #28220f; --gold-chip: #433916;
+      --red: #f08aa5; --red-bg: #2a161c; --red-chip: #4a2430;
+      --teal: #5ecfc2; --teal-bg: #152824; --teal-chip: #20443e;
+      --orange: #fb923c; --orange-bg: #2b1c12; --orange-chip: #4a2b18;
+      --grey: #a7b1bc; --grey-bg: #1d2329; --grey-chip: #293641;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 24px 16px 32px; background: var(--page); color: var(--ink); font-family: var(--font-body); }
+    .arch-document { max-width: 1440px; margin: 0 auto; }
+    h1 { margin: 0 0 14px; font-size: 1.375rem; font-weight: 700; line-height: 1.5; }
+    figure { margin: 0; padding: 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
+    .legend { display: flex; flex-direction: column; gap: 8px; margin: 16px 16px 40px; color: var(--muted); font-size: 0.8125rem; line-height: 1.7; }
+    .legend-row { display: flex; align-items: center; gap: 12px; }
+    .legend-symbol { display: flex; align-items: center; justify-content: center; width: 52px; height: 18px; flex: 0 0 52px; }
+    .legend-swatch { width: 32px; height: 18px; border: 1.5px solid var(--module-color); border-radius: 4px; background: var(--module-bg); }
+    .legend-duty .legend-swatch { border: 0; background: var(--module-chip); }
+    .legend-line { fill: none; stroke: var(--edge); stroke-width: var(--edge-width); stroke-dasharray: var(--edge-dash, none); }
+    .legend-arrow { fill: var(--edge); }
+    .diagram-scroll { overflow-x: auto; }
+    :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+    .architecture { display: block; width: 100%; min-width: 1400px; height: auto; }
+    figcaption { margin-top: 14px; color: var(--muted); font-size: 0.8125rem; line-height: 1.8; overflow-wrap: anywhere; }
+    .architecture text { fill: var(--ink); font-family: var(--font-body); font-size: 12px; }
+    /* 仅为通用示例定义模块映射；实际绘图按本组图的模块重建。 */
+    .module-entry, .module-application { --module-color: var(--red); --module-bg: var(--red-bg); --module-chip: var(--red-chip); }
+    .module-orchestration, .module-analysis { --module-color: var(--purple); --module-bg: var(--purple-bg); --module-chip: var(--purple-chip); }
+    .module-execution { --module-color: var(--blue); --module-bg: var(--blue-bg); --module-chip: var(--blue-chip); }
+    .module-adapter { --module-color: var(--gold); --module-bg: var(--gold-bg); --module-chip: var(--gold-chip); }
+    .module-services, .module-index, .module-retrieval { --module-color: var(--orange); --module-bg: var(--orange-bg); --module-chip: var(--orange-chip); }
+    .module-review { --module-color: var(--green); --module-bg: var(--green-bg); --module-chip: var(--green-chip); }
+    .group-neutral { --module-color: var(--grey); --module-bg: var(--grey-bg); --module-chip: var(--grey-chip); }
+    .architecture .metric-value { font-size: 21px; font-weight: 700; }
+    .architecture .metric-target { fill: var(--orange); font-weight: 700; }
+    .architecture .module-name { fill: var(--module-color); }
+    .architecture .body-text { fill: var(--ink); font-size: 12px; }
+    .architecture .section-title { fill: var(--ink); font-size: 14px; font-weight: 700; }
+    .architecture .outer-title { fill: var(--module-color); font-size: 24px; font-weight: 700; }
+    .architecture .module-title { fill: var(--module-color); font-size: 21px; font-weight: 700; }
+    .architecture .module-type { fill: var(--muted); font-size: 13px; }
+    .architecture .module-note { fill: var(--muted); font-size: 14px; }
+    .architecture .duty-title { font-size: 19px; font-weight: 700; }
+    .architecture .duty-body { font-size: 15px; }
+    .architecture .duty-accent { fill: none; stroke: var(--module-color); stroke-width: 3; }
+
+    .architecture .boundary { fill: none; stroke: var(--line-strong); stroke-width: 1.5; stroke-dasharray: 7 5; }
+    .architecture .frame { fill: var(--module-bg); stroke: var(--module-color); stroke-width: 1.5; rx: 10; }
+    .architecture .card, .architecture .mini { fill: var(--panel); stroke: var(--module-color, var(--line)); stroke-width: 2; vector-effect: non-scaling-stroke; rx: 8; }
+    .architecture .frame-inherited { fill: var(--panel); }
+    .architecture .duty { fill: var(--module-chip); stroke: none; rx: 6; }
+    .architecture .annotation { fill: var(--panel); stroke: var(--line); stroke-width: 1; rx: 8; }
+    .architecture .card-tinted { fill: var(--module-bg); }
+    .architecture .chip, .architecture .pill { fill: var(--module-chip, var(--neutral-chip)); stroke: var(--module-color, var(--line-strong)); stroke-width: 1; rx: 5; }
+    .architecture .band { fill: var(--module-bg); stroke: var(--module-color); stroke-width: 1.5; rx: 10; }
+    .architecture .step { fill: var(--ink); stroke: none; }
+    .architecture .step-label { fill: var(--page); font-family: var(--font-mono); font-size: 10.5px; font-weight: 700; }
+    .architecture .node-title { font-size: 15px; font-weight: 700; }
+    .architecture .frame-title { fill: var(--module-color); font-size: 14px; font-weight: 700; }
+    .architecture .mini-title { font-size: 12.5px; font-weight: 700; }
+    .architecture .boundary-title { font-size: 14px; font-weight: 700; }
+    .architecture .band-title { fill: var(--module-color); font-size: 13.5px; font-weight: 700; }
+    .architecture .note { fill: var(--muted); font-size: 12px; }
+    .architecture .mono { font-family: var(--font-mono); font-size: 12px; }
+    .architecture .chip-label { font-size: 11.5px; }
+    .k-flow { --edge: var(--blue); --edge-width: 2; }
+    .k-alt { --edge: var(--gold); --edge-width: 2; --edge-dash: 7 4; }
+    .k-event { --edge: var(--teal); --edge-width: 1.8; --edge-dash: 2 4; }
+    .k-plain { --edge: var(--line-strong); --edge-width: 1.6; }
+    .k-cfg { --edge: var(--line-strong); --edge-width: 1.6; --edge-dash: 6 4; }
+    .k-association { --edge: var(--line-strong); --edge-width: 1.4; --edge-dash: 3 4; }
+    .k-fail { --edge: var(--red); --edge-width: 2; }
+    .architecture .edge { fill: none; stroke: var(--edge, var(--line-strong)); stroke-width: var(--edge-width, 1.6); stroke-dasharray: var(--edge-dash, none); }
+    .architecture .arrowhead { fill: var(--edge, var(--line-strong)); stroke: none; }
+    .architecture .edge-label { fill: var(--muted); font-size: 11.5px; }
+    .architecture .edge-label.k-flow, .architecture .edge-label.k-alt, .architecture .edge-label.k-event, .architecture .edge-label.k-fail { fill: var(--edge); }
+    .architecture .edge-operation { font-size: 12.5px; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <main class="arch-document">
+    <h1>场景能力与验收（通用示例）</h1>
+    <figure>
+      <div class="diagram-scroll" tabindex="0" role="region" aria-label="系统图，可横向滚动">
+        <svg xmlns="http://www.w3.org/2000/svg" class="architecture" viewBox="0 0 1400 920" role="img" aria-labelledby="sample-title" aria-describedby="sample-description"><title id="sample-title">场景能力与验收（通用示例）</title><desc id="sample-description">资料应用用淡红色，索引服务用橙色。查询与更新的返回线均接回原调用方；块内说明各模块在两个场景中的作用。性能、工作和验收区沿用索引服务的归属配色，正文与当前值用正文色，目标数值及比较符号局部橙色加粗。组件、数值与验收条件均为虚构示例，使用时按实际任务替换。</desc>
+<defs>
+            <marker id="sample-arrow-flow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead k-flow" d="M0,0 L10,5 L0,10 z"/></marker>
+            <marker id="sample-arrow-alt" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead k-alt" d="M0,0 L10,5 L0,10 z"/></marker>
+            <marker id="sample-arrow-event" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead k-event" d="M0,0 L10,5 L0,10 z"/></marker>
+            <marker id="sample-arrow-plain" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead k-plain" d="M0,0 L10,5 L0,10 z"/></marker>
+            <marker id="sample-arrow-cfg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead k-cfg" d="M0,0 L10,5 L0,10 z"/></marker>
+            <marker id="sample-arrow-fail" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead k-fail" d="M0,0 L10,5 L0,10 z"/></marker>
+          </defs>
+<text class="body-text" x="40" y="30" >资料应用通过同一索引服务查询与更新资料；以下指标均为模拟数据。</text>
+<g class="module-application"><rect class="frame" x="40" y="60" width="440" height="288"/><text class="frame-title" x="60" y="88" >资料应用</text></g>
+<g class="module-index"><rect class="frame" x="920" y="60" width="440" height="288"/><text class="frame-title" x="940" y="88" >索引服务</text></g>
+<g class="module-index"><rect class="annotation" x="40" y="410" width="1320" height="248"/><text class="frame-title" x="60" y="438" >索引服务性能基线与目标</text></g>
+<g class="module-index"><rect class="annotation" x="40" y="700" width="640" height="190"/><text class="frame-title" x="60" y="728" >索引服务本期工作</text></g>
+<g class="module-index"><rect class="annotation" x="720" y="700" width="640" height="190"/><text class="frame-title" x="740" y="728" >索引服务质量验收</text></g>
+<g class="module-application"><rect class="duty" x="60" y="110" width="400" height="100"/><text class="node-title" x="78" y="141" >查询资料</text><text class="body-text" x="78" y="170" >提交查询条件，展示匹配内容</text></g>
+<g class="module-application"><rect class="duty" x="60" y="226" width="400" height="100"/><text class="node-title" x="78" y="257" >更新资料</text><text class="body-text" x="78" y="286" >提交资料变更，记录更新结果</text></g>
+<g class="module-index"><rect class="duty" x="940" y="110" width="400" height="100"/><text class="node-title" x="958" y="141" >查询处理</text><text class="body-text" x="958" y="170" >检索匹配条目，返回排序结果</text></g>
+<g class="module-index"><rect class="duty" x="940" y="226" width="400" height="100"/><text class="node-title" x="958" y="257" >索引更新</text><text class="body-text" x="958" y="286" >应用资料变更，返回更新状态</text></g>
+<text class="note" x="60" y="464" >固定查询集，单请求；每档测量 5 次，取中位数</text>
+<g class="module-index"><rect class="card" x="60" y="484" width="600" height="130"/><text class="node-title" x="78" y="508" >不同资料规模的查询耗时</text><text class="body-text" x="78" y="537" >100 条资料</text><text class="metric-value" x="642" y="537" text-anchor="end">18 ms</text><text class="body-text" x="78" y="565" >500 条资料</text><text class="metric-value" x="642" y="565" text-anchor="end">36 ms</text><text class="body-text" x="78" y="593" >2000 条资料</text><text class="metric-value" x="642" y="593" text-anchor="end">90 ms</text></g>
+<g class="module-index"><rect class="card" x="680" y="484" width="300" height="130"/><text class="node-title" x="698" y="508" >已测内存范围</text><text class="metric-value" x="698" y="546" >12 至 28 MiB</text><text class="body-text" x="698" y="578" >空闲时：12 MiB</text><text class="body-text" x="698" y="598" >查询时：28 MiB</text></g>
+<g class="module-index"><rect class="card" x="1000" y="484" width="340" height="130"/><text class="node-title" x="1018" y="508" >查询耗时：模拟基线 → 目标</text><text class="metric-value" x="1018" y="546">36 → <tspan class="metric-target">≤ 30 ms</tspan></text><text class="note" x="1018" y="578" >500 条资料；测量口径同左</text></g>
+<text class="note" x="60" y="638" >数据来源：通用示例中的模拟测量；实际使用时替换数值、来源与口径。</text>
+<text class="body-text" x="60" y="768" >现状：每次查询重新解析配置</text>
+<text class="node-title" x="60" y="804" >本期：复用已解析的查询配置</text>
+<text class="body-text" x="60" y="836" >预期结果：减少重复解析</text>
+<text class="body-text" x="740" y="752" >测试人员使用同一资料集与查询集，覆盖三档规模。</text>
+<text class="body-text" x="740" y="778" >在相同配置与统计口径下，记录优化前后的耗时与结果。</text>
+<text class="node-title" x="740" y="808" >通过条件：</text>
+<text class="body-text" x="740" y="834" >查询结果与基线一致，且</text>
+<text class="body-text" x="740" y="862">500 条资料的查询耗时中位数达到目标 <tspan class="metric-target">≤ 30 ms</tspan></text>
+<path id="query-request" class="edge k-plain" d="M480,138 L920,138" marker-end="url(#sample-arrow-plain)"/><text class="edge-label k-plain" x="700" y="124" data-edge-label="query-request" text-anchor="middle">查询：查询条件</text>
+<path id="query-return" class="edge k-plain" d="M920,192 L480,192" marker-end="url(#sample-arrow-plain)"/><text class="edge-label k-plain" x="700" y="178" data-edge-label="query-return" text-anchor="middle">查询：匹配内容</text>
+<path id="update-request" class="edge k-plain" d="M480,254 L920,254" marker-end="url(#sample-arrow-plain)"/><text class="edge-label k-plain" x="700" y="240" data-edge-label="update-request" text-anchor="middle">更新：资料变更</text>
+<path id="update-return" class="edge k-plain" d="M920,308 L480,308" marker-end="url(#sample-arrow-plain)"/><text class="edge-label k-plain" x="700" y="294" data-edge-label="update-return" text-anchor="middle">更新：更新状态</text>
+<path id="performance-owner" class="edge k-association" d="M1140,348 V410"/><text class="edge-label k-association" x="1156" y="379" data-edge-label="performance-owner">性能数据归属</text>
+</svg>
+      </div>
+      <figcaption>来源：内置通用示例，不描述真实项目。资料应用用淡红色，索引服务用橙色。查询与更新的返回线均接回原调用方；块内说明各模块在两个场景中的作用。性能、工作和验收区沿用索引服务的归属配色，正文与当前值用正文色，目标数值及比较符号局部橙色加粗。组件、数值与验收条件均为虚构示例，使用时按实际任务替换。</figcaption>
+    </figure>
+    <div class="legend" role="group" aria-label="图例">
+<div class="legend-row module-application"><span class="legend-symbol"><span class="legend-swatch"></span></span><span>资料应用</span></div>
+<div class="legend-row module-index"><span class="legend-symbol"><span class="legend-swatch"></span></span><span>索引服务及性能、工作和验收说明</span></div>
+<div class="legend-row k-plain"><svg class="legend-symbol" width="52" height="18" viewBox="0 0 52 18" aria-hidden="true"><path class="legend-line" d="M0,9 H44"/><path class="legend-arrow" d="M44,5 L52,9 L44,13 Z"/></svg><span>请求与结果交接</span></div>
+<div class="legend-row k-association"><svg class="legend-symbol" width="52" height="18" viewBox="0 0 52 18" aria-hidden="true"><path class="legend-line" d="M0,9 H52"/></svg><span>性能数据归属</span></div>
+</div>
+  </main>
+</body>
+</html>

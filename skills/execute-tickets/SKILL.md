@@ -13,7 +13,7 @@ Run every bundled script from this root, never from a repository-local path.
 
 ## Progressive loading map
 
-The orchestrator may record diagnostic timing under optional `references/run-metrics.md`; statistics are never a prerequisite for resolving inputs or proceeding.
+The orchestrator attempts diagnostic timing under optional `references/run-metrics.md`; statistics are never a prerequisite for resolving inputs or proceeding.
 
 Read the applicable sections when their phase begins. Do not preload later-phase
 references merely because the skill triggered. Reuse unchanged sections already
@@ -133,7 +133,7 @@ interface or owner choices need their authority decision. Keep the same
 supervisor and frozen run-start receipt during checkpointed repairs; do not
 invoke write review or the commit-oriented `/implement` closeout.
 
-Before running the deterministic scope assessment, the orchestrator rejects a `scope_ready` envelope unless the current ticket contract is valid, both routing decisions are supported, every permitted-discovery command was replayed with `0 undisposed paths`, every scope path has a declared-scope or permitted-discovery trace, and every verification command or interaction protocol traces to a ticket acceptance item and authoritative source. The orchestrator does not approve scope expansion merely because implementation would be easier with another file. It does run execution authority repair when stable accepted authority and current repository evidence uniquely prove a behavior-preserving omission.
+Before running the deterministic scope assessment, the orchestrator rejects a `scope_ready` envelope unless the current ticket contract is valid, both routing decisions are supported, every permitted-discovery command was replayed with `0 undisposed paths`, every scope path has a declared-scope or permitted-discovery trace, and every verification command or interaction protocol traces to a ticket acceptance item and authoritative source. For a documentation-only final repair, the exact repair entry accepted under `references/final-gate.md` may supply the scope and check traces; it never changes completed ticket authority. The orchestrator does not approve scope expansion merely because implementation would be easier with another file. It does run execution authority repair when stable accepted authority and current repository evidence uniquely prove a behavior-preserving omission.
 
 The orchestrator then runs the deterministic scope assessment. It reports which
 exact tracked unstaged and untracked paths become ticket-owned; overlap is not a
@@ -303,8 +303,14 @@ The completion record distinguishes implementation/staging, acceptance, and
    context; do not reread prior ticket or report bodies. The row records ticket
    path/hash, accepted-content index hash, accepted path hashes, cross-ticket
    `Consumes`/`Produces`, shared state/resource/cleanup owners and ordering rows,
-   review outcome/report path/hash, deviations, and owned final-gate declarations.
+   review outcome/report path/hash, deviations (including documentation updates,
+   pending fact-update owners/gates or the no-update reason), and owned final-gate declarations.
    Verify the row against retained artifacts and record the new index SHA-256.
+   Consume structured command outputs for identities and outcomes rather than
+   manually transcribing them. When several remaining evidence files need
+   aggregation, use `scripts/evidence_summary.py` as documented in
+   `references/final-gate.md` / Collect existing evidence; only that subsection
+   applies at a ticket handoff, without loading or running the final-gate protocol.
 5. Only after all checks and the compact-row append pass does the orchestrator
    add the ticket to the completed set and allow its dependants into the
    frontier. If any write, approved authority transition, index-row append, or
@@ -405,7 +411,11 @@ success.
 Only after every implementation ticket is staged, read
 `references/final-gate.md` in full and follow it. An explicitly
 validation-only ticket that owns the same final gate uses that protocol instead
-of creating a second synthetic final-gate run. During integration discovery,
+of creating a second synthetic final-gate run. Complete necessary builds and
+critical cross-ticket witnesses, then verified ticket-assurance reuse or
+cumulative review and its repairs before
+the remaining full acceptance matrix. Count applicable earlier results once;
+review PASS alone is not feature acceptance. After the coverage decision or integration discovery,
 invoke available `ce-code-review` once under that reference, then close its
 blocking findings before feature acceptance. Do not add CE review to individual
 tickets. After targeted repair review,

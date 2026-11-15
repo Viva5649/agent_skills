@@ -181,8 +181,13 @@ Review the ticket graph as one unit:
    disposition, missing reason, or undisposed path is a ticket defect. Merely
    confirming that the command exists or the declared scope looks plausible is
    not exhaustive review evidence.
-4. **Documentation edit contract:** every ticket that modifies existing
-   Markdown defaults to `surgical`, names the exact authorized sections or
+4. **Documentation impact and edit contract:** trace each changed behavior to
+   its maintained documents and related navigation, including documents absent
+   from the proposed write scope. Verify exact updates, owners and checks, or
+   an evidence-backed no-impact reason. Check gate-dependent write handoffs and
+   preservation of enduring instructions when execution records move. A missing
+   separate documentation ticket is not itself a defect. Every ticket that
+   modifies existing Markdown defaults to `surgical`, names the exact authorized sections or
    responsibilities, and preserves everything else by default. `whole-document`
    has explicit spec/ADR/user authority rather than path-scope inference. Every
    still-current responsibility has a positive replacement output and
@@ -223,6 +228,12 @@ Review the ticket graph as one unit:
    references; do not demand inline copies of an already defined contract. Every command is assigned to the
    ticket-scoped or feature-final tier; each feature final gate has one owner,
    one reuse assessment, and no duplicate execution hidden in ticket checks.
+   Require evidence-after-repair conditions naming the claim, relevant inputs,
+   invalidating changes and justified freshness. Check PASS retention and raw
+   reevaluation separately; reject external dependency alone as justification for
+   full reruns after every repair. For critical cross-ticket preservation, verify
+   a consumer-owned real producer-to-public-consumer witness before cumulative
+   review and the full matrix, with necessary build/prerequisite order intact.
    Check that later verification has a named ticket/final-gate owner, distinct
    layer checks do not duplicate end-to-end scenarios, and explicit prerequisite
    evidence or safety gates are not deferred as unfinished-product work.

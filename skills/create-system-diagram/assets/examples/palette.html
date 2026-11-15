@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>固定色板与填色层次（校准示例）</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --page: #f3f5f6; --panel: #ffffff; --ink: #17212b; --muted: #5b6874;
+      --line: #c9d1d8; --line-strong: #7d8b98; --neutral-chip: #eef1f3;
+      --blue: #1d5fb8; --blue-bg: #f0f5fc; --blue-chip: #dce8f8;
+      --purple: #7048b0; --purple-bg: #f5f1fb; --purple-chip: #e6ddf5;
+      --green: #2f7d4a; --green-bg: #f1f8f3; --green-chip: #dcefe2;
+      --gold: #8a6a0a; --gold-bg: #fff4d6; --gold-chip: #f4e8b3;
+      --red: #b0405e; --red-bg: #fcf1f4; --red-chip: #f6dbe3;
+      --teal: #0f766e; --teal-bg: #edf7f5; --teal-chip: #d2eae5;
+      --orange: #c2410c; --orange-bg: #fff3eb; --orange-chip: #ffdfc8;
+      --grey: #5b6570; --grey-bg: #eceff2; --grey-chip: #dce2e7;
+      --font-body: "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+      --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    }
+    :root[data-theme="dark"] {
+      color-scheme: dark;
+      --page: #11161b; --panel: #182028; --ink: #e4e9ee; --muted: #97a4b0;
+      --line: #2d3a46; --line-strong: #6b7c8b; --neutral-chip: #1f2931;
+      --blue: #7fb0f0; --blue-bg: #152131; --blue-chip: #1d3350;
+      --purple: #b69af0; --purple-bg: #1f1a2d; --purple-chip: #332850;
+      --green: #72c48f; --green-bg: #16241c; --green-chip: #1f3a29;
+      --gold: #d9bd59; --gold-bg: #28220f; --gold-chip: #433916;
+      --red: #f08aa5; --red-bg: #2a161c; --red-chip: #4a2430;
+      --teal: #5ecfc2; --teal-bg: #152824; --teal-chip: #20443e;
+      --orange: #fb923c; --orange-bg: #2b1c12; --orange-chip: #4a2b18;
+      --grey: #a7b1bc; --grey-bg: #1d2329; --grey-chip: #293641;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 24px 16px 32px; background: var(--page); color: var(--ink); font-family: var(--font-body); }
+    .arch-document { max-width: 1440px; margin: 0 auto; }
+    h1 { margin: 0 0 14px; font-size: 1.375rem; font-weight: 700; line-height: 1.5; }
+    figure { margin: 0; padding: 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
+    .legend { display: flex; flex-direction: column; gap: 8px; margin: 16px 16px 40px; color: var(--muted); font-size: 0.8125rem; line-height: 1.7; }
+    .legend-row { display: flex; align-items: center; gap: 12px; }
+    .legend-symbol { display: flex; align-items: center; justify-content: center; width: 52px; height: 18px; flex: 0 0 52px; }
+    .legend-swatch { width: 32px; height: 18px; border: 1.5px solid var(--module-color); border-radius: 4px; background: var(--module-bg); }
+    .legend-duty .legend-swatch { border: 0; background: var(--module-chip); }
+    .legend-line { fill: none; stroke: var(--edge); stroke-width: var(--edge-width); stroke-dasharray: var(--edge-dash, none); }
+    .legend-arrow { fill: var(--edge); }
+    .diagram-scroll { overflow-x: auto; }
+    :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+    .architecture { display: block; width: 100%; min-width: 1400px; height: auto; }
+    figcaption { margin-top: 14px; color: var(--muted); font-size: 0.8125rem; line-height: 1.8; overflow-wrap: anywhere; }
+    .architecture text { fill: var(--ink); font-family: var(--font-body); font-size: 12px; }
+    /* 仅为通用示例定义模块映射；实际绘图按本组图的模块重建。 */
+    .module-entry, .module-application { --module-color: var(--red); --module-bg: var(--red-bg); --module-chip: var(--red-chip); }
+    .module-orchestration, .module-analysis { --module-color: var(--purple); --module-bg: var(--purple-bg); --module-chip: var(--purple-chip); }
+    .module-execution { --module-color: var(--blue); --module-bg: var(--blue-bg); --module-chip: var(--blue-chip); }
+    .module-adapter { --module-color: var(--gold); --module-bg: var(--gold-bg); --module-chip: var(--gold-chip); }
+    .module-services, .module-index, .module-retrieval { --module-color: var(--orange); --module-bg: var(--orange-bg); --module-chip: var(--orange-chip); }
+    .module-review { --module-color: var(--green); --module-bg: var(--green-bg); --module-chip: var(--green-chip); }
+    .group-neutral { --module-color: var(--grey); --module-bg: var(--grey-bg); --module-chip: var(--grey-chip); }
+    .architecture .metric-value { font-size: 21px; font-weight: 700; }
+    .architecture .metric-target { fill: var(--orange); font-weight: 700; }
+    .architecture .module-name { fill: var(--module-color); }
+    .architecture .body-text { fill: var(--ink); font-size: 12px; }
+    .architecture .section-title { fill: var(--ink); font-size: 14px; font-weight: 700; }
+    .architecture .outer-title { fill: var(--module-color); font-size: 24px; font-weight: 700; }
+    .architecture .module-title { fill: var(--module-color); font-size: 21px; font-weight: 700; }
+    .architecture .module-type { fill: var(--muted); font-size: 13px; }
+    .architecture .module-note { fill: var(--muted); font-size: 14px; }
+    .architecture .duty-title { font-size: 19px; font-weight: 700; }
+    .architecture .duty-body { font-size: 15px; }
+    .architecture .duty-accent { fill: none; stroke: var(--module-color); stroke-width: 3; }
+
+    .architecture .boundary { fill: none; stroke: var(--line-strong); stroke-width: 1.5; stroke-dasharray: 7 5; }
+    .architecture .frame { fill: var(--module-bg); stroke: var(--module-color); stroke-width: 1.5; rx: 10; }
+    .architecture .card, .architecture .mini { fill: var(--panel); stroke: var(--module-color, var(--line)); stroke-width: 2; vector-effect: non-scaling-stroke; rx: 8; }
+    .architecture .frame-inherited { fill: var(--panel); }
+    .architecture .duty { fill: var(--module-chip); stroke: none; rx: 6; }
+    .architecture .annotation { fill: var(--panel); stroke: var(--line); stroke-width: 1; rx: 8; }
+    .architecture .card-tinted { fill: var(--module-bg); }
+    .architecture .chip, .architecture .pill { fill: var(--module-chip, var(--neutral-chip)); stroke: var(--module-color, var(--line-strong)); stroke-width: 1; rx: 5; }
+    .architecture .band { fill: var(--module-bg); stroke: var(--module-color); stroke-width: 1.5; rx: 10; }
+    .architecture .step { fill: var(--ink); stroke: none; }
+    .architecture .step-label { fill: var(--page); font-family: var(--font-mono); font-size: 10.5px; font-weight: 700; }
+    .architecture .node-title { font-size: 15px; font-weight: 700; }
+    .architecture .frame-title { fill: var(--module-color); font-size: 14px; font-weight: 700; }
+    .architecture .mini-title { font-size: 12.5px; font-weight: 700; }
+    .architecture .boundary-title { font-size: 14px; font-weight: 700; }
+    .architecture .band-title { fill: var(--module-color); font-size: 13.5px; font-weight: 700; }
+    .architecture .note { fill: var(--muted); font-size: 12px; }
+    .architecture .mono { font-family: var(--font-mono); font-size: 12px; }
+    .architecture .chip-label { font-size: 11.5px; }
+    .k-flow { --edge: var(--blue); --edge-width: 2; }
+    .k-alt { --edge: var(--gold); --edge-width: 2; --edge-dash: 7 4; }
+    .k-event { --edge: var(--teal); --edge-width: 1.8; --edge-dash: 2 4; }
+    .k-plain { --edge: var(--line-strong); --edge-width: 1.6; }
+    .k-cfg { --edge: var(--line-strong); --edge-width: 1.6; --edge-dash: 6 4; }
+    .k-association { --edge: var(--line-strong); --edge-width: 1.4; --edge-dash: 3 4; }
+    .k-fail { --edge: var(--red); --edge-width: 2; }
+    .architecture .edge { fill: none; stroke: var(--edge, var(--line-strong)); stroke-width: var(--edge-width, 1.6); stroke-dasharray: var(--edge-dash, none); }
+    .architecture .arrowhead { fill: var(--edge, var(--line-strong)); stroke: none; }
+    .architecture .edge-label { fill: var(--muted); font-size: 11.5px; }
+    .architecture .edge-label.k-flow, .architecture .edge-label.k-alt, .architecture .edge-label.k-event, .architecture .edge-label.k-fail { fill: var(--edge); }
+    .architecture .edge-operation { font-size: 12.5px; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <main class="arch-document">
+    <h1>固定色板与填色层次（校准示例）</h1>
+    <figure>
+      <div class="diagram-scroll" tabindex="0" role="region" aria-label="系统图，可横向滚动">
+        <svg xmlns="http://www.w3.org/2000/svg" class="architecture" viewBox="0 0 1400 914" role="img" aria-labelledby="sample-title" aria-describedby="sample-description"><title id="sample-title">固定色板与填色层次（校准示例）</title><desc id="sample-description">各色使用相同面积、文字和层次，仅用于比较视觉强度，不分配实际模块。按实际显示尺寸检查浅底、内部组件与职责分区，并分别复看浅色、深色和灰度效果。</desc>
+<defs>
+            <marker id="sample-arrow-flow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead k-flow" d="M0,0 L10,5 L0,10 z"/></marker>
+            <marker id="sample-arrow-alt" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead k-alt" d="M0,0 L10,5 L0,10 z"/></marker>
+            <marker id="sample-arrow-event" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead k-event" d="M0,0 L10,5 L0,10 z"/></marker>
+            <marker id="sample-arrow-plain" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead k-plain" d="M0,0 L10,5 L0,10 z"/></marker>
+            <marker id="sample-arrow-cfg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead k-cfg" d="M0,0 L10,5 L0,10 z"/></marker>
+            <marker id="sample-arrow-fail" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead k-fail" d="M0,0 L10,5 L0,10 z"/></marker>
+          </defs>
+<g id="palette-gold" style="--module-color:var(--gold);--module-bg:var(--gold-bg);--module-chip:var(--gold-chip)">
+<rect class="frame" x="40" y="32" width="640" height="190"/>
+<text class="frame-title" x="60" y="64" >示例模块</text>
+<text class="note" x="660" y="64" text-anchor="end">琥珀金色</text>
+<rect class="card" x="60" y="90" width="292" height="108"/>
+<text class="node-title" x="76" y="117" >内部组件</text>
+<text class="body-text" x="76" y="145" >处理请求，返回结果</text>
+<text class="note" x="76" y="173" >补充说明：同组统一样式</text>
+<rect class="duty" x="368" y="90" width="292" height="108"/>
+<text class="node-title" x="384" y="117" >职责分区</text>
+<text class="body-text" x="384" y="145" >处理请求，返回结果</text>
+<text class="note" x="384" y="173" >补充说明：同组统一样式</text>
+</g>
+<g id="palette-orange" style="--module-color:var(--orange);--module-bg:var(--orange-bg);--module-chip:var(--orange-chip)">
+<rect class="frame" x="720" y="32" width="640" height="190"/>
+<text class="frame-title" x="740" y="64" >示例模块</text>
+<text class="note" x="1340" y="64" text-anchor="end">橙色</text>
+<rect class="card" x="740" y="90" width="292" height="108"/>
+<text class="node-title" x="756" y="117" >内部组件</text>
+<text class="body-text" x="756" y="145" >处理请求，返回结果</text>
+<text class="note" x="756" y="173" >补充说明：同组统一样式</text>
+<rect class="duty" x="1048" y="90" width="292" height="108"/>
+<text class="node-title" x="1064" y="117" >职责分区</text>
+<text class="body-text" x="1064" y="145" >处理请求，返回结果</text>
+<text class="note" x="1064" y="173" >补充说明：同组统一样式</text>
+</g>
+<g id="palette-red" style="--module-color:var(--red);--module-bg:var(--red-bg);--module-chip:var(--red-chip)">
+<rect class="frame" x="40" y="252" width="640" height="190"/>
+<text class="frame-title" x="60" y="284" >示例模块</text>
+<text class="note" x="660" y="284" text-anchor="end">红色</text>
+<rect class="card" x="60" y="310" width="292" height="108"/>
+<text class="node-title" x="76" y="337" >内部组件</text>
+<text class="body-text" x="76" y="365" >处理请求，返回结果</text>
+<text class="note" x="76" y="393" >补充说明：同组统一样式</text>
+<rect class="duty" x="368" y="310" width="292" height="108"/>
+<text class="node-title" x="384" y="337" >职责分区</text>
+<text class="body-text" x="384" y="365" >处理请求，返回结果</text>
+<text class="note" x="384" y="393" >补充说明：同组统一样式</text>
+</g>
+<g id="palette-blue" style="--module-color:var(--blue);--module-bg:var(--blue-bg);--module-chip:var(--blue-chip)">
+<rect class="frame" x="720" y="252" width="640" height="190"/>
+<text class="frame-title" x="740" y="284" >示例模块</text>
+<text class="note" x="1340" y="284" text-anchor="end">蓝色</text>
+<rect class="card" x="740" y="310" width="292" height="108"/>
+<text class="node-title" x="756" y="337" >内部组件</text>
+<text class="body-text" x="756" y="365" >处理请求，返回结果</text>
+<text class="note" x="756" y="393" >补充说明：同组统一样式</text>
+<rect class="duty" x="1048" y="310" width="292" height="108"/>
+<text class="node-title" x="1064" y="337" >职责分区</text>
+<text class="body-text" x="1064" y="365" >处理请求，返回结果</text>
+<text class="note" x="1064" y="393" >补充说明：同组统一样式</text>
+</g>
+<g id="palette-purple" style="--module-color:var(--purple);--module-bg:var(--purple-bg);--module-chip:var(--purple-chip)">
+<rect class="frame" x="40" y="472" width="640" height="190"/>
+<text class="frame-title" x="60" y="504" >示例模块</text>
+<text class="note" x="660" y="504" text-anchor="end">紫色</text>
+<rect class="card" x="60" y="530" width="292" height="108"/>
+<text class="node-title" x="76" y="557" >内部组件</text>
+<text class="body-text" x="76" y="585" >处理请求，返回结果</text>
+<text class="note" x="76" y="613" >补充说明：同组统一样式</text>
+<rect class="duty" x="368" y="530" width="292" height="108"/>
+<text class="node-title" x="384" y="557" >职责分区</text>
+<text class="body-text" x="384" y="585" >处理请求，返回结果</text>
+<text class="note" x="384" y="613" >补充说明：同组统一样式</text>
+</g>
+<g id="palette-green" style="--module-color:var(--green);--module-bg:var(--green-bg);--module-chip:var(--green-chip)">
+<rect class="frame" x="720" y="472" width="640" height="190"/>
+<text class="frame-title" x="740" y="504" >示例模块</text>
+<text class="note" x="1340" y="504" text-anchor="end">绿色</text>
+<rect class="card" x="740" y="530" width="292" height="108"/>
+<text class="node-title" x="756" y="557" >内部组件</text>
+<text class="body-text" x="756" y="585" >处理请求，返回结果</text>
+<text class="note" x="756" y="613" >补充说明：同组统一样式</text>
+<rect class="duty" x="1048" y="530" width="292" height="108"/>
+<text class="node-title" x="1064" y="557" >职责分区</text>
+<text class="body-text" x="1064" y="585" >处理请求，返回结果</text>
+<text class="note" x="1064" y="613" >补充说明：同组统一样式</text>
+</g>
+<g id="palette-teal" style="--module-color:var(--teal);--module-bg:var(--teal-bg);--module-chip:var(--teal-chip)">
+<rect class="frame" x="40" y="692" width="640" height="190"/>
+<text class="frame-title" x="60" y="724" >示例模块</text>
+<text class="note" x="660" y="724" text-anchor="end">青色</text>
+<rect class="card" x="60" y="750" width="292" height="108"/>
+<text class="node-title" x="76" y="777" >内部组件</text>
+<text class="body-text" x="76" y="805" >处理请求，返回结果</text>
+<text class="note" x="76" y="833" >补充说明：同组统一样式</text>
+<rect class="duty" x="368" y="750" width="292" height="108"/>
+<text class="node-title" x="384" y="777" >职责分区</text>
+<text class="body-text" x="384" y="805" >处理请求，返回结果</text>
+<text class="note" x="384" y="833" >补充说明：同组统一样式</text>
+</g>
+</svg>
+      </div>
+      <figcaption>来源：内置通用示例，不描述真实项目。各色使用相同面积、文字和层次，仅用于比较视觉强度，不分配实际模块。按实际显示尺寸检查浅底、内部组件与职责分区，并分别复看浅色、深色和灰度效果。</figcaption>
+    </figure>
+    <div class="legend" role="group" aria-label="图例">
+<div class="legend-row module-retrieval"><span class="legend-symbol"><span class="legend-swatch"></span></span><span>浅底与主色边框：模块身份，内部组件使用统一卡片背景</span></div>
+<div class="legend-row module-retrieval legend-duty"><span class="legend-symbol"><span class="legend-swatch"></span></span><span>同色系较明显浅底：模块内部职责，同组使用统一填色</span></div>
+</div>
+  </main>
+</body>
+</html>

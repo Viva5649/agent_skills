@@ -286,6 +286,161 @@ class MetricsStateTest(unittest.TestCase):
         self.assertIn("already exists", duplicate.stderr)
         self.assertEqual(original, self.metrics.read_bytes())
 
+    def test_timer_records_boundaries_and_excludes_nested_checks_and_user_wait(self) -> None:
+        self.init()
+        implementation = self.write_event(
+            "implementation", kind="ticket_phase", phase="implementation",
+            reason="implementation_work", duration_ms=None,
+        )
+        self.tool("start", "--output", str(self.metrics), "--timer-id", "implementation-1",
+                  "--event-file", str(implementation))
+        self.record(self.write_event(
+            "nested", kind="gate", phase="ticket_checks", reason="implementation_change",
+            duration_ms=100,
+        ))
+        self.tool("end", "--output", str(self.metrics), "--timer-id", "implementation-1",
+                  "--result", "pass")
+        records = [json.loads(line) for line in self.metrics.read_text().splitlines()[1:]]
+        elapsed = records[-1]["timestamp_ms"] - records[0]["timestamp_ms"]
+        self.assertGreaterEqual(elapsed, 0)
+        self.record(self.write_event(
+            "wait", kind="wait", ticket=None, phase="waiting", reason="user_wait",
+            state_owners=[], duration_ms=75000,
+        ))
+        summary = json.loads(self.tool("summary", "--input", str(self.metrics)).stdout)
+        self.assertEqual(elapsed, summary["workflow_duration_ms"])
+        self.assertEqual(elapsed + 100, summary["operation_duration_ms"])
+        self.assertEqual(75000, summary["wait_duration_ms"]["user_wait"])
+        self.assertEqual(1, summary["by_kind"]["ticket_phase"])
+        retained = self.metrics.read_bytes()
+        self.assertNotEqual(0, self.tool(
+            "end", "--output", str(self.metrics), "--timer-id", "implementation-1",
+            "--result", "pass", check=False,
+        ).returncode)
+        self.assertEqual(retained, self.metrics.read_bytes())
+
+    def test_mixed_case_timer_ids_preserve_identity_through_end_and_interrupt(self) -> None:
+        self.init()
+        event = self.write_event(
+            "repair", kind="repair", phase="repair_micro", reason="review_finding",
+            duration_ms=None,
+        )
+        timer_ids = ["final-doc-W17-repair", "Final_Doc_W18_repair"]
+        for timer_id, command, terminal_args in (
+            (timer_ids[0], "end", ("--result", "pass")),
+            (timer_ids[1], "interrupt", ("--reason", "user_wait")),
+        ):
+            with self.subTest(command=command):
+                started = self.tool(
+                    "start", "--output", str(self.metrics), "--timer-id", timer_id,
+                    "--event-file", str(event), check=False,
+                )
+                self.assertEqual(0, started.returncode, started.stderr)
+                summary = json.loads(self.tool("summary", "--input", str(self.metrics)).stdout)
+                self.assertEqual([timer_id], summary["open_timer_ids"])
+                retained = self.metrics.read_bytes()
+                wrong_case = self.tool(
+                    "end", "--output", str(self.metrics), "--timer-id", timer_id.lower(),
+                    "--result", "pass", check=False,
+                )
+                self.assertNotEqual(0, wrong_case.returncode)
+                self.assertIn("timer is not open", wrong_case.stderr)
+                self.assertEqual(retained, self.metrics.read_bytes())
+                self.tool(command, "--output", str(self.metrics), "--timer-id", timer_id,
+                          *terminal_args)
+        records = [json.loads(line) for line in self.metrics.read_text().splitlines()[1:]]
+        self.assertEqual([timer_ids[0]] * 2 + [timer_ids[1]] * 2,
+                         [record["timer_id"] for record in records])
+        summary = json.loads(self.tool("summary", "--input", str(self.metrics)).stdout)
+        self.assertEqual([], summary["open_timer_ids"])
+        self.assertEqual(1, summary["by_kind"]["repair"])
+        self.assertEqual(timer_ids[1], summary["interrupted_spans"][0]["timer_id"])
+        self.assertEqual(0, summary["unmeasured_workflow_event_count"])
+
+    def test_open_or_interrupted_timer_never_counts_outage_as_execution_or_review_result(self) -> None:
+        self.init()
+        event = self.write_event("review", duration_ms=None)
+        self.tool("start", "--output", str(self.metrics), "--timer-id", "review-1",
+                  "--event-file", str(event))
+        summary = json.loads(self.tool("summary", "--input", str(self.metrics)).stdout)
+        self.assertEqual(["review-1"], summary["open_timer_ids"])
+        self.assertEqual(0, summary["workflow_duration_ms"])
+        self.assertEqual(0, summary["event_count"])
+        self.tool("interrupt", "--output", str(self.metrics), "--timer-id", "review-1",
+                  "--reason", "service_outage")
+        self.tool("start", "--output", str(self.metrics), "--timer-id", "review-2",
+                  "--event-file", str(event))
+        self.tool("end", "--output", str(self.metrics), "--timer-id", "review-2",
+                  "--result", "pass")
+        summary = json.loads(self.tool("summary", "--input", str(self.metrics)).stdout)
+        self.assertEqual(1, summary["by_kind"]["review_round"])
+        self.assertEqual(1, summary["unmeasured_workflow_event_count"])
+        self.assertEqual("service_outage", summary["interrupted_spans"][0]["reason"])
+        self.assertEqual([], summary["open_timer_ids"])
+
+    def test_timer_rejects_overlapping_workflow_spans_but_allows_nested_check(self) -> None:
+        self.init()
+        event = self.write_event("review", duration_ms=None)
+        self.tool("start", "--output", str(self.metrics), "--timer-id", "review-1",
+                  "--event-file", str(event))
+        retained = self.metrics.read_bytes()
+        self.assertNotEqual(0, self.tool(
+            "start", "--output", str(self.metrics), "--timer-id", "review-2",
+            "--event-file", str(event), check=False,
+        ).returncode)
+        self.assertEqual(retained, self.metrics.read_bytes())
+        nested = self.write_event(
+            "nested", kind="gate", phase="ticket_checks", reason="implementation_change",
+            duration_ms=None,
+        )
+        self.tool("start", "--output", str(self.metrics), "--timer-id", "check-1",
+                  "--event-file", str(nested))
+        self.tool("end", "--output", str(self.metrics), "--timer-id", "check-1",
+                  "--result", "fail")
+
+    def test_planned_interruption_keeps_measured_work_without_claiming_review_completion(self) -> None:
+        self.init()
+        event = self.write_event("review", duration_ms=None)
+        self.tool("start", "--output", str(self.metrics), "--timer-id", "review-1",
+                  "--event-file", str(event))
+        self.tool("interrupt", "--output", str(self.metrics), "--timer-id", "review-1",
+                  "--reason", "user_wait")
+        records = [json.loads(line) for line in self.metrics.read_text().splitlines()[1:]]
+        summary = json.loads(self.tool("summary", "--input", str(self.metrics)).stdout)
+        self.assertEqual(records[-1]["timestamp_ms"] - records[0]["timestamp_ms"],
+                         summary["workflow_duration_ms"])
+        self.assertEqual(0, summary["event_count"])
+        self.assertEqual(0, summary["unmeasured_workflow_event_count"])
+
+    def test_v2_history_survives_timer_upgrade_and_corrupt_end_cannot_change_log(self) -> None:
+        self.init()
+        self.record(self.write_event("old-review", duration_ms=1250))
+        lines = self.metrics.read_text().splitlines()
+        header = json.loads(lines[0])
+        header["schema_version"] = 2
+        self.metrics.write_text(json.dumps(header) + "\n" + lines[1] + "\n")
+        old_record = lines[1]
+        event = self.write_event(
+            "closeout", kind="run_phase", ticket=None, phase="closeout",
+            reason="final_closeout", state_owners=[], duration_ms=None,
+        )
+        self.tool("start", "--output", str(self.metrics), "--timer-id", "closeout-1",
+                  "--event-file", str(event))
+        retained = self.metrics.read_bytes()
+        self.assertNotEqual(0, self.tool(
+            "end", "--output", str(self.metrics), "--timer-id", "closeout-1",
+            "--result", "fail", check=False,
+        ).returncode)
+        self.assertEqual(retained, self.metrics.read_bytes())
+        self.tool("end", "--output", str(self.metrics), "--timer-id", "closeout-1",
+                  "--result", "pass")
+        lines = self.metrics.read_text().splitlines()
+        self.assertEqual(old_record, lines[1])
+        self.assertEqual(3, json.loads(lines[0])["schema_version"])
+        summary = json.loads(self.tool("summary", "--input", str(self.metrics)).stdout)
+        self.assertEqual(2, summary["event_count"])
+        self.assertGreaterEqual(summary["workflow_duration_ms"], 1250)
+
     def test_ticket_scope_allows_an_explicit_empty_state_owner_list(self) -> None:
         self.init()
         scope = self.write_event(

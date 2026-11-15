@@ -200,7 +200,7 @@
     {
       "id": 19,
       "prompt": "一次 integration discovery review 发现：cleanup 的异常被静默吞掉。权威设计只要求写固定 tag/phase/result 的无内容 error log，不改变返回值、公开错误、生命周期或资源 owner。修复是删除一个 shortcut 并加安全日志，已有 focused test 和 service-sdk module test。还要不要再开两名 reviewer、重跑整仓 final gate？",
-      "expected_output": "execution mode 可因可复现回归选 tdd，但 assurance lane 独立判为 micro；冻结 pre/candidate snapshot，跑 focused 与受影响 module gate、删除审计和 diff check，由 orchestrator 审完整小 delta 后直接 protected stage。零 reviewer；只重跑 always-run 或被输入 manifest 判定失效的 feature gate，不启动新一轮 integration discovery review。",
+      "expected_output": "execution mode 可选 tdd，assurance 独立判为 micro；冻结快照、执行 focused 与受影响检查并由 orchestrator inspection，零 reviewer。稳定候选的门禁按确定性 manifest 和已声明 runtime 证据适用条件执行或保留；fresh-runtime 仍实跑，不开启新 discovery。",
       "files": [],
       "expectations": [
         "Decouples tdd execution mode from micro assurance",
@@ -846,7 +846,7 @@
     {
       "id": 75,
       "prompt": "final gate 阶段，真机上的门禁 G4 因一个已知原因失败：G4 依赖的采集前置在同一失败轮里已被 supervisor 完成失败归属，但用户还没处置，且按 ticket 声明的显式先决顺序 G4 必须先等 G3 通过。随后 repair owner 修好了另一个与本失败无关的子问题（G1 的一个过滤参数），并跑了自己的针对性检查通过。orchestrator 现在要不要把整套 final gate（含昂贵的 G4 真机门禁）重新派发跑一遍？其余没有阻塞的 ticket 还能继续吗？",
-      "expected_output": "不因修好一个无关子问题就重新派发整套验收：沿用同一失败轮已有的失败证据作为归属、保留原 FAIL，repair owner 只运行回答自己修复或归属所需的针对性检查（其 selector PASS 不等于门禁 PASS），这类针对性运行与其余独立且获准的工作照常推进、不被拦下；冲突走既有 execution authority repair 或用户处置。只有当该轮所有相关已知阻塞项都已修复或按原权限处置、且候选准备好后，final-gate supervisor 才按原 always-run/reusable/fresh-runtime 和显式先决门禁顺序执行含昂贵 G4 真机门禁在内的完整验收，不重置预算、不新增“保留旧 PASS”的资格，因此不是全局停工。",
+      "expected_output": "保留该失败轮已有归因与 FAIL，不因修好无关子问题重跑整套验收。原 owner 做回答修复问题的针对性检查，其 selector PASS 不冒充 gate PASS；独立授权工作继续。已知阻塞全部修复或按权限处置后，候选经当前 assurance，再按明确的证据适用条件与 prerequisite/fresh-runtime 顺序完成验收。不重置预算，不自行新增复用资格。",
       "files": [],
       "expectations": [
         "Does not re-dispatch the entire final gate suite because one unrelated sub-problem was repaired",
@@ -1055,6 +1055,138 @@
         "Preserves necessary boundary conversion despite line-count simplification and uses existing review phases.",
         "Separately classifies the unrelated historical interface without automatically adding it to current delivery."
       ]
+    },
+    {
+      "id": 92,
+      "prompt": "某设备 gate 声明允许同 run verifier-only 重评。runtime、制品、模型、调用者和 raw 哈希均可核对，完整 raw 已包含所需数值；parser 把合法空查询误判失败。修正后是否重跑设备？另一个方法漏传必要模型参数，raw 没有实际执行证据，应怎样处置？仅作执行决定。",
+      "expected_output": "前者证明修正符合既有合同后只运行 validator，写绑定新 validator/合同与原 raw 的独立结果，保留旧 FAIL，计实际校验而非复用 FAIL。后者补齐参数并重跑受影响方法；缺失执行不能靠 raw 重评补齐，其他结果须各自证明适用。",
+      "files": [],
+      "expectations": [
+        "Reevaluates complete applicable raw under explicit authority and preserves FAIL",
+        "Records a new executed validation result rather than reused FAIL",
+        "Reruns the method with missing execution without automatically repeating unrelated matrix"
+      ]
+    },
+    {
+      "id": 93,
+      "prompt": "原设备结果 PASS 后只更正文档；gate 明确允许保留历史结果且所有相关及共享输入和原 raw 身份不变。再考虑两种变体：重建改变了相关 native 制品；gate 要求当前部署的新鲜交互或身份无法核对。请逐项决定。",
+      "expected_output": "文档不影响所声明 claim 时验证身份并保留该 run 结果，不派重复设备/累计代码审阅。相关制品变化重跑受影响实测；fresh 或身份未知不可保留旧 PASS，按实际交互或有界诊断/阻塞处理。",
+      "files": [],
+      "expectations": [
+        "Permits authorized retention after unrelated docs-only change",
+        "Invalidates relevant artifact change",
+        "Rejects retention for freshness or unknown identity"
+      ]
+    },
+    {
+      "id": 94,
+      "prompt": "各票已暂存，真实 producer 合法生成两条独立存储记录，SDK 只返回一条但总量为正。完整矩阵尚未启动。累计代码审阅如何安排？不要运行设备或修改文件。",
+      "expected_output": "consumer owner 的最小真实 witness 比较身份、数量和值，发现丢记录后定位跨层映射/合并；先修复与必要检查，再做累计 Standards/Spec/可用 CE 并关闭发现项，稳定候选才跑完整矩阵。已有对应结果计入组件，不逐层重复 E2E。",
+      "files": [],
+      "expectations": [
+        "Rejects positive total as preservation proof",
+        "Places real boundary witness and cumulative code review before full matrix",
+        "Keeps pending acceptance distinct from review PASS"
+      ]
+    },
+    {
+      "id": 95,
+      "prompt": "提前 integration_risk 审阅与 CE 都 PASS。随后授权 runtime gate 首次发现原 ticket03 的产品缺陷，需要 non-micro 修复。早期 PASS、gate FAIL 和 raw 均保留。怎样派发修复审阅并收尾？如果第三轮预算已用完呢？仅推演。",
+      "expected_output": "绑定真实失败、归因和冻结 IDs 到现有 index，原 owner 串行修复并记录既有 repair/test_failure 事件。预算脚本允许绑定到原 final round 的 targeted review，不能把 PASS 改成 FAIL 或重开 CE/discovery。按实际 owner 与剩余预算选择 closure/合法 single-owner closeout，稳定候选补齐受影响 gate；预算耗尽且 assurance 不足则阻塞。",
+      "files": [],
+      "expectations": [
+        "Preserves early PASS and gate FAIL without new schema",
+        "Uses original completed owner and existing bounded repair/closure budget",
+        "Blocks exhausted review without inventing another discovery"
+      ]
+    },
+    {
+      "id": 96,
+      "prompt": "所有行为 ticket 已 done 并暂存，尚未开始 integration discovery。累计 patch 将批量接口改成逐项结果；spec、代码和测试一致。未改动的 docs/api.md 和 docs/verification.md 仍要求第一个失败就整批抛错，原 ticket 都未列这两份文档，也没有文档票。README 入口仍有效。现在如何推进？只说明执行决策，不修改文件或运行 Git。",
+      "expected_output": "final-gate supervisor 从累计行为反查文档，把差异归因到原行为 ticket，记录精确路径/章节、稳定 authority、所需输出和检查，纳入同一次 integration findings。orchestrator 冻结 index 中的文档修复条目，接受 documentation-only final-fix scope 并捕获 fresh pre；repair supervisor 修改，沿用审阅、删除审计、保护暂存和哈希检查。保持 done ticket、原 receipt 和历史 checkpoint 不变；只读 final supervisor 不写文件，不调用 write 或强制补新票，不为有效 README 链接制造修改。文档未补齐不得报告 feature 完成。",
+      "expectations": [
+        "Finds unchanged documents absent from all ticket scopes",
+        "Routes a bounded authority-backed documentation-only final repair to the original behavior owner",
+        "Preserves completed tickets and admission/checkpoint history and the read-only final supervisor",
+        "Requires reviewed, verified, staged documentation before completion without adding a discovery round"
+      ],
+      "files": []
+    },
+    {
+      "id": 97,
+      "prompt": "准备最终收尾：实现仅合并私有辅助函数的重复分支，累计 patch 未改变外部行为、构建、配置或验证要求。相关 API、架构和验证文档已逐项检查且没有描述该内部实现。所有必要 gates 有效，没有文档票。如何记录和结束？",
+      "expected_output": "在既有 Completion/deviations 和最终 completion evidence 中记录检查范围及 no-impact 理由，完成原有收尾。无需创建文档、文档票、独立状态台账或重跑无关验证；无文档修改不等于漏掉文档核对。",
+      "expectations": [
+        "Records the inspected no-impact reason in existing evidence",
+        "Completes without invented documentation changes, extra tickets, ledgers, or gates"
+      ],
+      "files": []
+    },
+    {
+      "id": 98,
+      "prompt": "最终 patch 把 docs/build-run.md 整体移到项目指定的 ignored 临时目录，原文的工具链约束、ABI 验证与恢复命令在当前工程仍适用，正式 build guide 没有替代内容。文档票已 done，负向过期词扫描和代码 gates 通过，docs/README.md 仍链接旧位置。请判断最终文档是否完成及下一步责任，不实际修改。",
+      "expected_output": "不能完成。final-gate supervisor 指出当前变更丢失仍有效的维护职责并留下失效入口，orchestrator 路由原 owner 的有界 final-fix，把长期约束、验证与恢复步骤补回正式文档并修正引用，保留临时执行结果的身份。修复检查 replacement 内容可独立使用及链接，完成适用 assurance 和暂存，不改 done ticket 或历史证据，也不重跑未受影响的设备 gates。",
+      "expectations": [
+        "Rejects local execution records as the only home for enduring instructions",
+        "Requires usable maintained replacement content and repaired references",
+        "Uses bounded final repair and applicable checks without invalidating unrelated gate evidence"
+      ],
+      "files": []
+    },
+    {
+      "id": 99,
+      "prompt": "Exactly one implementation ticket is done. Its accepted reports cover the unchanged final candidate, every affected boundary and the empty run-start index. CE is available and later reports an actionable P2 requiring non-micro repair by that owner. Decide dispatch, budget events and closeout without running a product gate. Then change one fact: a related native-library delta was staged before the run and was never reviewed by the ticket reviewers. Decide again.",
+      "expected_output": "The first case reuses verified coverage, runs CE once, records final_assurance/ticket_coverage/fail and requires original-owner repair plus targeted assurance before eligible single-owner closeout. The second case needs normal integration discovery because cumulative baseline coverage is missing. Neither path invents a reviewer PASS or resets a budget.",
+      "expectations": [
+        "Omits initial integration dispatch only with complete bound coverage",
+        "Keeps CE, required gates and non-micro targeted repair assurance",
+        "Rejects reuse of an unreviewed staged baseline and preserves the shared discovery budget"
+      ],
+      "files": []
+    },
+    {
+      "id": 100,
+      "prompt": "A valid metrics log has an open final-gate timer. The model service stopped responding and execution resumes much later, but no reliable outage-onset timestamp exists. The gate then completes. Describe exact timer commands and what the summary can claim. Also explain a planned user wait whose start and return are observable.",
+      "expected_output": "Interrupt the old timer as service_outage, preserving an unknown fragment without an outcome. Time resume and the resumed gate separately; end the completed segment once. Never close the old timer at resume or subtract a guessed outage. For a planned wait, interrupt at the boundary to retain measured work and separately time wait/waiting, excluded from execution totals. Gaps do not block acceptance.",
+      "expectations": [
+        "Does not count an unknown outage interval as execution or a duplicate gate result",
+        "Separates known waits and resumed work, retaining incomplete-timing disclosure",
+        "Uses existing command timing when available without replaying work or adding a heartbeat"
+      ],
+      "files": []
+    },
+    {
+      "id": 101,
+      "prompt": "Admission has a successful build dry-run and a browser tab inventory. The required gate invokes a local compiler, opens a particular file URL in a named browser backend and checks native libraries in a packaged artifact. The compiler has not been resolved, that URL has not been opened and the expected library set has not been compared with the consumed artifact. Choose the smallest preflight work and invalidation rules; do not execute or modify anything.",
+      "expected_output": "Trace each real dependency in existing preflight evidence: resolve/load the exact compiler in the build environment; open the actual URL and read a required DOM value in the specified backend; compare consumed artifact identity/freshness and exact inventory. Reuse stable evidence until named inputs change, and recheck volatile state just before launch. A failure blocks dependent gates only. No full matrix, universal checklist or new ledger is needed.",
+      "expectations": [
+        "Distinguishes tool/task existence from the gate's actual feasibility conditions",
+        "Names a decisive bounded probe, evidence and invalidation condition for each real dependency",
+        "Reuses valid evidence without repeated generic preflight or weakening acceptance"
+      ],
+      "files": []
+    },
+    {
+      "id": 102,
+      "prompt": "A declared release-consumer gate builds six package variants, then launches one minified host/test pair. Debug instrumentation passes; the new test calls a setup helper supplied by the host, but no release invocation has run. The existing build can produce that pair alone and deletes temporary artifacts on exit. Its required builds are now ready, before integration review. Decide execution order and retained evidence. Then change one fact: only the full publication build can produce that pair. Do not execute or edit anything.",
+      "expected_output": "The earliest authorized gate owner uses the smallest existing real release entry before integration review and the remaining matrix, covering the shared setup helper, legal public call, result readback/parser and cleanup. Retain the relevant package/test artifacts and identities before temporary cleanup, keep device restoration, and count valid coverage once. When isolated production is unsupported, preserve the required full build and run the entry immediately afterward without inventing flags or redesigning the build.",
+      "expectations": [
+        "Requires the actual release/shrinking and host/test boundary rather than debug or compile-only proof",
+        "Stops dependent matrix execution on early failure while preserving explicit build prerequisites",
+        "Retains only necessary artifacts and uses existing input-based invalidation and restoration rules"
+      ],
+      "files": []
+    },
+    {
+      "id": 103,
+      "prompt": "Closeout already has explicit G1 PASS, G2 initial FAIL, G2 repaired PASS and G3 pending JSON files, plus a Markdown review report. Use the bundled evidence helper to describe the collection command and what the supervisor still must decide. The files are fixtures only; do not execute a product gate. Then consider a missing result file and an already-existing summary output.",
+      "expected_output": "Collect the explicit files with evidence_summary.py --artifact ID PATH into a new ignored output, preserving the initial failure and pending result. Reuse its path/hash records rather than retyping them. The helper rejects missing input and output overwrite; collection success is not acceptance, candidate applicability, failure closure or required-component completeness. Resolve the actual input issue or use original evidence without rerunning passed gates to reconstruct a summary.",
+      "expectations": [
+        "Uses explicit authoritative artifacts rather than scanning latest files or selecting only PASS",
+        "Keeps original outcomes and the supervisor's completeness, applicability and failure-closure decisions",
+        "Does not retry product gates or overwrite retained evidence for summary bookkeeping"
+      ],
+      "files": []
     }
   ]
 }

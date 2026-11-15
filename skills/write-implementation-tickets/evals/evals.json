@@ -69,7 +69,7 @@
     {
       "id": 6,
       "prompt": "为真机发布验证写 ticket：命令依赖 USB 设备、当前登录账号和远端制品服务。我想加 Reusable gate inputs，只列 app/src/，这样 review 改文档后就不用再跑。",
-      "expected_output": "不生成 Reusable gate inputs；指出 app/src/ 不是完整输入边界，USB、登录态和远端服务属于可变外部状态。Feature final gate 的唯一 owner、精确交互、always-run assessment 和不可用时的 stop/report 规则仍需定义，每次需要时正常执行。",
+      "expected_output": "不生成 Reusable gate inputs；app/src/ 不是完整输入边界，设备、登录态和远端服务属于外部状态。声明唯一 owner、交互、always-run 分类及不可用时的处置。另明确验收 claim、相关输入、失效条件与 freshness 依据，分别评估历史 PASS、raw 重评及必须实跑的条件；当前账号或发布状态需要新鲜证明时仍执行。",
       "files": [],
       "expectations": [
         "不生成 Reusable gate inputs",
@@ -220,7 +220,7 @@
     {
       "id": 17,
       "prompt": "一个 4-ticket feature 中，每张票都写了 `./gradlew assembleRelease test lint`，此外每张票还有自己的 focused module tests。命令在四张票完全相同，计划在每张票修复后都完整运行。请完成 ticket verification contract。",
-      "expected_output": "把 focused module tests 放到各自 Ticket-scoped checks；把完整 Gradle 命令提升为一个带稳定 id 和唯一 owner 的 Feature final gate，只声明一次。作者尝试给它声明 reusable manifest；不能完整证明输入时明确标为 always-run 并说明原因。执行计划只在累计候选 final gate 运行，repair 后按声明的输入失效或 always-run 决定重跑，不按 ticket 数重复。",
+      "expected_output": "focused module tests 归各票；完整 Gradle 命令只归一个 Feature final gate。作者证明 repository-only 边界后声明 reusable，否则 always-run 并说明原因。每项门禁补充证据失效与 freshness 条件；必要构建及关键跨票验证先做，累计代码审阅后完成剩余完整验收，不按 ticket 数重复。",
       "files": [],
       "expectations": [
         "Separates ticket-scoped checks from feature final gates.",
@@ -583,6 +583,82 @@
         "Keeps local-only authority for A and requires a valid lifecycle observation rather than claiming a local error proves physical cleanup.",
         "Retains B’s explicit real-download/cache gate as unproved until its prerequisites are met."
       ]
+    },
+    {
+      "id": 49,
+      "prompt": "为设备矩阵写最终门禁。作者因为用了设备就写 always-run，声称以后每次修文档或 parser 都必须重跑所有方法。权威只要求固定制品在指定后端的数值结果，没有每轮新鲜交互要求。请审阅并修正这项声明，不运行设备。",
+      "expected_output": "保留 deterministic always-run 分类，要求验收 claim、相关代码/调用者/测试/构建/模型/后端输入、raw 身份和失效条件；分别说明何时保留同 run PASS、何时重评完整 raw、何时重采集；不把设备当成任意修改全部失效的理由。",
+      "files": [],
+      "expectations": [
+        "Separates deterministic eligibility from runtime evidence applicability",
+        "Requires reasoned freshness and invalidation conditions for each gate",
+        "Does not invent a manifest or waive authority"
+      ]
+    },
+    {
+      "id": 50,
+      "prompt": "producer 票生成同一真实 Context 下两条独立容量记录，consumer 票经映射、峰值合并后公开返回记录。完整设备矩阵耗时两小时。如何安排已有最小入口的验证与累计审阅？",
+      "expected_output": "consumer owner 在依赖和必要构建就绪后，以真实 producer 与公开结果对照身份、数量和值；不只对照总量。完整矩阵前完成这一 witness 与累计 Standards/Spec/可用 CE。失败再查中间层，不逐层复制 E2E。有效结果计入对应组件。",
+      "files": [],
+      "expectations": [
+        "Assigns the witness to the consuming ticket",
+        "Requires real endpoint identities counts and values before expensive matrix",
+        "Preserves necessary build order and avoids duplicate tests"
+      ]
+    },
+    {
+      "id": 51,
+      "prompt": "一个 verifier 用文本方法验证图片 warmup，要求合法空 buffer 必须有容量，比较两次独立 probe 的 UUID。它还准备对很大的 raw 文件同时建立两份 DOM。现有 witness 和小输出已可读。编票时怎样处理？",
+      "expected_output": "现有实现 owner 在 witness 中核对方法/模态适用性、所有合法空值、同对象身份及读回内存；修正可静态判定的问题并复用已有证据。真正未知的运行事实归最早就绪的验证 owner；不添加通用 preflight 票、每层测试或生产 hook。",
+      "files": [],
+      "expectations": [
+        "Checks legal output and assertion applicability",
+        "Checks same-object identity and bounded readback cost",
+        "Reuses existing witness instead of universal extra testing"
+      ]
+    },
+    {
+      "id": 52,
+      "prompt": "给 Vector API 的批量错误语义变更拆票。spec 已明确每个输入独立返回成功或失败；当前 docs/api.md、examples/batch.py 和 docs/verification.md 仍描述整批失败，README 链接这些入口。草案只有 Core、SDK 两张行为票，没有文档票，仓库没有专门的文档 skill。只修正票的职责与范围，不执行实现。",
+      "expected_output": "从已确认行为检查文档影响，将 API、示例和验证说明的必要更新分配给对应行为 ticket，列入精确 scope、正向输出和检查；核对 README 引用是否实际需要变化，不为无变化的链接制造编辑。现有 Markdown 采用 surgical 编辑合同。无需安装文档 skill 或强制增加独立文档票。",
+      "expectations": [
+        "Identifies documentation impact before Markdown enters scope",
+        "Assigns concrete outputs and checks to behavior owners without requiring another ticket or skill",
+        "Preserves applicable Markdown responsibilities and changes navigation only when affected"
+      ],
+      "files": []
+    },
+    {
+      "id": 53,
+      "prompt": "spec 只要求把 Cache 内部的重复分支合并，公开行为、配置、性能承诺、构建和验证步骤均不变。作者已经检查 docs/api.md、docs/architecture.md 与 docs/testing.md，均不描述该内部结构。请给这张行为票填写文档部分，不实现。",
+      "expected_output": "保留 Documentation impact 判断并记录已检查文档和无需更新的具体理由；不创建文档票、不修改无关文档，也不保留不适用的 Markdown 编辑合同。",
+      "expectations": [
+        "Records an evidence-backed no-impact assessment",
+        "Does not manufacture documentation edits, a separate ticket, or a Markdown edit contract"
+      ],
+      "files": []
+    },
+    {
+      "id": 54,
+      "prompt": "需求把一次性的构建执行记录从 docs/build-run.md 移到项目约定的本地临时目录。原文同时包含当前仍有效的工具链约束、ABI 检查和失败后的恢复命令，正式 docs/build.md 尚未包含这些内容；docs/README.md 链接旧记录。请写这部分的 ticket 合同，不搬文件。",
+      "expected_output": "区分临时执行结果与长期约束，把仍有效的约束、ABI 检查和恢复步骤保留或提取到 docs/build.md，修正正式入口，临时记录去项目指定位置。合同列出精确 scope、职责对应的 replacement 和正向检查；正式构建步骤不能依赖临时文件才能完成。",
+      "expectations": [
+        "Preserves enduring constraints and runnable verification/recovery in maintained documentation",
+        "Uses project storage policy and repairs affected navigation",
+        "Requires positive replacement outputs rather than a stale-token-only scan"
+      ],
+      "files": []
+    },
+    {
+      "id": 55,
+      "prompt": "Author a scoped documentation and verification plan for a new batch API alongside existing sendText/sendImage methods. The API guide is in the draft scope. README and a thread-model page enumerate only those existing methods; the documentation index links them. A verification page contains both runnable commands and a pending release-result paragraph. Acceptance requires a real minified consumer with a separate test package; the existing pipeline can build that pair alone, and later runs a larger matrix. Identify scope, owners and timing without implementing or running devices.",
+      "expected_output": "Search sibling identifiers and contract wording and follow relevant navigation before freezing scope; record affected sections and no-impact dispositions in Documentation impact. Put contracts/instructions in the behavior ticket and defer only the result paragraph to its named gate/owner. Declare the minimal actual release entry and artifact retention in that gate before cumulative review/full matrix once dependencies are ready, preserving its complete acceptance and input-based reuse conditions.",
+      "expectations": [
+        "Finds relevant pages that cannot contain the new API name yet and avoids edits to unchanged links",
+        "Separates implementation-time contract updates from gate-result-only facts without a new document ledger or ticket",
+        "Names the real release runner/artifact, early authorized owner, result access, cleanup and invalidation"
+      ],
+      "files": []
     }
   ]
 }

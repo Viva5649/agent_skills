@@ -1,5 +1,7 @@
 import importlib.util
+from html.parser import HTMLParser
 from pathlib import Path
+import re
 import subprocess
 import sys
 import tempfile
@@ -85,7 +87,48 @@ class DiagramChecks(unittest.TestCase):
                 report = checker.check(examples.render(layout))
                 self.assertTrue(report["ok"], report)
                 self.assertEqual(report["issues"], [])
-                self.assertGreater(report["coverage"]["checked_labels"], 0)
+                if layout != "palette":
+                    self.assertGreater(report["coverage"]["checked_labels"], 0)
+
+    def test_palette_compares_all_colors_with_equal_sample_geometry(self):
+        page = checker.ET.fromstring(re.search(r"<svg\b.*?</svg>", examples.render("palette"), re.S).group())
+        samples = [g for g in page.iter("{http://www.w3.org/2000/svg}g")
+                   if g.get("id", "").startswith("palette-")]
+        self.assertEqual({g.get("id") for g in samples},
+                         {f"palette-{color}" for color in ("gold", "orange", "red", "blue", "purple", "green", "teal")})
+        geometry = []
+        for group in samples:
+            rects = group.findall("{http://www.w3.org/2000/svg}rect")
+            self.assertEqual(len(rects), 3)
+            x, y = float(rects[0].get("x")), float(rects[0].get("y"))
+            geometry.append([(float(r.get("x")) - x, float(r.get("y")) - y,
+                              float(r.get("width")), float(r.get("height"))) for r in rects])
+        self.assertTrue(all(sample == geometry[0] for sample in geometry))
+
+    def test_template_and_examples_place_legends_outside_figure_panels(self):
+        class LegendParser(HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self.figure_depth = 0
+                self.legend_locations = []
+
+            def handle_starttag(self, tag, attrs):
+                if tag == "figure":
+                    self.figure_depth += 1
+                if "legend" in dict(attrs).get("class", "").split():
+                    self.legend_locations.append(self.figure_depth)
+
+            def handle_endtag(self, tag):
+                if tag == "figure":
+                    self.figure_depth -= 1
+
+        pages = {"template": (PACKAGE / "assets/architecture-template.html").read_text()}
+        pages.update((layout, examples.render(layout)) for layout in examples.LAYOUTS)
+        for name, page in pages.items():
+            with self.subTest(page=name):
+                parser = LegendParser()
+                parser.feed(page)
+                self.assertEqual(parser.legend_locations, [0])
 
     def test_endpoints_and_label_candidate_follow_node_movement(self):
         for dx in (0, 80):

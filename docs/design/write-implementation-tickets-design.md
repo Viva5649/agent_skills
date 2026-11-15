@@ -364,6 +364,7 @@ author 在正式 ticket 之前维护一份私有 implementation map，每个 req
 | `Write scope` | 列出当前证据已知的精确写路径 |
 | `Permitted discovery` | 未知路径只能按一个可判定规则进入 scope |
 | `Scope closure witness` | 记录 discovery command、authoring baseline、每个命中路径的 disposition，以及空的 undisposed set |
+| `Documentation impact` | 每项行为对应的现有文档、必要更新、具名 owner 和验收依据；无影响时记录仓库证据支持的理由 |
 | `Documentation edit contract` | 修改已有 Markdown 时记录 `surgical`/`whole-document`、获准变化的章节或职责、当前 authority 和必须存在的 replacement output |
 | `Consumes` | 说明当前代码或 blocker 必须先提供什么接口/证据 |
 | `Produces` | 说明后续 ticket 或 caller 能消费什么确定合同 |
@@ -499,7 +500,17 @@ API/wire/输出形状迁移时，author 将已知生成消费者、发布坐标 
 不把生成器版本标签或旧命令 PASS 当作新行为证据。需要修改的生成器或脚本精确归属迁移票；另票负责时写清
 Consumes/Produces 与 blocker，不留到 final gate 临时补范围。未知 scope 继续走现有 discovery，不新增一轮审查。
 
-### 10.3.1 `Documentation edit contract`
+### 10.3.1 文档影响与编辑合同
+
+author 为每项行为检查现有长期文档及相关入口，记录 `Documentation impact`。有影响时，记录精确路径与章节、必要更新、所属 ticket 和验收依据；无影响时，说明检查了哪些行为与文档，以及为什么无需修改。检查范围由需求和代码事实决定，不要求每次生成固定的一套文档。
+
+author 在确定 ticket scope 前一次建立这份清单：搜索已有公开标识、同类 API 和合同措辞，再沿相关导航检查架构、线程或生命周期、示例与验证说明。只搜索新增名称会漏掉仍只列出旧入口的文档。author 在现有 `Documentation impact` 中记录搜索命令、相关命中的处置和精确章节，供执行阶段复用；行为、新引用或实际遗漏出现变化时才重查对应部分。合同与可运行步骤随实现完成，仅依赖真实 gate 结果的事实留待结果产生，并按同一 owner 合并更新。
+
+文档更新默认属于对应行为 ticket。只有符合既有拆票判据时，author 才安排独立文档 ticket。新建、搬迁或修改文档时，author 同时检查相关入口与引用，并将需要修改的路径纳入 scope。依赖最终 gate 的事实更新必须指定 gate ID、目标位置、写入 owner 和正向验收要求；只读 final-gate supervisor 交接结果，由具名 owner 完成更新。
+
+repository-alignment reviewer 从行为和现有文档反查这份影响判断，不能只检查已经列入 scope 的 Markdown。已声明的编辑仍遵循下面的职责保留合同。
+
+#### `Documentation edit contract`
 
 修改已有 Markdown 时，ticket 默认使用 `surgical`：精确列出 authority 允许删除、改写或搬迁的标题章节、
 代码示例职责或事实，未列出的现有内容默认保留。exact path 进入 write scope 只授权修改该文件的 bytes，
@@ -564,6 +575,7 @@ author 不把每个中间结果自动提升为 acceptance，也不为每个步�
 author 将稳定产品行为分配给能直接证明它的生产边界；其他层只保留本层独有的映射或不变量验证，
 不重复整组端到端场景。依赖未实现时，author 在既有 `Interfaces` 和验证分层中具名后续 ticket 或
 final-gate owner，记录尚未证明的行为；不得以半成品通过替代最终验收，也不得推迟明确的前置证据门禁。
+消费端 ticket 的负责人还要验证关键跨票合同：上游真实产生的身份、数量、值或错误，经下游转换、过滤、聚合和传输后，仍符合公开结果合同。author 在既有 witness 中声明起点、终点、合法输入和最早执行时机。复用已有入口对照真实起点与公开终点，失败后再逐层定位，不为每层复制端到端测试。依赖就绪后、累计代码审阅和完整昂贵矩阵之前完成；必须先构建或执行明确先决门禁时保留该顺序，并把仍有效的结果计入后续验收。
 author 与 reviewer 先检查验收对象是否有上述合同依据，再要求完整 verification witness。
 预检的 absence detector 证明所需测试确实存在并执行、检查读取真实目标且失败能够传播；
 它与保护产品行为的断言分开评估。已有精确测试结果、失败传播证据或相关 red 证据可引用，
@@ -646,6 +658,10 @@ author 在同一 witness 区分产品结果、必要环境前提和补充指标/
 不代表它的每一条检查都自动进入本功能的验收范围。
 spec 明确要求的行为必须保留；代码或模型能力与要求冲突时，交需求负责人决定，作者不得自行豁免。
 
+对于 release 或发布消费者验收，author 在原 gate 中安排最小既有用例，指定最早获准的 owner，在必要构建完成后、累计审阅和剩余昂贵矩阵前执行。用例通过实际发布制品及测试运行器，覆盖入口、跨包调用的测试初始化方法、一次合法公开调用、结果读回与解析、清理；存在缩减或混淆时使用对应配置。
+
+若构建无法独立生成目标制品，保留必要构建顺序并在构建后立即执行，不虚构 selector。原 witness 同时声明制品、runner 和配置的失效条件，以及临时目录清理前需保留的制品与原始结果。已覆盖的验收组件只计一次，修复后的复用沿用 `Evidence after repairs`。
+
 旧 fixture 中的固定 hash、token 上限或依赖下载的探针也要追溯要求来源。历史常量本身不是产品合同；作者可按已有规则修正已证实过时的 fixture，但不能用预置模型替代明确要求的真实下载或缓存复用验收。
 
 环境前提按所需能力表述（解释器与版本、JDK/SDK/NDK、依赖解析、设备、模型来源等）；操作系统、
@@ -687,7 +703,7 @@ pipeline 必须保留上游非零退出；identity/history 与 exact-once cleanu
 只能运行、但不能感知证据缺失的命令不能进入 ticket。
 
 - `Ticket-scoped checks` 由当前 supervisor 运行，聚焦本票 acceptance 和诊断。
-- `Feature final gates` 在累计候选冻结后运行；每个 stable gate id 只有一个 owner 和一份 command/expected/reuse declaration。
+- `Feature final gates` 由唯一 owner 声明。构建先决项与关键跨票验证按依赖就绪执行，累计代码审阅通过后运行剩余完整验收；已执行且仍适用的结果计入同一 gate，不因阶段切换重复运行。每个 stable gate id 只有一份 command/expected/reuse declaration。
 - Acceptance 独占行为预期；check/gate 定义独占 exact command、working directory 和执行结果判定。Baseline 只引用 check/gate ID，另写不同的 baseline probe/expected/observed；Reusable gate inputs 只引用 gate ID 和输入边界，不再复制命令。若 baseline probe 与既有命令相同则引用，不复述。引用必须在声明输入内唯一可解析，不能形成循环或依赖隐藏对话。
 - 每个 feature gate 明确评估为 `reusable` 或 `always-run`。无法证明完整 deterministic boundary 时，安全默认是 `always-run`，并写出原因。
 
@@ -708,11 +724,11 @@ stop condition 必须指出：哪个 actor 在什么条件下、在哪个动作�
 
 ## 11. Reusable gate inputs：只做可证明安全的优化
 
-除下面的 deterministic reuse 外，author 可在现有 runtime gate 声明中明确允许同一 run 后续修复沿用历史实测，
-说明验收 claim、raw 证据和相关生产/测试/构建/部署/model 输入、失效条件，以及是否要求当前部署或新鲜交互。
-没有这项明确条件时 `always-run` 正常运行；它不把外部状态变成 `None`，也不放宽 fresh-runtime 要求。
-execute 按对应 historical runtime evidence 协议核对原 PASS/身份/哈希、共享输入适用性和后续失败，再记录沿用依据；
-任何相关变化或缺口都要求执行。新合同允许重评 raw 时须独立结果并保留旧 FAIL，不能用缺失证据生成 PASS。
+每个 feature final gate 都要声明修复后的证据适用条件，复用现有 gate 条目，不增加状态表。author 写明验收结论、相关生产/调用方/测试/构建/部署/输入/模型/环境条件、失效变化，以及是否必须观察当前状态。存在外部依赖只解释为何不能 deterministic reuse，不能单独证明任何修复都使旧证据失效。
+
+author 在同一条目中分别决定：哪些原 PASS 可保留、验证器修正后能否重评完整 raw、哪些变化要求重新采集或运行。要求 fresh interaction 时保留实跑要求；无法确定适用边界时说明具体未知并正常执行。准入 reviewer 检查这些判断及关键跨票 witness，缺项通过原 correction 流程修正，不新增审阅轮次或降低产品合同。
+
+execute 按对应 historical runtime evidence 协议核对原 PASS/身份/哈希、共享输入适用性和后续失败。重评 raw 产生绑定新 validator、权威合同和原 raw 的独立结果，保留旧 exit/FAIL；关键证据缺失时仍须运行。老票未声明保留条件时不默许复用，按既有 authority repair 处理可唯一确定的补充，实质验收决定交原权威 owner。
 
 `## Reusable gate inputs` 是可选元数据，不是 ticket 必填项，也不能替代 feature final gate。
 只有 expensive deterministic command 的完整 repository-only 输入边界可被证明时才写：
@@ -970,7 +986,7 @@ portability test 固定验证协议层不出现以宿主仓库为限定语的条
 
 ## 16. 测试与 eval 策略
 
-当前目录包含 70 个 Python 单元测试和 38 个 eval 场景。
+Python 单元测试验证确定性工具与安装包约束；`evals/evals.json` 验证 author 的行为判断。文档场景覆盖未单独拆文档票的 API 变化、确实无需更新文档的内部修改，以及搬迁执行记录时保留长期约束。
 
 ### 16.1 单元测试重点
 

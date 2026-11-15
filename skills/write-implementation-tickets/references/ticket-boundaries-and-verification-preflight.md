@@ -178,6 +178,41 @@ When a ticket has no permitted discovery, record that exact scope was
 established without discovery and that any additional write path returns to the
 owning execution flow. Do not manufacture a search only to populate the table.
 
+## Documentation impact
+
+For every required behavior, the author inspects its maintained documentation
+and related navigation under the target repository's policy. Record the affected
+contract, exact document/section, required output, owning ticket and acceptance
+check. When no update is needed, record the inspected behavior/documents and
+the concrete reason. This assessment applies even when no Markdown is yet in
+scope; derive any need for a new document from a real reader's missing
+instruction or contract, not a generic checklist.
+
+Build this inventory once while exploring the behavior, before fixing ticket
+scope. Search maintained documentation for the existing public identifiers and
+contract wording, then follow their navigation and relevant architecture,
+thread/lifecycle, example and verification references. A new API may be missing
+from a page that lists only its sibling APIs, so search those established names
+as well. Give each relevant hit an update or no-impact disposition in the
+existing Documentation impact assessment; include exact paths/sections and the
+discovery command so execution can reuse it. Do not create a second ledger or
+scan unrelated documentation. Reopen the assessment only for changed behavior,
+new references or an observed omission.
+
+Assign each update to the behavior's ticket by default. A separate documentation
+ticket must satisfy the same slice-boundary rules as any other ticket. Put needed
+document and reference updates in exact write scope. Follow the target
+repository's existing authoritative locations, including any generator that
+owns the output. For gate-dependent facts, name the gate ID, target location,
+write owner and positive acceptance; the read-only gate supervisor passes
+evidence to that owner. Moving execution records must preserve still-current
+contracts and verification instructions in maintained documentation.
+
+Separate contract/instruction updates from gate-result facts in that assessment.
+The behavior owner completes contracts and usable instructions with implementation;
+only facts requiring an actual gate result wait for that gate. Batch compatible
+result updates by document owner after their required results are available.
+
 ## Documentation edit contract
 
 Keep this contract only for a ticket that modifies existing Markdown. The

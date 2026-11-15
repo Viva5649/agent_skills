@@ -46,6 +46,17 @@ count or matching shape cannot prove that the original text was processed.
 Choose contract-valid edge inputs; this reasoning does not require a mutation
 suite or new tests when existing evidence already distinguishes the violation.
 
+When a critical preservation contract crosses tickets, the consuming ticket
+owns a bounded witness through the real producer and public consumer once its
+dependencies are ready, before cumulative code review and the full matrix.
+For example, if two independent storage records are legally produced by one
+runtime object, compare their identities, count and values at the public result;
+matching totals alone cannot detect a lost record. Trace intermediate boundaries
+only to localize a mismatch. Reuse existing entry points and applicable results;
+do not add production inspection hooks or duplicate the end-to-end test at each
+layer. Name the earliest verification owner if a build/runtime dependency delays
+execution, and preserve explicit prerequisite gates.
+
 For an affected asynchronous operation, trace both work completion and result
 delivery to the caller's terminal state. Inspect reachable transport/callback
 failures covered by the existing contract, the actor that detects them and the
@@ -164,6 +175,21 @@ feasible stage instead of turning every ticket into a hidden device gate, and
 reuse valid existing launch evidence. Entry responsibility changes no explicit
 ticket check or feature final gate contract.
 
+For release/published-consumer acceptance, plan the smallest existing test
+through the actual packaged artifact and its test runner before cumulative
+review and the remaining expensive matrix, once required builds are ready.
+Cover entry launch, setup helpers across the real package/classloader boundary,
+one legal public call, result readback/parser and cleanup. Where shrinking or
+obfuscation applies, use that variant; debug launch or compilation alone leaves
+this boundary unproved. This is an early component of the declared gate, not a
+new acceptance requirement or a test per build variant. If publication cannot
+build the target independently, retain its required build order and name that
+constraint; do not invent selective flags or redesign the build for preflight.
+Name the artifact/runner/configuration inputs that invalidate the witness and
+the run-local location retaining its artifacts and raw result until acceptance
+and required restoration finish. Reuse the existing Evidence after repairs
+contract for repairs; never retain credentials or extra user data.
+
 For an existing verifier being changed, the implementation owner traces the
 actual observation through its assertion and failure cleanup before the costly
 run. Reuse prior evidence and the same witness rather than adding a pre-review
@@ -171,6 +197,10 @@ stage or a mutation suite:
 
 - Identity, order and uniqueness require the corresponding comparisons of
   actual values; valid hash shape or equal counts alone cannot prove them.
+  Compare identities from the same required object/lifetime, not unrelated probes.
+- Check which methods/modalities each assertion applies to and all legal empty
+  or absent outputs. Check result size and reader memory cost; reuse bounded or
+  incremental reads when a second full parse would exceed the verifier budget.
 - A role, registry or authorization claim reads the installed/runtime boundary
   required by authority; a script's own constant or PASS label is not evidence.
 - After starting a background fixture/process, each reachable early failure

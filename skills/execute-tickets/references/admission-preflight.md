@@ -47,7 +47,8 @@ ADR, completed-blocker evidence, production declarations/callers, and existing
 tests uniquely prove that an incomplete ticket contract is wrong while the
 accepted behavior stays unchanged. Eligible corrections include ticket order
 or blocking edges, behavior-preserving ticket granularity, an omitted exact production
-or test-only scope path, a discovery disposition, a stale test/fixture/regex/
+or test-only scope path, an omitted documentation/reference path tied to the
+accepted behavior, a discovery disposition, a stale test/fixture/regex/
 scan/command path, missing verification witness text, or a spec clarification
 that only writes down an answer already fixed by a recorded user decision or
 ADR. Convenience alone is not evidence. At least one stable source outside the
@@ -272,6 +273,23 @@ and the condition for running it in the existing `preflight_trace.observed`.
 Do not invent an exit code, claim it passed, or rerun several commands that can
 only hit the same known failure. Independent checks still run.
 
+For each required gate with a concrete feasibility uncertainty, use its existing
+`preflight_trace` to name the required condition, smallest decisive probe,
+observed evidence, invalidation condition and the owner/stage that will recheck
+it. Derive these from the actual command and runtime consumer, not a generic
+tool checklist. A task being listed or a command passing syntax/dry-run checks
+does not prove that its executable, dependency, artifact or target is usable.
+Read the bounded probe examples in `supervisor-protocol.md` / Before an expensive
+build or runtime gate when choosing the probe. Follow the existing authority
+repair path for a missing or defective declared probe; do not silently expand
+admission into a full build or runtime test.
+
+Reuse stable prerequisite evidence until its named inputs change. For volatile
+device/session/configuration state, name a just-before-launch recheck by the
+gate owner. Admission cannot promise that external state will remain unchanged.
+No extra trace or probe is required for gates whose decisive conditions are
+already proved by applicable evidence.
+
 Only a completed blocker's consumed interface change that the current ticket
 already owns may explain a migration failure and allow implementation to
 continue. Other failures follow the drift/authority rules below. Missing
@@ -360,8 +378,12 @@ acceptance fact that makes it ticket-scoped.
 
 ### Feature final gates
 
-The final-gate supervisor runs each uniquely owned feature final gate once after
-all implementation tickets are accepted. Build a gate inventory from the
+The final-gate supervisor completes each uniquely owned feature final gate after
+all implementation tickets are accepted. When a necessary build/prerequisite must
+run earlier for a critical cross-ticket witness, its declared earliest authorized
+owner executes it and retains the evidence. Final acceptance counts only its
+still-applicable components once; it does not rerun them merely for phase order.
+Build a gate inventory from the
 owning tickets and `execution-plan.md`, without asking the orchestrator to load
 future implementation bodies into its context.
 

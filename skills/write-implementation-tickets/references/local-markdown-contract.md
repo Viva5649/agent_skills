@@ -191,6 +191,10 @@ vary, but the ticket must contain:
   action, object, condition and observable result. Unique section/check references
   satisfy the fields below when they resolve in declared inputs. Missing, cyclic
   or conflicting references do not. Existing consistent expanded tickets remain valid.
+- **Documentation impact:** required maintained-document/reference updates,
+  their owner and checks, including any gate-dependent handoff; or an inspected
+  no-impact reason. Existing Markdown edits also carry the template's bounded
+  edit contract and positive replacement requirements.
 - **Ordering and ownership contract (when applicable):** a cited spec or
   superseding ADR identifies actor/thread, state owner, resource owner,
   linearization point, competing operations and required order, failure owner,
@@ -222,13 +226,18 @@ vary, but the ticket must contain:
   only by the current ticket supervisor before ticket assurance.
 - **Feature final gates:** cumulative build, integration, publication, delivery,
   or target-runtime gates declared once by an owning ticket or execution plan
-  and run once after all implementation tickets are accepted. Every gate records
+  and completed at feature acceptance. Necessary earlier prerequisites have a
+  named execution owner; applicable results count once. Every gate records
   a reuse assessment and an `always-run` reason when no complete deterministic
-  boundary exists. A runtime gate may separately declare authority-permitted
-  retention of historical evidence after repairs within the same run: name its
-  acceptance claim, raw evidence, relevant production/test/build/deployment/model
-  inputs, invalidating changes and any current-state/fresh-interaction requirement.
-  This never describes external state as `None` or weakens a fresh-runtime gate.
+  boundary exists. Every gate also declares evidence-after-repair conditions:
+  acceptance claim, relevant inputs, invalidating changes and freshness with its
+  authority/reason. Distinguish retaining a PASS, reevaluating complete raw output
+  after a verifier-only correction and recollecting affected evidence; justify
+  inapplicable routes. Runtime retention is within the same run, never describes
+  external state as `None` and never weakens a fresh-runtime gate. Necessary
+  builds/prerequisites and critical cross-ticket witnesses precede cumulative
+  code review; the remaining full matrix follows reviewed repairs. Applicable
+  early results count once toward their declared acceptance components.
 - **Reusable gate inputs (optional):** only for a `reusable` feature final
   gate, its stable id resolving the exact command, every exact tracked file or
   directory that can affect it, and an explicit declaration that no device,

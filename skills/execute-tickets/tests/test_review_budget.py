@@ -280,6 +280,9 @@ class ReviewBudgetTest(unittest.TestCase):
 
     def test_final_review_rounds_have_one_deterministic_three_phase_budget(self) -> None:
         self.init()
+        self.record(self.write_event(
+            "accepted", kind="ticket_result", phase="acceptance", reason="ticket_completed",
+        ))
         discovery = self.write_event(
             "final-discovery",
             kind="final_review",
@@ -314,6 +317,8 @@ class ReviewBudgetTest(unittest.TestCase):
             result="pass",
         )
         self.assertEqual("recorded\n", self.record(repair_one).stdout)
+        self.assertNotEqual(0, self.validate(closure, check=False).returncode)
+        self.record(self.write_event("targeted-one", kind="final_repair_review", reason="standard"))
         self.assertEqual("recorded\n", self.record(closure).stdout)
 
         repair_two = self.write_event(
@@ -332,6 +337,8 @@ class ReviewBudgetTest(unittest.TestCase):
             result="fail",
         )
         self.assertEqual("recorded\n", self.record(repair_two).stdout)
+        self.assertNotEqual(0, self.validate(regression, check=False).returncode)
+        self.record(self.write_event("targeted-two", kind="final_repair_review", reason="standard"))
         self.assertEqual("recorded\n", self.record(regression).stdout)
 
         exhausted_targeted = self.write_event(
@@ -353,6 +360,77 @@ class ReviewBudgetTest(unittest.TestCase):
         self.assertNotEqual(0, rejected.returncode)
         self.assertIn("final_review phase/reason is invalid", rejected.stderr)
 
+
+    def test_reused_ticket_assurance_consumes_discovery_and_keeps_runtime_repair_budget(self) -> None:
+        self.init()
+        reused = self.write_event(
+            "reuse", kind="final_assurance", ticket=None, phase="integration_review",
+            reason="ticket_coverage", result="reused",
+        )
+        self.assertNotEqual(0, self.validate(reused, check=False).returncode)
+        self.record(self.write_event(
+            "accepted", kind="ticket_result", phase="acceptance", reason="ticket_completed",
+        ))
+        self.record(reused)
+        discovery = self.write_event(
+            "discovery", kind="final_review", ticket=None, phase="integration_review",
+            reason="integration_risk",
+        )
+        for duplicate in (reused, discovery):
+            self.assertNotEqual(0, self.record(duplicate, check=False).returncode)
+        targeted = self.write_event("targeted", kind="final_repair_review", reason="standard")
+        self.assertNotEqual(0, self.validate(targeted, check=False).returncode)
+        self.record(self.write_event(
+            "repair", kind="repair", phase="repair_non_micro", reason="test_failure",
+        ))
+        self.record(targeted)
+        closure = self.write_event(
+            "closure", kind="final_review", ticket=None, phase="integration_review",
+            reason="accepted_findings",
+        )
+        self.record(closure)
+        self.assertNotEqual(0, self.validate(targeted, check=False).returncode)
+
+    def test_reuse_cannot_hide_multiple_tickets_or_repeat_after_discovery(self) -> None:
+        self.init()
+        for ticket in ("03", "04"):
+            self.record(self.write_event(
+                ticket, kind="ticket_result", ticket=ticket, phase="acceptance",
+                reason="ticket_completed",
+            ))
+        reused = self.write_event(
+            "reuse", kind="final_assurance", ticket=None, phase="integration_review",
+            reason="ticket_coverage", result="reused",
+        )
+        self.assertNotEqual(0, self.validate(reused, check=False).returncode)
+        self.record(self.write_event(
+            "discovery", kind="final_review", ticket=None, phase="integration_review",
+            reason="integration_risk",
+        ))
+        self.assertNotEqual(0, self.validate(reused, check=False).returncode)
+
+    def test_ce_failure_after_reuse_allows_bounded_owner_repair_without_fake_review_pass(self) -> None:
+        self.init()
+        self.record(self.write_event(
+            "accepted", kind="ticket_result", phase="acceptance", reason="ticket_completed",
+        ))
+        self.record(self.write_event(
+            "reuse", kind="final_assurance", ticket=None, phase="integration_review",
+            reason="ticket_coverage", result="fail",
+        ))
+        self.record(self.write_event(
+            "repair", kind="repair", phase="repair_non_micro", reason="review_finding",
+        ))
+        closure = self.write_event(
+            "premature-closure", kind="final_review", ticket=None, phase="integration_review",
+            reason="accepted_findings",
+        )
+        self.assertNotEqual(0, self.validate(closure, check=False).returncode)
+        targeted = self.write_event("targeted", kind="final_repair_review", reason="standard")
+        self.record(targeted)
+        self.assertNotEqual(0, self.record(targeted, check=False).returncode)
+        events = [json.loads(line) for line in self.ledger.read_text().splitlines()[1:]]
+        self.assertFalse(any(e["kind"] == "final_review" for e in events))
 
     def test_closure_requires_a_completed_non_micro_repair(self) -> None:
         self.init()
@@ -414,6 +492,62 @@ class ReviewBudgetTest(unittest.TestCase):
         events = [json.loads(line) for line in self.ledger.read_text().splitlines()[1:]]
         self.assertEqual(2, sum(e["kind"] == "final_repair_review" for e in events))
 
+
+    def test_runtime_failure_after_passing_review_requires_reviewed_owner_repair(self) -> None:
+        self.init()
+        self.record(self.write_event(
+            "accepted-other", kind="ticket_result", ticket="04", phase="acceptance",
+            reason="ticket_completed",
+        ))
+        self.record(self.write_event(
+            "accepted", kind="ticket_result", phase="acceptance", reason="ticket_completed",
+        ))
+        self.record(self.write_event(
+            "final", kind="final_review", ticket=None, phase="integration_review",
+            reason="integration_risk",
+        ))
+        original = self.ledger.read_bytes()
+        targeted = self.write_event("targeted", kind="final_repair_review", reason="standard")
+        closure = self.write_event(
+            "closure", kind="final_review", ticket=None, phase="integration_review",
+            reason="accepted_findings",
+        )
+        for attempt in (targeted, closure):
+            self.assertNotEqual(0, self.validate(attempt, check=False).returncode)
+        self.assertEqual(original, self.ledger.read_bytes())
+        self.record(self.write_event(
+            "review-only", kind="repair", phase="repair_non_micro", reason="review_finding",
+        ))
+        self.assertNotEqual(0, self.validate(targeted, check=False).returncode)
+        self.record(self.write_event(
+            "blocked", kind="repair", phase="repair_non_micro", reason="test_failure", result="blocked",
+        ))
+        self.assertNotEqual(0, self.validate(targeted, check=False).returncode)
+        self.record(self.write_event(
+            "unrelated", kind="repair", ticket="04", phase="repair_non_micro",
+            reason="test_failure",
+        ))
+        self.assertNotEqual(0, self.validate(targeted, check=False).returncode)
+        self.record(self.write_event(
+            "repair", kind="repair", phase="repair_non_micro", reason="test_failure",
+        ))
+        self.assertEqual("valid\n", self.validate(targeted).stdout)
+        self.assertNotEqual(0, self.validate(closure, check=False).returncode)
+        self.record(targeted)
+        # An unreviewed second owner cannot hide behind the first owner's PASS.
+        self.assertNotEqual(0, self.validate(closure, check=False).returncode)
+        self.record(self.write_event(
+            "other-micro", kind="repair", ticket="04", phase="repair_micro",
+            reason="test_failure",
+        ))
+        self.assertNotEqual(0, self.validate(closure, check=False).returncode)
+        self.record(self.write_event(
+            "other-review", kind="final_repair_review", ticket="04", reason="standard",
+        ))
+        self.record(closure)
+        self.assertTrue(self.ledger.read_bytes().startswith(original))
+        self.assertNotEqual(0, self.validate(targeted, check=False).returncode)
+        self.assertNotEqual(0, self.record(closure, check=False).returncode)
 
     def test_failed_standard_final_repair_cannot_reset_lane_or_release_final_closure(self) -> None:
         self.init()

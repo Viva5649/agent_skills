@@ -43,11 +43,13 @@ python3 <execute-tickets-skill-root>/scripts/metrics_state.py init \
 The helper accepts only `<artifact-root>/<feature>/run-metrics.jsonl` and refuses
 to overwrite a prior log. Resume may continue a valid retained log; if it is absent
 or invalid, continue execution with metrics marked incomplete. These storage checks
-protect statistical data only. Existing v2 logs remain readable without rewriting.
+protect statistical data only. Existing v2 logs remain readable without rewriting;
+the first timer command upgrades only their header to v3 and preserves old records.
 
 ## Event contract
 
-Write one JSON object in the ignored run-artifact tree, then append it with:
+For an existing command/report with reliable machine-clock boundaries, reuse
+those timestamps and write one result event. Do not rerun it for timing. Append with:
 
 ```bash
 python3 <execute-tickets-skill-root>/scripts/metrics_state.py record \
@@ -60,8 +62,8 @@ and must never be used before dispatch as a permission check. Duplicate or
 out-of-order observations do not authorize, reject, or consume review rounds.
 Record the observed result and duration only after execution evidence is verified.
 
-Every event has exactly these fields (schema v2 is retained;
-`final_repair_review` and `run_phase` add kinds, not new required fields):
+Result events keep the same eight fields in v2 and v3. Timer boundary records
+described below are separate from result events:
 
 ```json
 {
@@ -71,7 +73,7 @@ Every event has exactly these fields (schema v2 is retained;
   "reason": "initial_ticket_review",
   "result": "pass",
   "scope_paths": [],
-  "state_owners": ["RemoteQiLlmService"],
+  "state_owners": ["RuntimeController"],
   "duration_ms": 1250
 }
 ```
@@ -98,16 +100,59 @@ Every event has exactly these fields (schema v2 is retained;
   Use `0` only for an instantaneous result transition or reuse decision.
 
 Record only core phase costs; do not introduce timers per read, command, worker
-or review axis. Existing ticket-check diagnostics may remain. Before an explicit
-pause/user wait, save elapsed time in the existing provisional event; after
-resume, add only the resumed work before recording the single result event.
-Capacity-driven scheduling waits (for example reviewer dispatch serialized by a
-thread or agent limit) belong in the dispatch schedule evidence and stay out of
-the event's execution `duration_ms`; when wait and execution cannot be
-separated, the event records the combined span as measured and says so, instead
-of presenting queued time as work.
-Do not emit a partial review result or duplicate its observation. A lost segment
-makes that event's duration null; elapsed idle time is not reconstructed.
+or review axis. Existing ticket-check and CE stage diagnostics may remain; keep
+their references rather than counting them again in workflow time.
+
+### Persistent phase timers
+
+When no existing producer measures the whole phase, use `start` immediately
+before it and `end` after its evidence is verified. The event file uses the eight
+fields above with `duration_ms: null`; `result` is only a schema-valid placeholder
+at start and is not recorded as an outcome. Use a unique timer ID per segment:
+
+Timer IDs are case-sensitive and preserve their spelling. Start with an ASCII
+letter or digit, then use ASCII letters of either case, digits, underscores or
+hyphens (`[A-Za-z0-9][A-Za-z0-9_-]*`). Reuse the exact ID for `end` or `interrupt`.
+
+```bash
+python3 <execute-tickets-skill-root>/scripts/metrics_state.py start \
+  --output .execute-tickets/<feature>/run-metrics.jsonl \
+  --timer-id ticket-03-review-1 \
+  --event-file .execute-tickets/<feature>/metrics-event.json
+python3 <execute-tickets-skill-root>/scripts/metrics_state.py end \
+  --output .execute-tickets/<feature>/run-metrics.jsonl \
+  --timer-id ticket-03-review-1 --result pass
+```
+
+The helper captures timestamps itself in the same log. A start record contains
+`record_type: timer_start`, `timer_id`, `timestamp_ms` and six-field event metadata
+(no result or duration). An end record contains `record_type: timer_end`,
+`timer_id`, `timestamp_ms`, `result` and `interruption`. Normal ends set
+`interruption: null`; interrupted ends set `result: null`. The helper rejects
+duplicate IDs/ends, backwards timestamps and overlapping workflow/wait timers;
+nested ticket-check timers remain diagnostics. Do not also `record` the same
+timed result. No second ledger, daemon or heartbeat is required.
+
+Before a planned user/capacity wait, call `interrupt --output <log> --timer-id
+<id> --reason user_wait` (or `capacity_wait`). This preserves measured work up to
+the boundary without claiming completion. If useful, start a separate unscoped
+`wait/waiting` timer with that reason and end it on return; waits never contribute
+to operation or workflow time. Resume preparation is its own span, then start a
+new segment of the interrupted phase. End only the segment that actually finishes
+with its verified result. Do not replay the phase.
+
+On unexpected interruption, including model-service loss, never end an old open
+timer at resume as though the agent worked throughout. Call `interrupt` with
+`service_outage` when established, otherwise `unknown`; the entire lost segment
+has unknown duration. Preserve it and start resumed work separately. The helper
+cannot detect the outage onset; only authoritative host/command/message timing
+can establish a separate outage interval, recorded as `wait/waiting/service_outage`.
+Do not subtract a guessed outage from wall time. Summary leaves even an unclosed
+timer unknown, with no elapsed-time contribution and no fabricated review result.
+
+When queue time cannot be separated from an observed running span, retain the
+combined measurement and state that limit. Timing never gates execution; apply
+the same fail-open rule to timer errors, surface stderr once and continue.
 
 The orchestrator also records three unenclosed `run_phase` spans with null ticket
 and empty scope/state-owner lists:
@@ -135,10 +180,15 @@ wall clock without double-counting nested checks:
 - `ticket_phase/implementation`: `scope_accepted` through the verified
   implementation snapshot or implementation block, including ticket checks and
   deletion audit;
-- `review_round`: review snapshot preparation through verified dual-axis
-  reports;
+- `review_round`: the preceding implementation/repair span's end through verified
+  dual-axis reports, including snapshot preparation not already counted in that
+  preceding span. Never overlap the two timers. For micro assurance, keep snapshot
+  inspection in implementation/repair and emit no reviewer event;
 - `final_repair_review`: targeted two-axis dispatch through verified reports;
   this is separate from repair work and cumulative final review;
+- `final_review` or `final_assurance`: final coverage/review preparation through
+  verified reports/coverage and the one available CE review, excluding prerequisite
+  gates. Only the chosen route is timed; nested CE timings are not added again;
 - `repair`: verified failing review through the next verified repair snapshot
   or block, including classification, editing, checks, and snapshot capture;
 - `ticket_phase/acceptance`: accepted assurance evidence through protected
@@ -175,6 +225,8 @@ mappings:
 | Ticket closure | `ticket_result` | `acceptance` | `ticket_completed` | `pass` or `blocked` |
 | Final targeted repair review | `final_repair_review` | `discovery` or `closure` | `standard` or `high_risk` | `pass` or `fail` |
 | Final integration review | `final_review` | `integration_review` | `integration_risk`, `accepted_findings`, or `repair_regression` | `pass`, `fail`, or `blocked` |
+| Reused ticket assurance plus CE | `final_assurance` | `integration_review` | `ticket_coverage` | `reused`, `fail`, or `blocked` |
+| Known wait | `wait` | `waiting` | `user_wait`, `service_outage`, or `capacity_wait` | `pass` (interval observed, not acceptance) |
 
 While metrics remain available, record an event for every row that occurs. A reused feature gate still gets an
 event with `result: reused`; this is what distinguishes avoided work from an
@@ -198,6 +250,8 @@ Report, without interpreting them as quality:
 - repair count by repair phase and reason;
 - ticket-check and feature-gate executions, reuse, invalidations, and duration;
 - all recorded operation duration, including nested diagnostics;
+- known wait duration grouped by cause, excluded from operation/workflow totals;
+- `open_timer_ids` and `interrupted_spans`, including unknown lost segments;
 - non-overlapping workflow wall time from ticket scope, implementation, review,
   repair, acceptance, core run phases, and unenclosed feature-final spans;
 - `phase_timings`: measured duration, event count and `unmeasured_count` grouped
@@ -206,6 +260,12 @@ Report, without interpreting them as quality:
   and historical non-instantaneous zeros. The helper preserves the old log and
   flags these gaps instead of interpreting them as free work. Existing duration
   totals are measured subtotals when gaps exist, not complete run elapsed time.
+
+Timer fragments contribute measured duration or an explicit gap, never a completed
+event/reviewer count. `final_assurance` is coverage reuse, not a reviewer round.
+Missing boundaries are valid incomplete observations, not corrupt statistics;
+continue measuring later work and label the subtotal incomplete. Do not reconstruct
+missing historical phases or claim the subtotal covers uninstrumented work.
 
 Missing timing does not invalidate valid review results or reset their budget.
 Zero instantaneous ticket results and verified reuse decisions remain valid.

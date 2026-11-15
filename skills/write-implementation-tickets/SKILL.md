@@ -163,6 +163,7 @@ Build a private implementation map with one row per required behavior:
 | Write scope | Exact repository-relative files already known |
 | Permitted discovery | A rule deciding whether an additional file may enter scope |
 | Scope closure witness | Exact discovery command, authoring baseline, one disposition per discovered path, and an empty undisposed set |
+| Documentation impact | For every behavior: inspected maintained documents, exact required updates and owners/checks, or an evidence-backed no-impact reason |
 | Documentation edit contract | For an existing Markdown target: `surgical` or explicitly authorized `whole-document`, exact authorized sections/responsibilities, current authority, and required replacement outputs |
 | Consumes | Existing or blocker-produced interface with exact identifier/type |
 | Produces | Interface or observable contract later tickets consume |
@@ -276,11 +277,16 @@ fixtures, complete oracles, direct observations, absence detection and live-runt
 evidence. Required real interaction is not replaced by a build, mock or screenshot.
 Declare first-failure captures and bounded diagnosis in the existing witness.
 
-For existing Markdown, include the template's surgical documentation edit
-contract and positive replacement outputs for responsibilities that still apply.
+Include the template's Documentation impact assessment for every ticket under
+the boundary contract, assigning updates to the behavior owner even when no
+separate documentation ticket is needed. For existing Markdown, include the
+template's surgical documentation edit contract and positive replacement outputs
+for responsibilities that still apply.
 
 Assign each command exactly once: the current supervisor runs ticket-scoped
-checks; the final-gate supervisor runs feature final gates after implementation.
+checks; the final-gate supervisor completes remaining feature final gates after
+implementation. When a necessary build/prerequisite must run earlier, name its
+earliest authorized owner and count applicable results at final acceptance.
 Do not repeat a cumulative build in every ticket.
 
 For every feature final gate, attempt to prove a deterministic repository-only
@@ -293,7 +299,15 @@ instead of copying its command. If completeness cannot be proved, keep the gate,
 `always-run`, and the author records an `always-run` reason; omit only the
 reusable-input section.
 
-For authority-permitted historical runtime evidence after repairs, use `ticket-template.md`; freshness requirements still run.
+Every gate must also state its evidence-after-repair conditions under
+`ticket-template.md`: acceptance claim, relevant inputs, invalidating changes,
+and freshness. Separately assess retaining a runtime PASS, reevaluating complete
+raw output after a verifier-only correction, and recollecting affected evidence.
+An external dependency explains deterministic `always-run`, not why every repair
+invalidates all runtime evidence. Keep explicit fresh-runtime requirements.
+For critical cross-ticket preservation, assign the existing witness to the
+consumer owner at the earliest ready boundary before cumulative review and the
+full matrix, under `references/verification-realizability.md`.
 
 Before candidate publication, follow the bundled baseline verification preflight
 and scope-closure preflight. Record the exact observed exit code or interaction
@@ -318,7 +332,7 @@ Review the complete graph against the contracts already loaded:
 2. Facts, inferences and unknowns are distinguished; consequential unknowns and
    owner/interface decisions are resolved before publication.
 3. `Consumes` matches `Produces`; edges are real, acyclic and blockers-first.
-4. Scope closure and documentation preservation satisfy the boundary contract.
+4. Scope closure, documentation impact and preservation satisfy the boundary contract.
 5. Verification witnesses, baseline preflights, tiers and reuse declarations
    satisfy the template and realizability contract.
 6. Slice boundaries include handoff benefit and adjacent-ticket merge assessment;
@@ -337,7 +351,7 @@ Present a numbered proposal as a progress update. For each ticket show:
 - observable result;
 - production owner and write scope;
 - permitted-discovery scope-closure outcome;
-- documentation edit mode, authorized changes, and required replacement outputs when existing Markdown is in scope;
+- documentation impact and update owners, or an evidence-backed no-impact reason; include edit mode, authorized changes, and required replacement outputs when existing Markdown is in scope;
 - `Consumes` and `Produces`;
 - verification seam, ticket-scoped checks, feature final gates, and baseline
   preflight outcome;

@@ -312,9 +312,15 @@ If a required report or hash is unavailable, review the full relevant delta.
 
 The final level has at most three cumulative feature-review rounds:
 
-1. One integration discovery review. Reviewers receive the full staged feature
+1. One integration discovery slot. First apply the ticket-assurance coverage
+   decision in `final-gate.md`. Verified single-ticket coverage may replace this
+   dispatch, while retaining CE and final gates; the reuse decision anchors the
+   same repair budget. Otherwise reviewers receive the full staged feature
    patch, accepted ticket reports and exact hashes, ordering/ownership authority,
-   and feature final-gate evidence. They inspect cross-ticket integration
+   available prerequisite/witness results and pending feature final gates. Run
+   this review and available CE before the remaining full matrix; deferred runtime
+   proof stays unproved acceptance, not by itself a code-review defect.
+   They inspect cross-ticket integration
    exhaustively while treating previously accepted byte-identical ticket-local
    logic as established evidence. They may still report a new P0/P1 anywhere in
    the full patch when necessary to establish an integration or lifecycle
@@ -329,7 +335,8 @@ The final level has at most three cumulative feature-review rounds:
    pass, finish from that evidence without another reviewer round; retain the
    original FAIL reports and `closed-by-micro-inspection` dispositions.
 3. At most one regression closure, only when round 2 proves an original finding
-   is still open or a repair caused a new P0/P1 in its directly impacted boundary.
+   is still open or a repair caused a new P0/P1 in its directly impacted boundary,
+   including such a regression first established by later runtime acceptance.
 
 Batch the frozen findings before repair. Merge findings that share one owning
 ticket, state owner, and compatible scope into one repair delta; different
@@ -341,8 +348,14 @@ tickets still execute serially. Classify each repair independently:
 
 Record targeted rounds as `final_repair_review` under `review-budget.md`, using the
 original completed ticket number. The batch is fixed by that owner and the most
-recent failing cumulative final review, whose frozen reports supply its finding
-IDs. Merge compatible findings for the same owner; incompatible scope blocks
+recent `final_review` or `final_assurance`, whose bound evidence supplies its finding IDs.
+After a PASS or verified reuse, only a subsequent authority-backed runtime/test failure permits a
+new repair batch: retain the gate failure, attribution and frozen IDs in the
+existing integration index and record the completed repair as
+`repair/repair_non_micro/test_failure/pass`. Keep the original review PASS.
+`review-budget.md` enforces the same owner and remaining rounds; this is not a
+new discovery. Unrelated new findings cannot be called repair regressions to
+obtain a third round. Merge compatible findings for the same owner; incompatible scope blocks
 for resolution rather than minting a new batch ID. Do not relabel the same
 repair, split its findings or use a synthetic ticket number to restart budget.
 The first round fixes `standard` or `high_risk`; only a failing high_risk first
@@ -360,10 +373,12 @@ recover any missing budget records from verified execution evidence under
 
 ### Single-owner targeted closeout
 
-The orchestrator may omit the next cumulative closure only after the initial
-integration discovery and the required targeted Standards and Spec review.
+The orchestrator may omit the next cumulative closure only after initial
+integration discovery or verified ticket coverage, and the required targeted
+Standards and Spec repair review.
 It verifies all of the following from the complete frozen finding set of the
-same failing final round, every subsequent repair and the retained reports:
+same final round (including its bound later runtime failures), every subsequent
+repair and the retained reports:
 
 - Every finding requiring repair and every actual repair belongs to one original
   completed ticket. No second owner, split batch or synthetic ticket hides work.
@@ -385,11 +400,16 @@ invalidates targeted PASS and the existing budget permits no further targeted
 review, block; remaining cumulative rounds cannot replace missing targeted
 assurance. All-micro repairs retain their existing independent closeout path.
 
+If only the full runtime gate results are pending, finish eligible targeted
+code assurance first and run those gates; do not dispatch cumulative review just
+to satisfy the pending-evidence condition. This does not declare feature closeout.
+
 When eligible, the orchestrator verifies identity, finding dispositions and gate
 results without re-performing semantic review. In the existing integration index
-record `closed-by-targeted-review` with the failed final-round identity, original
-owner, frozen finding dispositions and targeted report/repair/gate hashes. Keep
-original final FAIL reports and the actual `final_repair_review` PASS events;
+record `closed-by-targeted-review` with the final-round identity, bound failure
+evidence, original owner, frozen dispositions and targeted report/repair/gate
+hashes. Keep original final-review and gate results, including every FAIL, and
+the actual `final_repair_review` PASS events;
 do not invent a cumulative PASS event or new metrics enum. Resume verifies that
 record against current accepted content/evidence; if it cannot, do not infer
 completion from the last targeted event. No additional reviewer dispatch occurs.

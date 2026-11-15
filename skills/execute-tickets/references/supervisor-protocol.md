@@ -53,6 +53,16 @@ Keep the orchestrator thin so a long ticket graph does not accumulate implementa
    preflights. Reuse unchanged admitted definitions. Emit exact scope, mode,
    assurance lane and verification traces through the status envelope. Missing
    authority or an unrealizable witness blocks; do not invent a design.
+   Reconcile Documentation impact with the live behavior and maintained
+   documents. For an older admitted ticket without that assessment, perform it
+   from current evidence; use execution authority repair for omitted required
+   scope, or retain the no-update reason in existing completion evidence.
+   Reuse the ticket's documentation discovery and dispositions; check changed
+   behavior, new references and any omission. For a missing assessment, search
+   existing/sibling public identifiers and contract wording, including relevant
+   navigation, architecture/thread, examples and verification documents, before
+   accepting scope. Complete contract/instruction updates with implementation;
+   defer only facts that need the named gate result.
    Distinguish directly observed facts, evidence-backed inferences and unknowns;
    name the cheapest decisive check for a material inference. An unknown that
    affects behavior, ownership, interface, scope, state or verification blocks.
@@ -64,6 +74,11 @@ Keep the orchestrator thin so a long ticket graph does not accumulate implementa
    subset never replaces a ticket-scoped check, feature final gate, behavior test
    or assurance review.
 3. Implement ticket work only within accepted scope and leave changes unstaged.
+   Update the affected maintained documents and references with the behavior.
+   Before `implementation_ready`, verify their current contracts and necessary
+   instructions against the candidate. Record outcomes in existing completion
+   evidence; for facts awaiting a later gate, retain its ID, target location and
+   write owner. A separate documentation ticket is not a prerequisite.
    An explicitly authorized temporary prerequisite repair follows
    `working-tree-drift.md` before its write and stays outside ticket delivery.
    Only `tdd` invokes its behavior-level red → green loop. Optional first-pass delegation
@@ -147,7 +162,7 @@ snapshot: <absolute path and identity hashes, only for a snapshot already captur
 changed_paths: [<repository-relative path>]
 scope_paths: [<exact repository-relative file path>]
 scope_trace:
-  <exact repository-relative path>: <declared write-scope entry or permitted-discovery evidence>
+  <exact repository-relative path>: <declared write-scope entry, permitted-discovery evidence, or final-gate documentation repair entry>
 scope_closure_trace:
   - command: <exact permitted-discovery command, or None>
     authoring_baseline: <recorded authoring baseline>
@@ -169,7 +184,7 @@ verification_witness_trace:
     absence_detector: <observed or validly reused execution-integrity/red evidence and applicability>
 document_edit_contract:
   mode: <surgical | whole-document>
-  authority: <ticket section and current authority>
+  authority: <ticket section or final-gate documentation repair entry, and current authority>
   authorized_changes: [<exact heading/fenced-block responsibility or fact>]
 document_deletion_audit:
   status: <pass | not_applicable>
@@ -249,6 +264,11 @@ not been captured. `review_complete` binds the exact snapshot its reviewers
 inspected. `drift_detected` and `blocked` reference only snapshot identities
 already obtained and applicable to that report, and omit the field otherwise.
 
+For a documentation-only final repair, the entry accepted under `final-gate.md`
+supplies the exact scope, verification and edit-contract traces. Cite that entry
+and its stable authority in the existing envelope fields; do not alter completed
+ticket contracts to make the trace fit.
+
 When existing Markdown is in scope, retain or reference `document_edit_contract`
 from `scope_ready` onward. Omit `document_deletion_audit` from `scope_ready`; include
 its final status, artifact path, and SHA-256 from `implementation_ready` onward.
@@ -295,6 +315,27 @@ require a probe when the facts are already known. Deployment or load generation
 belongs to its authorized verification owner, not a non-mutating authoring
 preflight.
 
+For a declared release/published-consumer gate, its earliest authorized owner
+runs the smallest existing release test as soon as required dependencies/builds
+are ready, before cumulative review and the remaining matrix. Exercise the
+actual packaged artifact, release/shrinking configuration and test runner:
+entry launch and setup helpers, one legal public call, result write/readback,
+parser and cleanup. Debug launch or compilation leaves that release boundary
+unproved. Reuse a current witness; do not add a universal device check or a new
+test when the declared entry already provides it. If the build cannot isolate
+this target, preserve the necessary build order and run the witness immediately
+after that build, recording the constraint rather than inventing a selector.
+Attribute an early failure before launching the remaining dependent matrix.
+
+Retain the produced package/test artifacts, relevant build configuration or
+mapping, raw result and identities in the existing ignored run directory before
+the build's temporary directory is cleaned. Keep only what the gate needs for
+diagnosis or permitted reuse; follow the declared device restoration schedule.
+After a repair, reuse unchanged build products only when the existing evidence
+contract permits it and their input/artifact identities still hold. Rebuild the
+affected products; missing identity evidence requires the normal gate path.
+Count a valid early result once for the components it actually proves.
+
 The supervisor executing the gate checks its existing verification trace once:
 required target/selector, parameter/environment sources, actual result writer
 and artifact, parser/oracle, explicitly consumed blocker evidence and user
@@ -306,6 +347,10 @@ blocker or explicitly permits historical retention after repairs under
 `reusable-gates.md`; a fresh-runtime gate still runs. Deterministic reuse keeps
 its manifest/external-state rules. Use scope/authority repair for a defective literal
 command, not an ad-hoc weaker substitute.
+Check assertion applicability for each method/modality, legal empty/absent
+outputs, same-object identity comparisons, and result size/readback memory cost.
+Reuse bounded or incremental reads where a second full parse would exceed the
+verifier budget. These checks use the existing witness, not an extra test phase.
 Check access under the actual writer and reader identities. A shell-readable
 model path does not prove app access; a non-debuggable app's private result does
 not prove verifier access. Resolve statically decidable restrictions before
@@ -313,6 +358,30 @@ launch. Where runtime evidence is missing, the earliest authorized verification
 owner performs the smallest launch/readback probe once dependencies are ready,
 retaining that evidence in the existing trace before the full matrix. This does
 not create a new universal preflight or replace declared acceptance.
+
+Make the existing trace operational: condition → smallest decisive probe →
+evidence → invalidation/recheck point. Select only conditions the gate actually
+depends on. For example:
+
+| Required condition | Decisive probe | Recheck when |
+| --- | --- | --- |
+| A build invokes a local compiler or locked dependency | Resolve the exact executable/dependency through the build's environment; use its cheap version/load check | Toolchain, lockfile, dependency installation or execution environment changes |
+| A verifier consumes a generated or packaged artifact | Check the actual consumed artifact's freshness/identity and exact inventory expected by the verifier, including unexpected entries | Producer inputs, artifact bytes or expected inventory changes |
+| A chosen browser backend must open a local page | Open the actual target URL in that backend and read one required DOM value; another tab or backend is not proof | Backend, target URL or access policy changes |
+| A runtime must use a particular device, model or route | Check availability/access as the actual consumer and assert the required route/configuration condition, without copying secrets | Immediately before the runtime gate after setup or a pause |
+
+Retain these facts in the existing `preflight_trace` or gate evidence, not a new
+ledger. A failed prerequisite names the affected gate IDs and recovery condition;
+run independent work while it is resolved. After recovery, recheck that condition
+once before dependent gates. Do not repeat stable probes on every phase transition
+or promote these examples into mandatory probes for unrelated projects.
+
+For a critical cross-ticket preservation contract, the consuming owner runs the
+existing real producer-to-public-consumer witness once dependencies are ready,
+before cumulative review and the full matrix. Compare required identities,
+counts and values, not totals alone; inspect intermediate layers only on mismatch.
+Count applicable results toward their declared acceptance components. Required
+builds and explicit prerequisite gates keep their order.
 
 When changing a verifier, its implementation owner uses the existing witness to
 trace observations, comparisons and reachable failure cleanup before the costly
@@ -412,8 +481,10 @@ the candidate is ready for acceptance does the repair owner complete the ticket'
 original checks, snapshot, and assurance for that candidate, after which the
 final-gate supervisor runs the gates and closure required for it under the
 original contract (`final-gate.md`). A localized selector PASS is not a gate
-PASS; `always-run` / `reusable` and fresh-runtime requirements keep their original
-meaning, with no added prior-PASS retention. When a final failure round still
+PASS. Classify product, verifier, orchestration and environment/evidence failures
+under `reusable-gates.md`, then apply the declared evidence-after-repair conditions.
+`always-run` / `reusable` remain deterministic classifications; explicit runtime
+retention and raw reevaluation are separate and never waive freshness. When a final failure round still
 has any known, already-attributed issue that blocks its full acceptance, the
 orchestrator does not re-dispatch the entire acceptance suite because one
 sub-problem was repaired. It keeps that round's existing failure evidence as the
@@ -490,7 +561,8 @@ Unsupported direct calls, hypothetical concurrency, and "defensive robustness" a
 ## Markdown document-deletion audit
 
 Apply this section whenever the ticket modifies an existing Markdown file.
-At `scope_ready`, replay the ticket's `## Documentation edit contract` and set
+At `scope_ready`, replay the ticket's `## Documentation edit contract` (or
+the scoped final-gate documentation repair entry) and set
 `document_edit_contract.mode`. Default to `surgical`. Accept `whole-document`
 only when the ticket cites a current spec, ADR, or recorded user approval that
 explicitly authorizes the whole-document replacement. An accepted scope path

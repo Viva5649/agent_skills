@@ -372,7 +372,7 @@ ticket-scoped checks 已由 supervisor 完成后，supervisor 才能发送 `impl
 | 新 run snapshot 或 resume validation 前 | `references/run-preflight.md` | required inputs、admission、run-start identity、独立 review-budget ledger 初始化或续用、可选统计、进度与恢复报告，以及 ticket-state command contract |
 | 每个 fresh ticket supervisor 启动前 | `references/supervisor-protocol.md` | cold-start context、implementation sequence、status envelope、execution mode 与 assurance lane routing |
 | scope 外变化可能影响当前 ticket，或下一张 ticket 比较 handoff 时 | `references/working-tree-drift.md` | 影响判断、自动隔离、必要时的 reconciliation、ticket 间交接与性能边界 |
-| 所有 implementation tickets stage 后 | `references/final-gate.md` | feature gate、integration review、final repair 与 completion report |
+| 所有 implementation tickets stage 后 | `references/final-gate.md` | 票级 assurance 覆盖判定、必要的 integration review、feature gate、final repair 与 completion report |
 
 每个 actor 按当前阶段读取适用章节，在同一 context 内复用未变化的已读内容；截断只补读缺失范围。
 supervisor 先读 `Context boundary`、`Ticket implementation sequence`、`Supervisor status protocol`、
@@ -382,7 +382,7 @@ supervisor 先读 `Context boundary`、`Ticket implementation sequence`、`Super
 checkpoint，再加载当前恢复阶段的 reference；不能因为预计后面会用到就提前加载 final-gate 或 reviewer 细节。
 `run-metrics.md` 是可选诊断说明，其缺失或不可读不属于执行合同缺失，不阻塞启动、恢复或收尾。
 事件和计时的运行时细则统一维护在 `references/run-metrics.md` 的 `Event contract` 章节；入口仅保留各阶段统计时点提示和统计失败不阻塞执行的约束，不重复定义事件字段、计时区间或累计方式。
-`checks.duration_ms` 是可选诊断字段：起止边界对 orchestrator 可观察时必须取机器时钟实测；null 仅限边界确实不可观察或区间丢失，且每个缺口必须进入 closeout 的 `phase_timings` `unmeasured_count` 显式上报，不得静默通过。容量导致的调度等待（如 reviewer 派发因线程/agent 上限被串行化）记入 dispatch schedule 证据、不计入执行 `duration_ms`；无法分离时如实记录合并区间并声明。不得因计时问题退回状态报告、延迟推进或重跑检查。
+`checks.duration_ms` 是可选诊断字段。已有命令或报告提供可靠起止时刻时，orchestrator 复用这些时刻；没有覆盖整个阶段的计时来源时，使用 §21 的 `start/end/interrupt`。可观察的边界必须实测，确实不可观察或丢失的区间记为未知，并在汇总中报告缺口。已知等待与执行耗时分开；无法分离的排队与执行区间须明确说明。计时故障不退回状态报告、不延迟推进，也不触发重跑。
 
 这个拆分是上下文边界，不改变运行状态机：reference 只移动合同 owner，不能删除 stop condition、
 缩短 assurance budget 或改变 protected staging。`SKILL.md` 保持低于 500 行，portability test 固定验证
@@ -443,8 +443,8 @@ flowchart TD
     R --> S["验证 done 与 index 不变；追加 integration-review-index row"]
     S --> T["解锁 dependant；结束 supervisor；下一张 pre 复用 handoff 比较"]
     T --> B
-    B -->|"所有 implementation tickets done"| U["唯一 feature final gates + integration discovery review"]
-    U --> V["bounded closure；metrics summary；报告 staged/verified"]
+    B -->|"所有 implementation tickets done"| U["构建先决项与关键跨票验证；覆盖判定、必要的集成审阅与 CE"]
+    U --> V["修复及 bounded closure；稳定候选完整验收；证据与文档收尾"]
 ```
 
 ## 9. Preflight 设计
@@ -742,6 +742,10 @@ blocker 证据和用户处置。范围不清或日志路径错误先修复，不
 在完整矩阵前完成，保留原 release 配置和必需断言。
 需要 fresh-runtime evidence 的 gate 不能用 blocker PASS 替代。已有 gate 已声明的复用仍遵循原复用协议。
 
+对于已声明的 release 或发布消费者 gate，最早获准的 owner 在依赖与必要构建完成后、累计审阅和剩余矩阵前，运行最小既有 release 用例。用例经过实际发布制品、测试运行器、跨包调用的测试初始化方法、一次合法公开调用、结果写入与读回、解析和清理。存在缩减或混淆时保留对应配置。若构建不能单独生成目标制品，保留必要构建顺序并在构建后立即运行；不为预检新增通用真机阶段或重写构建。
+
+gate owner 在临时构建目录清理前，将诊断及合同允许复用所需的包、测试制品、构建配置或 mapping、原始结果和身份记录保留到既有 ignored run directory，设备恢复仍按原计划执行。早期失败先归因，再启动依赖它的剩余矩阵。修复后依据原合同及输入身份保留未受影响的制品，只重建受影响部分；无法证明对应关系时按正常 gate 路径执行。有效早期结果计入对应验收组件一次。
+
 新增或修改验收入口时，要写清由谁证明它能运行，以及什么时候验证：
 
 | 情况 | 负责人 | 完成时机 |
@@ -756,8 +760,16 @@ blocker 证据和用户处置。范围不清或日志路径错误先修复，不
 - 最小探测只证明它覆盖的范围，不替代票内检查（ticket-scoped check）、特性最终门禁（feature final gate）或行为验收。
 - 源码修复后，先确认设备或运行时实际安装/运行的产物已包含该修复，才让对应门禁结果代表这次修复。现有构建输入、产物与安装记录足以把修复对应到已安装/运行身份时直接复用，只有对不上时才只重建相关产物。不能只凭源码已改或一条早于修复的成功构建日志就声称产物已含修复；也不要求每次 hash 必变、强制全量重建或让每张票都提前上设备。
 
-关键可行性未知时，supervisor 先复用证据或执行最小有界探针，核对持续环境条件、真实 writer/parser 及总预算内的串行耗时。
-这不是新审查阶段；部署或施压由已授权验证 owner 执行，不能塞进非修改性 authoring preflight。
+关键可行性未知时，supervisor 在既有 `preflight_trace` 中记录「必需条件 → 最小决定性探针 → 观察证据 → 失效条件 → 复查 owner 与阶段」。探针来自实际 gate 命令和运行时消费者。任务存在、语法检查或 dry-run 成功，只能证明各自检查的条件。缺失或错误的声明探针沿既有 authority repair 修正，不把 admission 扩成完整构建或实测。
+
+| gate 实际依赖 | 最小探针 | 复查时机 |
+| --- | --- | --- |
+| 本地编译器或锁定依赖 | 在构建使用的环境中解析实际工具或依赖，执行廉价的版本或加载检查 | 工具链、lockfile、依赖安装或执行环境改变后 |
+| 生成或打包产物 | 核对 verifier 实际消费产物的身份、新鲜度和完整预期集合，包含意外多出的条目 | producer 输入、产物字节或预期集合改变后 |
+| 指定浏览器 backend 中的本地页面 | 在该 backend 打开实际目标 URL，并读取一个必需 DOM 值 | backend、目标 URL 或访问策略改变后 |
+| 指定设备、模型或路由 | 按实际消费者身份检查可用性、访问权限和必需配置，不复制秘密 | 完成设置或恢复执行后，紧接实测前 |
+
+这些例子只适用于 gate 确实依赖的条件。稳定证据在具名输入改变前复用，易变状态由 gate owner 在启动前复查。前置失败记录受影响的 gate IDs 和恢复条件；独立工作继续，恢复后先复查失败条件。supervisor 仍需核对真实 writer/parser、持续环境条件和总预算内的串行耗时。已有有效证据不重复探测，也不新增台账或通用预检阶段；部署或施压由已授权验证 owner 执行。
 必要环境前提中断时，原 fixture owner 收尾受影响观察并报告该项未验，不耗尽超时或靠延时掩盖前提失败。
 合法结果被 oracle 拒绝先核对合同；条件成立而产品违约仍报缺陷。不可达或诊断预算耗尽时将精确未验项交决定 owner，不能自行降低验收。
 
@@ -785,7 +797,13 @@ cleanup owner，检查的是当前生产可达脚本路径，不新增产品 ins
 不同模型来源、配置或环境的成功只证明那组条件，不能替代原路径；一次成功也不能覆盖相同代码/条件下的失败。
 取证不扩大设备操作权限，不自动要求新增生产 instrumentation。
 
-### 11.7 文档编辑执行审计
+### 11.7 文档同步与编辑审计
+
+ticket supervisor 在 `scope_ready` 前核对实际行为与 ticket 的 `Documentation impact`，在 `implementation_ready` 前完成已具备依据的文档更新。旧 ticket 未写影响判断时，supervisor 根据当前代码、需求和相关文档补做判断；遗漏写范围时走 execution authority repair，无需更新时在现有 completion evidence 中记录理由。依赖后置 gate 的事实，保留目标位置、gate ID 和写入 owner，交最终验收阶段完成。
+
+最终文档核对在 §19 的 final gate 中执行。它从累计代码变化检查对应文档，包含原 ticket 未列入 scope 的文档；原票是否包含文档任务不影响这项完成条件。
+
+#### 已有 Markdown 的删除审计
 
 当 ticket 修改已有 Markdown 时，supervisor 在 `scope_ready` 重放 ticket 的文档编辑合同：默认是 `surgical`；
 只有 ticket 引用的 spec、ADR 或已记录用户批准明确授权时才接受 `whole-document`。exact path 属于 accepted scope
@@ -1059,7 +1077,7 @@ closure reviewer 不得把 byte-identical 区域当作新一轮普通 discovery�
 不得通过 `epoch-N`、`chain-N`、alternate review-budget path 或复制日志重新获得 discovery/closure phase。
 discovery 独立冷启动；closure/regression closure 默认复用每个 axis 原 reviewer，并提供新 snapshot、冻结 finding、repair hunks 与 prior/current hashes。替代 reviewer 只在原 reviewer 不可用或无法可靠恢复冻结输入时冷启动，不重置预算、不扩大发现范围。
 
-最终修复使用同一日志中的 `final_repair_review`，不借用普通 ticket 的 `review_round`。批次由最近一轮失败的 `final_review` 与原已完成 ticket 编号唯一确定，绑定该轮冻结报告中归属该票的 findings；同 owner 的兼容修复合并，不自造 batch/ticket ID。轮次预算：
+最终修复使用同一日志中的 `final_repair_review`，不借用普通 ticket 的 `review_round`。批次由最近的 `final_review` 或 `final_assurance` 与原已完成 ticket 编号唯一确定，绑定冻结 findings 和适用的后续实测失败。`final_assurance` 记录票级 assurance 复用，适用条件见 §19.1。前序 PASS 或 `reused` 后，只有绑定的后续实测失败及已完成的 non-micro 修复才能启动 targeted review。同 owner 的兼容修复合并，不自造 batch/ticket ID。轮次预算：
 
 | Phase | reason | 允许条件 | 上限 |
 | --- | --- | --- | --- |
@@ -1075,7 +1093,7 @@ discovery 独立冷启动；closure/regression closure 默认复用每个 axis �
 | non-micro 单 owner | 满足 §19 的完整条件时从 targeted PASS 直接收尾 |
 | non-micro 混合 owners | 仍走累计 closure |
 
-这些预算事件保存在独立 `review-budget.jsonl`，由 `review_budget.py` 校验；缺失记录仅从已验证执行证据恢复，不从统计推断。schema v2 成本日志只作可选观测，不能影响派发或收尾。
+这些预算事件保存在独立 `review-budget.jsonl`，由 `review_budget.py` 校验；缺失记录仅从已验证执行证据恢复，不从统计推断。成本日志只作可选观测，不能影响派发或收尾。
 
 ### 15.3 incremental re-review
 
@@ -1238,48 +1256,63 @@ validation-only ticket 将未变化且 scope 为空的 `pre` 作为 `--snapshot`
 
 ## 19. Final gate 与 feature-level review
 
-所有 implementation tickets stage 后，final gate 对累计 feature patch 做一次跨 ticket 验证：
+所有 implementation tickets stage 后，final-gate supervisor 按以下顺序完成 assurance 覆盖判定、必要审阅和实际验收。显式先决门禁保持原顺序；已完成且仍适用的结果计入对应 gate，不因进入下一阶段重复运行。
 
-1. capture final state；
-2. 从 tickets/execution plan 构建 stable gate id inventory；同一 id 的 owner、command、expected result 或 reuse assessment 冲突时停止，不任选或平均；
-3. 每个 uniquely owned feature final gate 首次只运行一次；repair 后仅对 `always-run`、external-state 或 manifest 已失效的 gate 重跑，verified reuse 也记录为显式结果；
-4. authority 要求真实 UI/browser/desktop/device/live-app path 时，重新执行该交互并记录 fresh `runtime_observations`；
-5. orchestrator 在每张票完成时已增量追加 compact
-   `.execute-tickets/<feature>/integration-review-index.md` row；final-gate
-   supervisor 不重读历史 ticket/report body，只补 final snapshot 和 gate rows 后
-   验证并冻结 SHA-256；该 index 逐项列出 final snapshot identity、按
-   ticket 分组的 changed paths、cross-ticket `Consumes/Produces`、shared
-   state/resource/cleanup owners、ordering rows、completion/review status 与
-   finding IDs/dispositions、report hashes、deviations，以及 final-gate results；
-   index 不复制 patch hunks、report prose 或 command logs，也不是 behavior
-   authority；
-6. Standards + Spec reviewer 必读该 index，再形成 integration-boundary checklist；
-   immutable cumulative `staged.patch`、历史 reports、completion records 和 gate
-   logs 只作为 on-demand paths，reviewer 只读取 checklist 所需的 exact path hunks
-   和直接相关报告，不能因为 path 可用就线性通读完整 patch 或所有历史报告；完整
-   patch 仍可见，因此不会隐藏 accepted bytes；
-7. final-gate supervisor 在两轴 discovery 出报告后，执行下文规定的可选 `ce-code-review`，再冻结合并的 integration finding set；按 owning ticket/state owner 和 compatible scope 分批串行修复；
-8. 每次 final repair 后只更新 affected index rows，随新 snapshot/gate evidence
-   验证并冻结新 SHA-256；旧 index/hash 保留为 discovery evidence；
-9. 非 micro 修复先按 §15.2 完成 owner-batch targeted review；满足下方单 owner 直接收尾条件时由 orchestrator 关闭，否则进入累计 closure；只有原 finding 未关闭或 repair 导致 direct boundary P0/P1 时，允许一次 regression closure。全 micro 已经 inspection 关闭的 findings 直接收尾，不追加 reviewer。
+1. capture final state，构建唯一 gate inventory，核对各项验收结论、相关输入、失效条件和 freshness 要求。重复 id 的 owner、command 或判据冲突时先修正。
+2. 消费票内已有的关键跨票验证；缺少实际证据时，由具名验证 owner 在依赖就绪后运行最小真实入口。对照真实 producer 与公开 consumer 的身份、数量和值。所需构建或先决 gate 先执行；只证明已覆盖的组件，其余仍标未执行。
+3. final-gate supervisor 从累计变更和已确认合同反查受影响的长期文档及相关入口，包含未改动或未列入 ticket 的文档。文档差异进入既有发现与修复流程。冻结 integration-review-index，保留接口、owner、ordering、文档判断、报告身份及已有或待执行 gate。按 §19.1 判定票级 assurance 能否复用；不能复用时，先做 integration Standards/Spec 审阅。两条路径都在完整昂贵矩阵前调用一次可用 CE。待执行的后置 gate 保持未验，缺陷或不可执行的验收计划仍须修复。
+4. 原 owner 按冻结 findings 串行修复，完成 targeted assurance 和必要 closure。代码审阅只证明受审候选；审阅后的生产、测试或构建变化使相关结论失效，必须审阅修复及受影响边界。先关闭会导致重建的已知代码问题，再运行完整矩阵。
+5. 对稳定候选运行剩余 uniquely owned feature final gates。每项首次实际执行一次；后续修复按 §20 的证据适用条件重新运行、保留 PASS 或重评 raw，不把进入新轮次作为全部失效的理由。
+6. 验收失败先确定产品、验证器、编排或环境/证据问题。只重跑能证明修复的检查；仍有已知阻塞问题时继续有界诊断，不反复启动完整矩阵。运行中发现的新缺陷仍归原 owner 修复，并按原 assurance 与 review-budget 处置，不以此前代码审阅 PASS 免审，也不新开 integration discovery 或 CE。
+7. 必要 gate 全部有有效结果后，final-gate supervisor 核对受测制品、实际结果和交付候选，确认长期约束、验证步骤、相关引用及验收状态一致。orchestrator 将差异交原文档 owner 或对应行为 ticket 的 repair supervisor 修复。文档修复按实际影响完成检查、审阅和暂存；不影响原验收依据的纯事实更新不重跑设备或全量代码审阅。
+8. 更新并验证 integration-review-index 的受影响行、snapshot 和证据哈希，保留历史 FAIL。代码审阅与门禁都有效、冻结 findings 已关闭后，按既有 completion 合同交付；缺少任何必需证据仍未完成。
 
-CE review 只在整体验收的 discovery 阶段执行一次，每张 ticket 的检查和双轴 review 保持原流程。找到技能时，final-gate supervisor 读取实际 `SKILL.md`，以 report-only `mode:agent` 调用，评审同一 final snapshot 的累计 `staged.patch`。
+最终核对发现的文档遗漏必须归因到本次 feature 的已接受变化。final-gate supervisor 在原 ticket 的 integration-review-index 条目中记录源合同、精确目标路径与章节、必要输出、修复 owner 和检查。
+
+未完成 ticket 的范围缺口仍走 execution authority repair；已完成 ticket 保持 bytes 和历史 checkpoint 不变。orchestrator 使用这份有来源依据的记录，为原行为 owner 的 final-fix 接受必要的文档写范围并捕获新 `pre`，随后沿用现有 assurance、受保护暂存和哈希核验。
+
+该范围仅覆盖可由现有 authority 唯一确定的文档及引用修复；产品、接口或架构的新决定仍需先取得决定依据。
+
+completion evidence 记录已同步文档、仍待 gate 的事实或无需更新的理由。必要文档更新尚未完成时，不能报告 feature 完成。全流程复用既有记录和 review budget。
+
+文档核对先消费 authoring 阶段的发现清单和已完成更新，仅补查变化的合同、新组合边界及缺失处置。行为 owner 随实现完成合同和可运行步骤，gate 后只回填依赖实际结果的事实，并将同一 owner 的兼容更新合并到一次修复。证据路径与身份优先取自现有结构化输出；仍需汇总多个文件时，使用 §21 的 `evidence_summary.py`，由现有 index 引用结果，避免手工抄录哈希及重复整理原始报告。
+
+### 19.1 初次审阅的覆盖判定
+
+final-gate supervisor 在派发 integration Standards/Spec 前核对已有 assurance。只有以下条件全部有证据时，才复用票级 assurance：
+
+- run 恰好有一张 implementation ticket，且没有其他 ticket 活动；已接受的两轴报告或合格 micro inspection 有效，全部 findings 已有验证过的 disposition。
+- 最终 staged candidate 与已接受候选一致，包含已接受的 micro repairs；snapshot、逐路径哈希、authority 和可执行验证计划仍与验收证据匹配。
+- 完整累计 `staged.patch` 已被已有 assurance 覆盖，包含 run-start 的用户 staged baseline。空 baseline 无需单独证明；非空 baseline 必须有绑定的覆盖证据，不能只凭字节未变认定已经审阅。
+- 已有证据覆盖全部受影响 owner、生命周期、public API/wire、构建和交付边界；没有新组合或未覆盖的边界、未决合同判断，也没有最终文档核对发现的遗漏。
+
+supervisor 把判定、候选和报告哈希、baseline 覆盖及实际缺口记录在既有 integration-review-index 中并冻结哈希。orchestrator 只核对身份，不重复语义审阅。证据不足时走普通 integration review，不另派一轮审阅来证明「可以复用」。单票标签或零 finding 本身不足以复用。
+
+复用只省去初次 integration 双轴派发，保留 CE、全部必需 gate 和最终文档核对。orchestrator 在 CE 前校验拟用预算事件，覆盖与 CE 证据验证后记录 `final_assurance/integration_review/ticket_coverage`：没有 blocker 时为 `reused`，CE 有可执行 findings 时为 `fail`，必需证据不完整时为 `blocked`。这条路径不记录未执行的 `final_review/integration_risk`，也不制造 reviewer PASS。
+
+`final_assurance` 与初次 `final_review` 共用一个 discovery 预算位置，后续 CE 或实测缺陷仍归原 owner 修复。恢复执行时核验保留的覆盖决定及候选；后续修复必须取得自己的 assurance。需要累计 closure 而没有原 final reviewers 时，只对冻结 findings 和修复边界派发新 reviewer，提供已有票级报告，不重新开启 discovery。
+
+### 19.2 CE review
+
+CE review 在初次 integration 两轴完成或票级覆盖验证后执行一次，每张 ticket 的检查和双轴 review 保持原流程。找到技能时，final-gate supervisor 读取实际 `SKILL.md`，以 report-only `mode:agent` 调用，评审同一 final snapshot 的累计 `staged.patch`。
 
 final-gate supervisor 用已验证的 snapshot 输入替换 CE 默认的 ref-based scope discovery 和只支持 Git ref 的 scope helper，避免把 scope 外用户编辑带入评审。helper 无法处理 patch 时，supervisor 使用 CE 支持的 `depth:full`，继续执行其余评审和验证阶段。多仓输入逐成员提供 staged patch，不能只审 parent gitlink。
 
-找不到 CE 技能时，supervisor 在既有 final-review evidence 中记录跳过；技能存在但执行失败、receipt 不完整或评审范围错误时，整体验收阻塞。orchestrator 校验 CE receipt 的路径、SHA-256 和 snapshot identity 后，才能记录本轮 discovery 结果或允许修复。两轴 PASS 但 CE 有阻塞 finding 时，本轮仍记 FAIL。
+找不到 CE 技能时，supervisor 在既有 final-review evidence 中记录跳过；技能存在但执行失败、receipt 不完整或评审范围错误时，整体验收阻塞。orchestrator 校验 CE receipt 的路径、SHA-256 和 snapshot identity 后，才能记录本轮 `final_review` 或 `final_assurance` 结果或允许修复。两轴 PASS 或票级覆盖成立，但 CE 有阻塞 finding 时，所选路径仍记 `fail`。
 
 orchestrator 为原 owning ticket 启动 repair supervisor，交接该 ticket、冻结的 finding IDs 和新的 `final-fix-N/pre`，不要求已结束的 ticket supervisor 继续存活。repair supervisor 执行现有 final-fix 批次，受影响门禁按原规则重跑或复用，CE findings 沿用既有 targeted review、closure 和预算收口。closure 和恢复执行不重新开启 CE discovery；最终报告保留 CE 实际结果或跳过原因。
 
-单 owner 直接收尾只省略下一次累计 closure，不能省略初次 integration discovery 或 targeted 双轴审查。
-orchestrator 必须从同一失败 final round 的完整 frozen finding set、之后全部修复与报告确认：所有需修 findings
+### 19.3 修复审阅与收尾
+
+单 owner 直接收尾省略的是下一次累计 closure。它要求初次 integration discovery 或 §19.1 的票级覆盖已经成立，并完成必要的 targeted 双轴修复审阅。
+orchestrator 必须从同一 final round 的完整 frozen finding set（含绑定的后续实测失败）、之后全部修复与报告确认：所有需修 findings
 和实际修复属于同一原已完成 ticket；两轴对完整 repair candidate 和全部受影响集成边界 PASS，无遗留判断；
 该候选之后没有实现、测试、构建、权威或验证命令变化；其他 accepted bytes 不变；必需门禁均通过或满足明确的
 复用/用户处置；没有新失败或未审 cross-owner interaction。单文件/单票标签本身不证明这些条件。
 
 满足时，orchestrator 只核对身份、finding dispositions、门禁和当前 staged 内容，在既有 integration-review-index
 记下 `closed-by-targeted-review` 及其原 final round、owner、两轴报告/repair/gate hashes，不复制审查论证、不再派 reviewer。
-保留原 final FAIL 和实际 `final_repair_review` PASS，不能补造累计 PASS event；resume 核对该记录与当前证据。
+保留原 final review 结果、gate FAIL 和实际 `final_repair_review` PASS，不能补造累计 PASS event；resume 核对该记录与当前证据。若只缺稳定候选完整门禁结果，先运行门禁，不能因此提前派发多余累计审阅；门禁有效前不宣告完成。
 任何条件缺失时先补齐所需 assurance，再按剩余预算进入普通累计 closure；新变化先修复/重验，不能拿旧 targeted PASS 收尾。后续 non-micro 修复使 targeted PASS 失效且既有预算不允许再次 targeted review 时必须 blocked；剩余累计轮次不能替代缺失的 targeted assurance。
 多 owner、未覆盖跨票边界和 mixed-owner 修复仍走累计 closure；达到预算上限也不能借此省略缺失 assurance。
 
@@ -1292,7 +1325,7 @@ orchestrator 必须从同一失败 final round 的完整 frozen finding set、�
 
 - 显式先决门禁不因诊断顺序而延后。
 - 选中的部分检查通过，不等于整道门禁 PASS。
-- `always-run`（每次重跑）、`reusable`（符合条件复用）与 fresh-runtime（本次真实运行证据）的要求保持原义（门禁分类与复用条件见 §20.2），不新增“保留旧 PASS”的资格。
+- `always-run` / `reusable` 仍表示确定性复用分类；同一 run 的实测保留或 raw 重评按 gate 明确条件执行（§20.2），不能替代 fresh-runtime 要求。
 - 同一 final 失败轮里，只要还有任何已完成归属、仍会阻塞本次完整验收的已知问题未被修复或按原权限处置，orchestrator 不因修好一个子问题就重新派发整套验收：
   - 归属沿用该轮已有失败证据；
   - repair owner 只运行回答自己修复或归属所需的针对性检查；
@@ -1301,12 +1334,13 @@ orchestrator 必须从同一失败 final round 的完整 frozen finding set、�
   这些针对性运行与其余独立且获准的工作照常推进，不因此全局停工；显式先决门禁顺序、`always-run`/`reusable`/fresh-runtime、预算与原 FAIL 记录均保持不变。定义收于 supervisor-protocol，final-gate 只引用。
 - 诊断超出范围、授权或预算时，走既有的停止/报告流程。
 
-最终累计 review 最多三轮：integration discovery、closure、optional regression closure。
-它可以发现 ticket-local review 不可能看见的跨 ticket P0/P1，但不会重做 byte-identical ticket-local 普通审查。
-每次 dispatch 前，orchestrator 先让 `review_budget.py validate` 校验拟用 `final_review` event；第一轮 reason 是
-`integration_risk`，只有前序失败且其后存在 completed non-micro repair 时，才依次允许一次
-`accepted_findings` 和一次 `repair_regression`。accepted micro repair 由 orchestrator inspection 直接收尾，
-不消耗下一轮 reviewer。报告完成后 `record` 对同一 transition 再校验并落盘。
+最终 assurance 最多使用三个预算位置：初次 integration discovery 或票级覆盖复用、closure、optional regression closure。实际派发的审阅检查跨票集成边界，不重复审阅已接受且字节未变的票内普通逻辑；覆盖复用不计为 reviewer 轮次。
+
+每次 dispatch 前，orchestrator 用 `review_budget.py validate` 校验拟用 `final_review` event。初次审阅的 reason 是 `integration_risk`，与 §19.1 的 `final_assurance/ticket_coverage` 互斥；之后至多各有一次 `accepted_findings` 和 `repair_regression`。前序 `fail` 后，必须有已完成的 non-micro 修复，且所有 non-micro owner 的当前 targeted assurance 有效，才能进入累计 closure。累计 closure 不能替代缺失的定向修复审阅。
+
+前序 `pass` 或 `reused` 后实测发现缺陷时，orchestrator 将真实失败、归因和冻结 IDs 绑定到既有 index。原 owner 完成 non-micro 修复后，记录 `repair/repair_non_micro/test_failure/pass`，再进入 targeted review。所有修复 owner 的当前 assurance 有效后，才可进行必要累计 closure。保留早期实际结果和真实 gate FAIL，不重开 discovery 或 CE，也不增加预算。
+
+第三轮仍只处理原 finding 未关闭或修复引入的 P0/P1，不能把独立新缺陷改叫 regression。accepted micro repair 由 orchestrator inspection 直接收尾，不消耗下一轮 reviewer。报告完成后，`record` 对同一 transition 再校验并保存。
 
 不会开启 Final-4、Final-5、`final_closure` 或无限重复全量审查。untouched-region 普通 P2/P3 进入 backlog，
 不重开 finding set。canonical feature ledger 保留 ticket/final phase；pause、resume、新 run-start 或 artifact
@@ -1343,8 +1377,9 @@ final-gate supervisor 按 [reusable-gates.md](../../skills/execute-tickets/refer
 结论写进既有 gate result/integration index 和 `gate/reused` event，不把设备 `External state` 写成 `None`，
 也不扩展 gate_state.py、缓存服务或状态 schema。
 
-新 authority 明确允许按新 oracle 重评旧 raw 时，由 verification owner 运行 validator 并独立输出新结果，绑定
-新合同/validator 和原 raw hashes，保留旧 exit/FAIL；关键证据缺失仍未验。重评计为实际 gate 执行，不冒充复用旧 FAIL。
+修复后的证据条件由 gate 声明，不能只凭 `always-run` 名称或 changed files 判断。final-gate supervisor 先归因：产品/制品变化使相关实测失效；参数遗漏或采集不全要求重新运行对应组件；验证器违背原合同且 raw 完整适用时，按已声明条件重新校验；环境或身份未知时继续有界诊断，不能复用为 PASS。
+
+新票必须说明是否允许 verifier-only 重评、适用输入和失效条件。符合声明或已有 authority repair 明确允许时，verification owner 运行修正的 validator，独立输出绑定合同/validator 和原 raw hashes 的新结果，保留旧 exit/FAIL。重评计为实际校验，不冒充复用旧 FAIL；缺少新判据必需的原始证据或要求 fresh interaction 时仍实际运行。
 
 ### 20.3 `gate_state.py capture`
 
@@ -1398,57 +1433,60 @@ device、network、credential、clock、mutable cache、ignored/generated files 
 |  | `complete` | 从 accepted snapshot 验证当前 authority 集合到原 receipt 的转换链，原子且幂等地执行 `ready-for-agent -> done`、追加 supplied record，证明只有该 ticket 字节变化，并从已有 post-state collection 写出 transition 与 handoff；任一证明失败则恢复原字节 |
 | [scripts/gate_state.py](../../skills/execute-tickets/scripts/gate_state.py) | `capture` | 冻结 exact command + declared indexed input object manifest |
 |  | `compare` | 只有 manifest identity 完全相同时允许复用 prior PASS |
+| [scripts/evidence_summary.py](../../skills/execute-tickets/scripts/evidence_summary.py) | `--artifact ID PATH --output PATH` | 从显式文件清单生成路径、SHA-256 与原始顶层 JSON 结果字段；拒绝缺失或损坏输入、重复 ID 和覆盖输出，不推断完整性或验收结论 |
 | [scripts/review_budget.py](../../skills/execute-tickets/scripts/review_budget.py) | `init` | 从已验证执行证据的五字段历史初始化独立 `review-budget.jsonl`；拒绝覆盖和非 canonical feature path，不读取 metrics |
-|  | `validate` / `record` | 派发前校验审查预算；报告验证后追加执行结果；保留 ticket/final/targeted 原有轮次约束 |
+|  | `validate` / `record` | 校验并记录审查预算；初次审阅与票级覆盖复用共用 discovery 位置；保留 ticket/final/targeted 轮次和修复 assurance 约束 |
 | [scripts/metrics_state.py](../../skills/execute-tickets/scripts/metrics_state.py) | `init` | 初始化独立 `run-metrics.jsonl` 统计日志，保护已有统计数据 |
 |  | `validate` / `record` | 将传入事件的 path/owner 列表排序后校验统计格式，或追加观测；不判断审查轮次、执行准入和收尾资格 |
-|  | `summary` | 汇总 operation duration 与不重叠 workflow wall-time spans，不生成质量分；所有统计命令均为 best-effort |
+|  | `start` / `end` / `interrupt` | 在同一日志记录机器时钟边界；拒绝重复 timer ID、重复结束、时间倒退及重叠的 workflow/wait timers；允许嵌套的 ticket-check 诊断计时 |
+|  | `summary` | 汇总 operation/workflow 耗时、独立等待及未测量区间，不生成质量分；所有统计命令均为 best-effort |
 
 `repository_state.py` 是架在 `review_state.py` 命令层之上的外层装饰器，不是它的对等模块：它按成员仓库构造 `argparse.Namespace`，再进入 `review_state` 的 `command_capture`／`command_verify`／`command_assess`／`command_reconcile`／`prepare_stage`／`replace_index`，所以依赖方向是 `repository_state` → `review_state`。`review_state` 只在两处反向依赖它，且都使用函数内导入以避免模块初始化期成环：`load_snapshot` 对 `kind == "repository-set"` 的数据派发，以及 `main()` 对 repository-set 命令的拦截。
 
 `review_state.py` 末尾的 `sys.modules["review_state"] = sys.modules[__name__]` 是这一拓扑的必要条件。以 `__main__` 运行时，若缺少该别名，`repository_state` 的顶层 `import review_state` 会加载第二份模块副本并产生两个不同的 `StateError` 类，使 `main()` 的 `except` 漏捕 repository 路径抛出的错误，向调用方暴露 traceback 而不是 `error: <消息>` 加退出码 1。未处理异常与 `StateError` 都以 1 退出，因此只有 stderr 内容能区分两者；`tests/test_review_state.py` 为此保留一条断言 stderr 不含 traceback 的回归测试，删除该别名行会使它失败。
 
-metrics log 由 orchestrator 独占，supervisor/reviewer 只返回 evidence。仅补核心计时，不拆每条命令或每个 reviewer：新增 `run_phase/preparation`（新 run 输入解析到首个 supervisor dispatch 前）、`run_phase/resume`（恢复开始到 checkpoint 核验及下一步派发前）、`run_phase/closeout`（最终 assurance/gates 完成后到收尾检查、index disposition 与最终报告准备完成）。这些区间不包住 ticket、gate、review 或 repair。启动时先取机器时钟，canonical ledger 初始化后记录；若预检在初始化前阻塞，保留既有 run-artifact tree 中的准备 event 并报告耗时，不创建伪 run-start。
+metrics log 由 orchestrator 独占，supervisor/reviewer 只返回 evidence。orchestrator 在 run-start snapshot 后尝试初始化一次；统计失败时报告缺口并继续执行。核心阶段使用以下计时边界，完整命令和事件合同见 [run-metrics.md](../../skills/execute-tickets/references/run-metrics.md)。
 
-每张 ticket 的不重叠 workflow spans 是：
+`run_phase/preparation` 从新 run 输入解析到首个 supervisor dispatch 前；`run_phase/resume` 从恢复工作开始到 checkpoint 核验及下一步派发前；`run_phase/closeout` 从最终 assurance/gates 完成或确定最终阻塞，到收尾检查、index disposition 和报告准备完成。这些区间不包住 ticket、gate、review 或 repair。准备阶段先取机器时钟，日志初始化后记录；若此前已阻塞，保留既有 run-artifact tree 中的准备 event，不创建伪 run-start。
+
+主要 workflow spans 按以下边界计时：
 
 - `ticket_scope`：从 fresh supervisor dispatch 到 `scope_accepted` 或 scope block，包含 cold-start 阅读、scope reasoning 和 pre snapshot；
 - `ticket_phase/implementation`：从 `scope_accepted` 到 verified implementation snapshot，包含实现、ticket checks 和 deletion audit；
-- `review_round`：从 review snapshot 准备开始到双轴报告完成并验证；
+- `review_round`：从前一 implementation/repair span 结束到双轴报告验证完成，包含尚未计入前段的 snapshot 准备；micro inspection 计入 implementation/repair，不制造 reviewer event；
+- `final_repair_review`：从 targeted 两轴派发到报告验证完成，与 repair 和累计 review 分开；
+- `final_review` 或 `final_assurance`：从最终覆盖判定或审阅准备到报告、覆盖证据及一次可用 CE 验证完成，只记录实际选择的路径，先决 gate 单独计时；
 - `repair_micro` / `repair_non_micro`：从 failing review 验证完成到下一份 verified repair snapshot，包含 finding classification、编辑、复验和 snapshot；
 - `ticket_phase/acceptance`：从 accepted assurance evidence 到 protected staging、completion record、integration-index row 和 `ticket_result`。
 
-ticket-check gate 仍单独记录用于定位昂贵命令，但它嵌套在 implementation/repair span 中，不再次计入 workflow wall time；
-feature-final gate 没有外层 ticket span 时直接计入。summary 同时输出 all-operation duration 和不重叠 workflow duration，
-避免把嵌套 gate 重复相加，也避免只记录 reviewer 时间而漏掉 supervisor 推理与收尾。
+ticket-check gate 可保留嵌套诊断计时，计入 operation duration，但不再次计入 workflow duration；没有外层 ticket span 的 feature-final gate 计入 workflow。CE 自带的阶段诊断可保留引用，不与包含 CE 的外层阶段重复相加。
 
-`review_budget.py validate` 在 reviewer dispatch 前校验、`record` 在报告完成后再次校验 review 状态：每张 ticket 最多一个 `discovery`、一个 `closure` 和一个
-`regression_closure`，其 reason 分别固定为 `initial_ticket_review`、`accepted_findings` 和 `repair_regression`；
-`repair_micro` 后禁止追加 `review_round`。feature final review 同样只有 `integration_risk`、`accepted_findings`、
-`repair_regression` 三个 reason，后两者都要求前序失败和随后的 completed non-micro repair；重复 reason、越序、
-`final_closure` 与第四轮全部拒绝。独立预算 event 只含 `kind/ticket/phase/reason/result` 五字段，kind 对应的 phase/reason/result 使用固定集合。最终修复的批次与 targeted/micro 收尾规则见 §15.2；targeted review 时间独立计入 workflow，不再重复计入 repair span。
+`review_budget.py` 独立校验 §15.2 和 §19 的 ticket/final/targeted 转换。预算事件只含 `kind/ticket/phase/reason/result` 五字段。初次 `final_review` 与 `final_assurance` 互斥，后者要求日志中只有一个已完成 owner；候选和边界是否已被覆盖，由 supervisor 根据绑定证据判断。
 
-cumulative closure 分别检查前置失败 final review 之后是否完成过 non-micro repair，以及各 owner 当前的 targeted assurance。
-后续 verified micro repair 不抹去已完成大修；新的未审查 non-micro repair 仍阻止 closure。
-早于前置失败 review 的修复不能提供下一轮资格，不增加持久状态或改写历史事件。
+cumulative closure 分别检查前序 `final_review` 或 `final_assurance` 后的已完成 non-micro 修复，以及每个 owner 当前的 targeted assurance。后续 verified micro inspection 可以关闭已审修复的剩余 finding；新的未审 non-micro 修复仍阻止 closure。前序 `fail` 也不能跳过 targeted assurance，早于前序事件的修复不能提供下一轮资格。
 
-审查预算由 `review_budget.py` 与独立 `review-budget.jsonl` 负责，完全不依赖统计文件或脚本。
-预算状态异常需要按已验证执行证据核对后再派发相关 reviewer；统计异常没有任何门禁效力。
-统计退出码不得串入执行条件、`&&` 或未保护的 `set -e` 链，不能为了补统计重复审查或延迟收尾。
+审查预算完全不依赖统计文件或脚本。预算状态异常须按已验证执行证据核对后再派发相关 reviewer；统计异常只影响成本报告。统计退出码不得串入执行条件、`&&` 或未保护的 `set -e` 链，不能为了补统计重复审查或延迟收尾。
 
-metrics 还记录 scope path/state owner、repair class/reason、ticket check、feature gate execution/reuse/invalidated reason 和 duration。
-这些值用于诊断 ticket 粒度与重复成本，永远不能替代 acceptance、assurance 或 gate evidence。
-`scope_paths` 与 `state_owners` 的顺序由 helper 统一规范化，调用方不必预排序。
-重复值、空值、错误类型和非法路径仍拒绝。输入文件保持原样；排序只作用于传入事件，
-已有日志仍按原规则校验，损坏的历史记录不自动修复。
-任何 metrics 缺失、损坏、格式校验、读写或 summary 失败会显式标记 summary 不完整并停止继续追加，但不会阻塞 implementation、review、stage 或
-completion 或 resume；停止可选统计，最终报告缺口，不重试或重建统计，不估算丢失事件。
-报告把耗时缺口与验收结果分开。只有验收证据确已通过，才能说「执行耗时统计不完整，已验证的验收结果不受影响」；
-有未验项目时另行列明，不用统计说明掩盖验收阻塞。
+成本日志使用 schema v3，结果事件仍保留 v2 的八个字段。helper 继续读取 v2 日志；首次 timer 命令将 header 升为 v3，保留旧记录。`record` 用于已有可靠计时来源的结果事件；没有覆盖整个阶段的来源时，orchestrator 用 `start` 开始计时，证据验证后用 `end --result <实际结果>` 结束。开始时的 event file 要求 `duration_ms: null`，其中 `result` 只是合法占位值，不会作为结果写入；同一计时结果不再重复 `record`。
 
-schema v2 保留已有字段与历史记录，只新增上述 `run_phase` 映射并允许 `duration_ms: null` 表示未测量。orchestrator 在核心阶段边界读取机器时钟并计算 elapsed duration；暂停时把已测区间保存在既有 provisional event，恢复时记录 resume，再继续当前阶段计时。最终只追加一次实际结果 event，耗时为活动区间之和，不能用暂停制造重复统计观测。任一区间无法确定时 duration 记 null；可观察的边界必须按 §7.5 实测，并把缺口计入 `phase_timings` 的 `unmeasured_count`，容量调度等待记入 dispatch schedule 证据、不混入执行时长；不能把会话空闲时间或 mtime 差值补进成本。0 仅用于瞬时结果或复用决定；历史非瞬时 0 在 summary 中视为未测量，不改写日志。
+timer 起止记录与结果事件保存在同一 `run-metrics.jsonl` 中。`timer_start` 保存唯一 `timer_id`、机器时刻及不含 result/duration 的事件元数据；`timer_end` 保存结束时刻、实际结果或中断原因。helper 拒绝重复 ID/结束、时间倒退及重叠的 workflow/wait timers；不引入第二份日志、守护进程或心跳。
 
-summary 新增按 ticket、kind、phase 汇总的已测耗时和未测量记录数；保留既有总和字段，但有缺口时它们只代表已测部分。未知耗时不影响 review-budget transitions。不增加强制的命令明细、双轴 reviewer 独立计时、计时 sidecar 或新的审查轮次。
+`timer_id` 接受 `[A-Za-z0-9][A-Za-z0-9_-]*`，保留大小写并精确匹配；orchestrator 在 `end` 或 `interrupt` 时复用开始时的原始 ID。事件类型、phase、reason 和 feature 继续沿用小写校验。
+
+| 情况 | orchestrator 操作 | 汇总含义 |
+| --- | --- | --- |
+| 已知用户等待或容量等待即将开始 | 用 `interrupt --reason user_wait` 或 `capacity_wait` 结束活动段；需要统计等待时，另开 `wait/waiting` timer，返回后结束等待 | 中断前的实测工作保留；等待按原因单独统计，不计入 operation/workflow |
+| 模型服务中断或其他意外暂停后恢复 | 对旧 timer 用 `interrupt --reason service_outage` 或 `unknown`；再单独记录 resume 和继续工作的 timer | 旧段整体未知，不以恢复时刻结束旧段并计作持续执行 |
+| 服务中断的起止另有可靠来源 | 根据宿主、命令或消息时刻记录 `wait/waiting/service_outage` | 只记录已知中断时长，不估算中断起点或用估算值修补执行耗时 |
+| 汇总时仍有未关闭 timer | 保留原记录，报告 `open_timer_ids` | 没有耗时贡献或虚构结果，保留未知缺口 |
+
+恢复后每个活动段使用新 timer ID。`interrupt` 不产生验收或审阅结果，只有实际完成的段才用 `end` 记录结果。中断片段保留实测耗时或贡献一个未知缺口，不增加已完成事件或 reviewer 计数。脚本不能自行确定云端故障起点，也不能把 mtime 差值补成成本。
+
+summary 按 ticket、kind、phase 输出 `phase_timings`，另列 `wait_duration_ms`、`open_timer_ids` 和 `interrupted_spans`。有缺口时，总耗时仅表示已测部分；缺失的历史阶段不补造。记录中的未知区间是有效的不完整观测，仍可继续测量后续工作。历史非瞬时零耗时按未测量处理，timer 实测的零耗时保持有效；瞬时结果与复用决定仍可使用 `0`。`final_assurance` 计入成本，但不计为 reviewer 轮次。
+
+metrics 还记录 scope path/state owner、repair class/reason、gate execution/reuse/invalidated reason 和 duration，只用于诊断成本。helper 对传入事件的 `scope_paths` 与 `state_owners` 排序，保留输入文件，拒绝重复项、空字符串、错误类型和非法路径。历史记录按原规则校验，不借输入排序修复损坏日志。
+
+任何 metrics 文件缺失、损坏、格式校验、读写或 summary 失败，都应报告可用 stderr、停止向可疑日志追加并标明统计不完整；不阻塞 implementation、review、stage、completion 或 resume，不重试或重建统计。最终报告分别说明耗时缺口和验收结果；只有验收证据确已通过，才能说「执行耗时统计不完整，已验证的验收结果不受影响」。
 
 ### 21.1 自动保证之外的协议责任
 
@@ -1459,6 +1497,7 @@ summary 新增按 ticket、kind、phase 汇总的已测耗时和未测量记录�
 - `scope_path` 是否真的是 file 而不是目录语义；脚本防止绝对路径、`..` 和重复项，exact-file contract 仍由 envelope admission 保证；
 - execution mode/assurance lane 选择是否符合语义；
 - discovery reviewer 是否 fresh、closure 是否遵循原 reviewer 复用/替代条件、所有 reviewer 是否 read-only，finding 是否有 authority；
+- 单票已有 assurance 是否覆盖最终候选、完整 staged baseline 和全部受影响边界；预算脚本不替代 §19.1 的语义覆盖判断；
 - completion record 是否逐字段符合 bundled shape；`ticket_state.py` 只验证 heading、非空内容、status 和幂等字节，字段语义由 orchestrator 再检查；
 - reusable gate 的 input boundary 是否真的完整；
 - 被忽略的 run-artifact checkpoint 是否完整、可读并属于当前 run。
@@ -1504,6 +1543,7 @@ checkpoint 丢失时 fail closed，不能 reset、stash、吸收或从 prose 推
 resume 不对执行演进后的完整 ticket 集合重新运行 authoring receipt verify；这会把合法 completion
 误判为 drift。只有 retained checkpoint 能授权 run-start 之后的 ticket byte change。
 resume 也不重新初始化 review-budget ledger；新 run-start identity 不会让已经使用或耗尽的 ticket/final phase 消失。
+若有效的统计日志仍有旧 open timer，orchestrator 先按 §21 标记中断，再计量 resume 和后续工作；不能把旧 timer 结束在恢复时刻并将暂停计入执行。统计日志缺失或损坏不阻塞恢复。
 orchestrator 分别报告实现、验收和交付状态，列出精确未验项、责任 owner 和下一步。
 缺设备只阻塞需要该设备的检查及其依赖，独立工作继续；final-only gate 不被静默前移成每张票的完成条件。
 设备恢复后从尚未完成的动作继续。有效证据按原复用合同保留，输入变化或 freshness 要求使证据失效时才补跑；
@@ -1614,6 +1654,7 @@ ignored untracked 不进入 manifest、tampered prior hash，以及 output 必�
 测试还覆盖乱序输入按规范顺序记录、输入与既有日志字节保留、非法列表拒绝，以及损坏历史不能借输入排序被修复。
 `test_review_budget.py` 独立覆盖 ticket/final/targeted 次序与轮次上限、micro 后不再派 reviewer、
 后续 micro 不抹去历史已审大修，以及从已验证历史恢复预算。
+timer 测试覆盖起止时刻、已知等待与嵌套检查的独立统计、意外中断和未关闭段保持未知、重复结束及重叠拒绝，以及 v2 日志接入 timer 后保留原记录。预算测试还覆盖票级复用与初次审阅互斥、多个 ticket 活动不得复用、复用后的 CE/实测修复，以及前序失败也不能绕过 targeted assurance 进入累计 closure。
 隔离回归制造缺失、损坏、无法写入的统计文件，及完全没有 metrics 脚本的运行包：
 合法审查仍获准、已用轮次仍被拒绝，预算不受统计影响。
 
@@ -1636,8 +1677,9 @@ package 拒绝并行；worker 越过 assigned exact path 时阻塞；worker focu
 发送 `implementation_ready`；review finding 由 supervisor 修复且不再派 implementation worker；semantic epic 不得借
 多个 worker 绕过 authoring split。
 
-文档场景还覆盖：`surgical` ticket 删除未授权章节/代码块时，supervisor 必须用 `replaced` 或 `superseded`
-逐项解释并在 unexplained 时阻塞；Standards reviewer 的现有 brief 必须收到该审计、patch 和 authority 后再检查。
+文档场景还覆盖：没有文档票时从最终实现发现遗漏；已完成 ticket 的补文档修复保留原合同与 checkpoint；真正无影响时记录理由；搬迁执行记录时保留长期约束与验证步骤。`surgical` ticket 删除未授权章节/代码块时，supervisor 必须用 `replaced` 或 `superseded` 逐项解释并在 unexplained 时阻塞；Standards reviewer 的现有 brief 必须收到该审计、patch 和 authority 后再检查。
+
+单票成本场景覆盖：完整 assurance 覆盖时复用，未审 staged baseline 时回到普通 integration discovery，复用后 CE findings 仍需原 owner 修复；服务中断起点未知时不把暂停计为执行；预检验证实际编译器、指定 backend 的目标 URL 和被消费产物，而非只看 dry-run 或 tab 列表。
 
 working-tree drift 场景覆盖：与 ticket 无关的 scope 外变化不调查来源、不暂停、默认保留且禁止 staging；已有证据明确支持时仍可自动恢复误改；以及两张 ticket 之间
 通过 completion handoff 合并比较和下一次 `pre` capture；强漂移仍要求重建 run baseline/admission。
@@ -1746,6 +1788,8 @@ review finding 分类和 repair。代价是需要 work-package admission、exact
 - 不在真实 runtime 不可用时制造或降级 `runtime_observations`；对应 ticket 保持 blocked。
 - 不把 run-artifact tree 当作长期项目归档或 behavior authority。
 - 不允许通过 new run-start、`epoch-N`、`chain-N` 或 alternate review-budget log 重置 ticket/final review budget。
+- 不仅凭单票数量省略集成审阅；必须先证明 §19.1 的完整覆盖。
+- 不自动推断服务中断起点；无法确认的计时段保留为未知，不能据此声称已统计完整执行耗时。
 
 ## 27. 修改或扩展本 skill 时应保持的不变量
 
@@ -1763,7 +1807,7 @@ review finding 分类和 repair。代价是需要 work-package admission、exact
 12. 流程永不 commit、push、reset 或 stash；classification 为 `restore` 时把 scope 外当前内容移入 quarantine 并恢复最后 protected state，`preserve` 内容始终留在 working tree/index 外。
 13. semantic epic、未定 ordering/ownership 和无法解释的 baseline preflight drift 必须在 `scope_ready` 前阻塞。
 14. ticket-scoped checks 不运行 feature final gates；feature gate inventory 中每个 id 只有一个 owner 和一致声明。
-15. ticket review 固定为 discovery、closure、optional regression closure；final review 是 integration discovery，不是重复 ticket-local 全量审查。
+15. ticket review 固定为 discovery、closure、optional regression closure；final 阶段先核验已有覆盖，只有满足 §19.1 时复用票级 assurance，否则执行 integration discovery。两条路径共用 discovery 预算，不重复已覆盖的 ticket-local 审查。
 16. run metrics 只诊断成本，始终 `quality_proxy: false`，不能成为 acceptance 或质量证据。
 17. cheapest decisive check 只能验证当前路线，不能替代 ticket check、feature final gate、行为测试或 assurance review。
 18. causal model 被证伪后必须返回 diagnosis，不能叠加第二个症状 workaround。

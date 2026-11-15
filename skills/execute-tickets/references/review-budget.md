@@ -62,8 +62,8 @@ and run the same command with `record` instead of `validate`. Also record verifi
 `repair` dispositions and `ticket_result` completion outcomes, which subsequent
 review eligibility uses. Their phases/reasons/results follow `review-policy.md`:
 `repair_micro` or `repair_non_micro`, `review_finding` or `test_failure`, pass/blocked;
-`ticket_result` uses `acceptance`, `ticket_completed`, pass/blocked. Only feature
-`final_review` uses a null ticket. No duration, scope, or owner-count fields belong
+`ticket_result` uses `acceptance`, `ticket_completed`, pass/blocked. Feature
+`final_review` and `final_assurance` use a null ticket. No duration, scope, or owner-count fields belong
 in this ledger. Records are appended after evidence verification, before optional
 metrics recording. A budget error requires resolving the execution-history issue
 before the dependent reviewer dispatch; it never triggers a statistics repair.
@@ -84,15 +84,31 @@ cumulative PASS, add an event kind/result, or derive feature acceptance from a
 metrics summary. Resume uses the index plus its retained evidence. This does
 not reset or extend any review budget.
 
-Final review uses the same deterministic three-phase budget. It records exactly
-one `integration_risk` discovery, then only after a failing predecessor and a
-completed non-micro repair may record one `accepted_findings` closure and one
-`repair_regression` closure. Duplicate reasons, out-of-order phases,
+Final assurance uses the same deterministic three-phase budget. It records
+either one `final_review/integration_review/integration_risk` discovery or one
+`final_assurance/integration_review/ticket_coverage` reuse decision under
+`final-gate.md`, never both. Validate the reuse event before CE and record its
+actual outcome after coverage and CE evidence verify: `reused`, `fail` or
+`blocked`, never a synthetic reviewer PASS. The helper checks one completed
+owner and the shared discovery slot; the supervisor proves semantic coverage in
+the existing index. A reuse event is not a reviewer dispatch or review count.
+Both routes permit at most one `accepted_findings` closure
+and one `repair_regression` closure. Each requires a completed non-micro repair
+after its predecessor. A failing predecessor qualifies as before; a passing
+predecessor (including `reused`) qualifies only with a subsequent completed
+`repair/repair_non_micro/test_failure/pass` and current targeted assurance for
+all non-micro repair owners. The orchestrator verifies the bound gate failure,
+attribution and frozen IDs in the existing integration index before recording
+that repair. Preserve the original PASS and actual gate FAIL; inventing a repair
+event cannot authorize more review. The third round still requires an original
+open finding or a proven repair-caused P0/P1, not an unrelated new defect. Duplicate reasons, out-of-order phases,
 `final_closure`, and any fourth final-review event are invalid transitions.
 
 Final targeted repairs use the original completed owner ticket, not a synthetic
-repair id and not that ticket's ordinary `review_round` budget. The latest failing
-`final_review` plus that owner determines one batch from its frozen report IDs;
+repair id and not that ticket's ordinary `review_round` budget. The latest
+`final_review` or `final_assurance` plus that owner determines one batch from its frozen report IDs
+and any bound runtime-failure IDs; after PASS or reuse, the same owner must have a
+subsequent completed non-micro `test_failure` repair before targeted review;
 keep those IDs and snapshot hashes in the existing repair reports. Merge the
 owner's compatible findings before repair. `discovery` with reason `standard`
 allows one round; `high_risk` allows one additional `closure` only after a failed
@@ -104,11 +120,11 @@ inspection closing that owner’s remaining frozen IDs and permits no extra targ
 review; it does not rewrite its FAIL report. A new non-micro repair invalidates
 that owner’s earlier targeted PASS until the required current review succeeds.
 For cumulative closure, the completed non-micro repair must occur after its
-required failing final review; a later verified micro repair does not erase
+required final review; a later verified micro repair does not erase
 that history. Check current targeted assurance separately, so a later unreviewed
-non-micro repair still blocks closure. Repairs before that failing review do not
+non-micro repair still blocks closure. Repairs before that review do not
 qualify the next round.
 All-micro final closure uses inspection plus required gates, with no new
 `final_review` event; mixed owners may enter cumulative closure after each batch
-is closed. A passing/blocked latest final review, or exhausted third final round,
-permits no new targeted batch.
+is closed. A PASS without the bound later test-failure repair, a blocked latest
+final review, or exhausted third final round permits no new targeted batch.

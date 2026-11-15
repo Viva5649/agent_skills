@@ -11,8 +11,9 @@ Classify each gate's deterministic reuse assessment from its declaration:
   tracked files, or exact module directories plus every consumed root build,
   dependency, lock, packaging, and documentation input.
 
-The first final-gate pass runs every feature final gate. Reuse is considered only
-after a repair. Ticket-writing workflows should emit deterministic declarations
+Run each required gate once when its prerequisites and candidate are ready under
+`final-gate.md`. Count applicable earlier results for their exact components,
+never for an unexecuted whole gate. Reuse is considered only after a repair. Ticket-writing workflows should emit deterministic declarations
 for expensive reusable gates by default; omission safely means
 `always-run`. Execution never invents a manifest from changed files. Runtime
 evidence may instead be retained only under the explicit contract below; do not
@@ -20,13 +21,17 @@ label external state `None` or pass it through `gate_state.py`.
 
 ## Historical runtime evidence after repairs
 
-The owning gate declaration may explicitly permit retaining an earlier actual
-runtime result after later repairs. The author names the acceptance claim,
-evidence and relevant production/test/build/deployment/model inputs, invalidating
-changes, and whether current deployment or fresh interaction must be proved.
-Keep this condition in the existing gate declaration, not a new status schema.
-Without that condition, an `always-run` runtime gate runs normally. A current-state
-or fresh-interaction requirement always runs; silence is not permission to retain.
+New gate declarations must assess evidence after repairs: acceptance claim,
+relevant production/caller/test/build/deployment/model inputs, invalidating
+changes and freshness with its authority/reason. Distinguish retaining a PASS,
+reevaluating complete raw output after a verifier-only correction and recollecting
+affected evidence. External dependencies prevent deterministic repository reuse;
+they do not by themselves invalidate every prior runtime observation.
+Keep these conditions in the existing declaration, not a new status schema.
+For legacy gates without permission, `always-run` runs normally; do not rewrite
+completed tickets or infer permission from unchanged files. Resolve a deficient
+live declaration through existing authority repair. A current-state or
+fresh-interaction requirement always runs; silence is not permission to retain.
 
 Before retaining evidence, the final-gate supervisor verifies all of these:
 
@@ -47,12 +52,24 @@ fresh `runtime_observations` or claim the current device is unchanged. Retention
 proves what the original execution demonstrated, not a fresh environment state.
 Do not add a device fingerprint service, inferred dependency cache or new ledger.
 
-If later authority explicitly permits reevaluating retained raw evidence under
-a changed oracle, the verification owner runs the changed validator and writes a
-separate result binding the new authority, validator and original raw hashes.
-Preserve the original exit code and failure. Missing newly required evidence
-remains unproved; changing an oracle does not authorize suppressing a real
-failure. Record reevaluation as an executed gate, not reuse of an original FAIL.
+Before rerunning after a failure, the final-gate supervisor establishes what
+failed against the authoritative contract, using existing raw outputs:
+
+| Cause | Required action |
+| --- | --- |
+| Product or relevant artifact defect | Original owner repairs it; rerun the affected runtime proof after assurance. |
+| Verifier defect, complete applicable raw output | Under the declared condition or authority repair, rerun the corrected validator and write a new result. |
+| Missing parameter, wrong selector or incomplete capture | Correct orchestration and execute the affected required methods/components; raw reevaluation cannot supply missing execution. |
+| Environment variation or uncertain identity | Retain failure evidence and perform bounded attribution; do not substitute an older PASS. |
+
+For raw reevaluation, the verification owner proves the correction implements
+the existing contract, verifies original raw hashes, identities, completeness
+and applicability, and binds the new result to the validator and authority.
+A changed requirement needs its owner's explicit authority first. Preserve the
+original exit code/FAIL; record reevaluation as an executed gate, not reuse of
+an original FAIL. No missing required observation or fresh interaction can be
+replaced this way. Final acceptance still covers every required component;
+an affected-method rerun is not automatically a whole-gate PASS.
 
 ## Deterministic eligibility
 

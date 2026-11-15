@@ -120,7 +120,9 @@ class SkillPortabilityTest(unittest.TestCase):
             self.assertIn(classification, boundary)
 
         self.assertIn("run only by the current ticket supervisor", TEMPLATE_TEXT)
-        self.assertIn("run once after all implementation tickets", TEMPLATE_TEXT)
+        self.assertIn("exactly one owning ticket or execution plan", TEMPLATE_TEXT)
+        self.assertIn("cumulative code review precedes the remaining full acceptance matrix", TEMPLATE_TEXT)
+        self.assertIn("Count applicable earlier evidence once", TEMPLATE_TEXT)
         self.assertIn("Baseline verification preflight", normalized_contract)
         self.assertIn("Ticket-scoped checks", normalized_contract)
         self.assertIn("Feature final gates", normalized_contract)

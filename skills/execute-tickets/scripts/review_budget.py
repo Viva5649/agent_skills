@@ -15,6 +15,7 @@ from review_state import StateError, ensure_output_excluded_from_candidates, rep
 
 
 EVENT_FIELDS = {"kind", "ticket", "phase", "reason", "result"}
+FINAL_ANCHORS = {"final_review", "final_assurance"}
 
 
 def _validate_event(raw: Any) -> dict[str, Any]:
@@ -39,6 +40,9 @@ def _validate_event(raw: Any) -> dict[str, Any]:
     elif kind == "final_review":
         if ticket is not None or phase != "integration_review" or reason not in {"integration_risk", "accepted_findings", "repair_regression"} or result not in {"pass", "fail", "blocked"}:
             raise StateError("final_review phase/reason is invalid")
+    elif kind == "final_assurance":
+        if ticket is not None or phase != "integration_review" or reason != "ticket_coverage" or result not in {"reused", "fail", "blocked"}:
+            raise StateError("final_assurance requires ticket coverage and its actual outcome")
     elif kind == "final_repair_review":
         if ticket is None or phase not in {"discovery", "closure"} or reason not in {"standard", "high_risk"} or result not in {"pass", "fail"}:
             raise StateError("final_repair_review requires owner ticket, review phase and lane")
@@ -50,11 +54,24 @@ def _validate_event(raw: Any) -> dict[str, Any]:
 def _validate_transition(events: list[dict[str, Any]], event: dict[str, Any]) -> None:
     if event["kind"] == "final_repair_review":
         final_index = next(
-            (i for i in range(len(events) - 1, -1, -1) if events[i]["kind"] == "final_review"),
+            (i for i in range(len(events) - 1, -1, -1) if events[i]["kind"] in FINAL_ANCHORS),
             None,
         )
-        if final_index is None or events[final_index]["result"] != "fail":
-            raise StateError("targeted repair review requires a current failing final review")
+        if final_index is None:
+            raise StateError("targeted repair review requires a current final review")
+        final = events[final_index]
+        runtime_repairs = [
+            item for item in events[final_index + 1 :]
+            if item["kind"] == "repair" and item["ticket"] == event["ticket"]
+        ]
+        if final["result"] != "fail" and not (
+            final["result"] in {"pass", "reused"}
+            and any(item["phase"] == "repair_non_micro"
+                    and item["reason"] == "test_failure" and item["result"] == "pass"
+                    for item in runtime_repairs)
+            and runtime_repairs[-1]["result"] == "pass"
+        ):
+            raise StateError("targeted repair review requires final FAIL or a subsequent completed runtime-failure repair")
         if events[final_index]["reason"] == "repair_regression":
             raise StateError("cumulative final review budget is exhausted")
         ticket = event["ticket"]
@@ -88,34 +105,53 @@ def _validate_transition(events: list[dict[str, Any]], event: dict[str, Any]) ->
             raise StateError("targeted closure requires a subsequent completed non-micro repair")
         return
 
-    if event["kind"] == "final_review":
+    if event["kind"] in FINAL_ANCHORS:
         prior_reviews = [
-            existing for existing in events if existing["kind"] == "final_review"
+            existing for existing in events if existing["kind"] in FINAL_ANCHORS
         ]
+        if event["reason"] in {"integration_risk", "ticket_coverage"} and prior_reviews:
+            raise StateError("duplicate final review phase: discovery already reviewed or reused")
+        if event["kind"] == "final_assurance":
+            owners = {item["ticket"] for item in events if item["ticket"] is not None}
+            completed = {item["ticket"] for item in events
+                         if item["kind"] == "ticket_result" and item["result"] == "pass"}
+            if len(owners) != 1 or owners != completed:
+                raise StateError("ticket coverage reuse requires exactly one completed owner")
+            return
         if any(existing["reason"] == event["reason"] for existing in prior_reviews):
             raise StateError(f"duplicate final review phase: {event['reason']}")
         required_reason = {
-            "accepted_findings": "integration_risk",
-            "repair_regression": "accepted_findings",
+            "accepted_findings": {"integration_risk", "ticket_coverage"},
+            "repair_regression": {"accepted_findings"},
         }.get(event["reason"])
         if required_reason is None:
             return
         matches = [
-            review for review in prior_reviews if review["reason"] == required_reason
+            review for review in prior_reviews if review["reason"] in required_reason
         ]
-        if not matches or matches[-1]["result"] != "fail":
+        if not matches:
             raise StateError(
-                f"{event['reason']} requires a prior failing {required_reason} final review"
+                f"{event['reason']} requires a prior {required_reason} final review"
             )
         prior_index = events.index(matches[-1])
+        after_pass = matches[-1]["result"] in {"pass", "reused"}
+        if matches[-1]["result"] != "fail" and not (
+            after_pass and any(
+                item["kind"] == "repair" and item["phase"] == "repair_non_micro"
+                and item["reason"] == "test_failure" and item["result"] == "pass"
+                for item in events[prior_index + 1 :]
+            )
+        ):
+            raise StateError("final closure requires prior FAIL or a subsequent completed runtime-failure repair")
         batch_results = {}
         for item in events[prior_index + 1 :]:
             if item["kind"] == "final_repair_review":
                 batch_results[item["ticket"]] = item["result"]
             elif item["kind"] == "repair":
-                if item["ticket"] in batch_results:
+                if item["ticket"] in batch_results or item["phase"] == "repair_non_micro":
                     batch_results[item["ticket"]] = (
                         "pass" if item["phase"] == "repair_micro" and item["result"] == "pass"
+                        and batch_results.get(item["ticket"]) in {"pass", "fail"}
                         else "unreviewed"
                     )
         if any(result != "pass" for result in batch_results.values()):

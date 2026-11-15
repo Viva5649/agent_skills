@@ -168,8 +168,9 @@ worker after review begins.
 ## Adapt the final review as an integration review
 
 After targeted repair review, apply the single-owner targeted closeout in
-`review-policy.md` before scheduling cumulative closure. It never omits initial
-integration discovery. The existing index records the verified closeout and
+`review-policy.md` before scheduling cumulative closure. Initial integration
+discovery follows the separate coverage decision in `final-gate.md`.
+The existing index records the verified closeout and
 retains original failing reports; summaries do not fabricate another PASS.
 
 
@@ -179,7 +180,9 @@ completion, the orchestrator incrementally writes
 ticket and retained bounded envelopes while those inputs are already in context.
 It does not reconstruct accepted rows by rereading complete prior tickets or
 reports. Before reviewer dispatch, the final-gate supervisor adds final snapshot
-and gate-result rows, verifies the complete index, and freezes its SHA-256. It
+and available gate-result rows plus pending gate IDs/owners, verifies the complete
+index, and freezes its SHA-256. Necessary builds and critical cross-ticket
+witnesses precede this review; the remaining full matrix follows reviewed repairs. It
 contains:
 
 - final snapshot, HEAD, index, and cumulative `staged.patch` path/hash;
@@ -200,7 +203,7 @@ actually owns more than one item:
 - Interfaces: `<consumer Consumes> -> <blocker Produces verbatim row + source hash>, ...`
 - Owners/order: `<state/resource/cleanup owner + ordering-row source hash>, ...`
 - Review: `Standards <status, finding ids/dispositions, report path/hash>; Spec <...>`
-- Completion/deviations: `<outcome>; <None or bounded facts>`
+- Completion/deviations: `<outcome>; <bounded facts, including documentation updates/pending owner+gate or no-impact reason>`
 - Final gates: `<id, owner, command/interaction hash, reuse class>, ...`
 ```
 
@@ -209,6 +212,10 @@ completed ticket and includes every cross-ticket edge, shared owner, and final
 gate exactly once with matching retained identities and hashes. An omission or
 mismatch blocks final review. Do not copy patch hunks, full reports, or command
 logs into the index.
+For documentation-only final repairs, retain the entry defined in
+`final-gate.md` in the owning ticket's Completion/deviations row. Reviewers
+receive its verified hash, cited existing authority and bounded edit contract
+with the repair patch; the entry never supplies new product behavior.
 The index is verified routing evidence, not behavior authority. It preserves
 verbatim interface/ordering rows and their source hashes; it cannot add a
 requirement, weaken a ticket, or resolve a mismatch.
@@ -220,7 +227,7 @@ First-pass inputs:
 
 - the integration review index;
 - the feature spec, superseding ADRs, and applicable ordering/ownership tables;
-- final-gate inventory and results.
+- final-gate inventory, available results and explicitly pending gates.
 
 On-demand evidence paths:
 
@@ -266,7 +273,10 @@ instead of reopening accepted tickets.
 The Standards and Spec axes remain separate. Standards assesses cross-ticket
 architecture, ownership, and delivery consistency; Spec assesses cumulative
 observable behavior, interfaces, ordering authority, non-goals, and feature-gate
-evidence. For discovery, complete the available supplemental CE review under
+evidence. A scheduled post-review runtime gate is unproved acceptance, not by
+itself a code-review failure or PASS evidence. Review its executable contract
+and available prerequisites; a broken verifier or missing critical witness is
+still a finding. For discovery, complete the available supplemental CE review under
 `final-gate.md` before freezing the combined finding set; its findings follow
 the same integration scope and authority rules. Closure retains that frozen
 set, including CE IDs, without repeating CE discovery.

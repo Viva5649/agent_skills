@@ -99,7 +99,7 @@ class SkillPortabilityTest(unittest.TestCase):
             SKILL_ROOT / "references" / "final-gate.md"
         ).read_text(encoding="utf-8")
         self.assertIn("## Execution mode routing", supervisor)
-        self.assertIn("integration discovery review", final_gate)
+        self.assertIn("integration discovery review", " ".join(final_gate.split()))
 
     def test_implementation_delegation_is_bounded_and_supervisor_owned(self) -> None:
         skill = (SKILL_ROOT / "SKILL.md").read_text(encoding="utf-8")
@@ -539,6 +539,7 @@ class SkillPortabilityTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             for script in (
                 "admission_state.py",
+                "evidence_summary.py",
                 "gate_state.py",
                 "metrics_state.py",
                 "review_budget.py",

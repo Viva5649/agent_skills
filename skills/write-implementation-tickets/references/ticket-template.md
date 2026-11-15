@@ -72,6 +72,24 @@ When `Permitted discovery` applies, keep this section and table. When it is
 
 - Closure result: `0 undisposed paths`.
 
+## Documentation impact
+
+Reuse the behavior-level discovery inventory: existing/sibling identifiers,
+contract wording and related navigation/architecture/verification references.
+Record the scoped discovery command and disposition of relevant hits here;
+distinguish implementation-time contract updates from gate-result-only facts.
+
+Keep this assessment for every ticket, including tickets with no Markdown edits.
+
+- `<affected contract -> exact document/section -> required output -> owning
+  ticket and acceptance/check>`, or
+  `None — <inspected behavior/documents and why no update is needed>`.
+- Gate-dependent updates: `<gate ID, target location, write owner and positive
+  acceptance>`, or `None`.
+
+Include needed navigation/reference changes in write scope. The assessment
+does not require a separate documentation ticket.
+
 ## Documentation edit contract
 
 Remove this entire section unless the ticket modifies an existing Markdown
@@ -240,27 +258,40 @@ behavior without substituting for feature integration closure.
 
 ## Feature final gates
 
-Each gate is declared by exactly one owning ticket or execution plan and must
-run once after all implementation tickets are accepted. Use
+Each gate is declared by exactly one owning ticket or execution plan. Necessary
+builds, explicit prerequisites and critical cross-ticket witnesses run when
+ready; cumulative code review precedes the remaining full acceptance matrix.
+Count applicable earlier evidence once, without claiming unexecuted components. Use
 `None — this ticket owns no feature final gate.` when inapplicable.
 
 ### `<stable-gate-id>`
 
-- Owner: `<this ticket, named validation-only ticket, or execution plan>`.
+- Owner: `<this ticket, named validation-only ticket, or execution plan; name
+  the earliest authorized execution owner for necessary earlier prerequisites>`.
 - Working directory: `<exact repository-relative directory, qualified for multiple repositories>`.
 - Command or interaction: `<exact cumulative build, integration, publication,
   delivery, or target-runtime protocol; identify the required selectors,
   parameter sources, result writer/artifact and parser before expensive runs>`.
 - Expected: `<execution criterion plus A-id or authoritative feature result reference>`.
+- Early release witness, when this gate exercises a released/packaged consumer:
+  `<smallest existing selector through the actual release artifact and test
+  runner, earliest authorized owner/dependency, result readback/parser and
+  cleanup; retained artifact paths and invalidating inputs>`. Reuse valid
+  evidence; when the build cannot isolate that target, state the prerequisite
+  and run the witness immediately after it. Count covered acceptance once.
 - Reuse assessment: `<reusable | always-run>`.
 - Always-run reason: `<external/uncertain input or incomplete deterministic
   boundary>`, or `None — the complete reusable input boundary is declared below.`
-- Historical runtime evidence after repairs (optional): `<explicit authority
-  permitting retention within this run; acceptance claim, raw evidence and
-  relevant production/test/build/deployment/model inputs, invalidating changes,
-  and any current-state or fresh-interaction requirement>`. Omit without that
-  authority; `always-run` then runs normally. This is not repository-only reuse
-  and does not declare external state `None`.
+- Evidence after repairs: `<acceptance claim; relevant production, caller, test,
+  build, deployment, model/backend/configuration and raw evidence inputs;
+  invalidating changes; current-state or fresh-interaction requirement and its
+  authority/reason>`. State when a prior PASS remains applicable, whether a
+  verifier-only correction may reevaluate complete raw evidence against the same
+  contract, and what requires recollection. Use `Not applicable — <reason>` for
+  inapplicable routes. External state alone is not a reason to rerun everything.
+  Runtime retention stays within this run and is not repository-only reuse;
+  never declare external state `None` for it. Preserve original results when
+  recording a new validation result; missing evidence cannot be reevaluated.
 
 State how the final-gate supervisor reports a genuinely unavailable device or
 external dependency; do not substitute a weaker check and call it passed.

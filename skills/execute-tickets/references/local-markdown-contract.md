@@ -283,6 +283,10 @@ vary, but the ticket must contain:
   action, object, condition and observable result. Unique section/check references
   satisfy the fields below when they resolve in declared inputs. Missing, cyclic
   or conflicting references do not. Existing consistent expanded tickets remain valid.
+- **Documentation impact:** required maintained-document/reference updates,
+  their owner and checks, including any gate-dependent handoff; or an inspected
+  no-impact reason. Older admitted tickets are reconciled under the supervisor
+  protocol without rewriting completed authority.
 - **Documentation edit contract:** for every existing Markdown write path,
   `surgical` or explicitly authorized `whole-document` mode, authority, preserved
   responsibilities, and required replacement outputs.
@@ -318,9 +322,16 @@ vary, but the ticket must contain:
 - **Ticket-scoped checks:** focused verification run only by the current ticket
   supervisor before ticket assurance.
 - **Feature final gates:** cumulative verification declared once by an owning
-  ticket or execution plan and run once after all implementation tickets are
-  accepted. Every gate has a stable id, exact command/interaction, expected
-  result, owner, and `always-run` or `reusable` assessment.
+  ticket or execution plan and completed at feature acceptance. Necessary earlier
+  prerequisites have a named execution owner; applicable results count once.
+  Every gate has a stable id, exact command/interaction, expected
+  result, owner, and `always-run` or `reusable` assessment. New tickets also name
+  the claim, relevant inputs, invalidating changes and justified freshness, with
+  separate conditions for PASS retention, raw reevaluation and recollection.
+  Apply `reusable-gates.md`; legacy omissions grant no implicit retention.
+  Necessary builds/prerequisites and critical cross-ticket witnesses run before
+  cumulative review; the remaining full matrix follows reviewed repairs.
+  Applicable earlier components count once without implying the whole gate PASS.
 - **Reusable gate inputs (optional):** complete input boundaries for each gate
   assessed `reusable`; omit this section when every gate is `always-run`.
 - **Stop conditions:** ambiguities, ownership conflicts, missing seams, failed

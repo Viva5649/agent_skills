@@ -154,6 +154,9 @@ Legacy recovery uses review reports, repair dispositions, and integration eviden
 never metrics. Separately attempt metrics initialization/continuation under
 `references/run-metrics.md`; any statistics failure marks metrics incomplete and
 execution continues. Missing metrics never block resume.
+For a valid retained timer log, follow `run-metrics.md` to mark an old open span
+as interrupted before timing resumed work. Never close it at the resume clock
+as if the intervening outage or user wait were execution time.
 
 Also initialize
 `.execute-tickets/<feature>/integration-review-index.md` with the feature and
