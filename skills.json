@@ -1,20 +1,20 @@
 {
   "repos": {
     "EveryInc/compound-engineering-plugin": {
-      "commit": "f1b249924c0e41b14974a4eeb89e91000a22e2c3",
-      "updated_at": "2026-10-31T14:53:16+08:00"
+      "commit": "ee46dde75a40e297bd8eac4055a410a771d3ac1d",
+      "updated_at": "2026-11-15T12:34:57+08:00"
     },
     "Fenng/Tech-Doc-Style-Chinese": {
       "commit": "b119d01c9bb7cd132b3c62fafdff34227c4410d1",
       "updated_at": "2026-10-07T11:34:27+08:00"
     },
     "JimLiu/baoyu-skills": {
-      "commit": "1567581c26ec29f4216c6e6835415bf30343b0e3",
-      "updated_at": "2026-09-29T22:56:32+08:00"
+      "commit": "ca703c2d7c2c4399a1dc0cf82224f8551e05a96d",
+      "updated_at": "2026-11-15T12:34:59+08:00"
     },
     "KKKKhazix/khazix-skills": {
-      "commit": "322346ded8129436b3f64707789a73e732ae24d9",
-      "updated_at": "2026-10-31T14:53:18+08:00"
+      "commit": "71cd50ffe1f1f4d400b54be967dc6b59379aff8f",
+      "updated_at": "2026-11-15T12:35:00+08:00"
     },
     "Viva5649/agent_skills": {
       "commit": "4e241e5072d2115b5cdaefd3bbcd7068ed555999",
@@ -25,36 +25,36 @@
       "updated_at": "2026-09-29T22:56:32+08:00"
     },
     "alchaincyf/huashu-art-motion": {
-      "commit": "8a0d7d72ca65fcce6f8ba82c4a6c8dfe35b8422c",
-      "updated_at": "2026-10-31T14:53:20+08:00"
+      "commit": "1468196505a51728686db118d52561aa27a25124",
+      "updated_at": "2026-11-15T12:35:03+08:00"
     },
     "alchaincyf/huashu-design": {
-      "commit": "9b01ee8751679724dd43d855a532944aaa2c2b59",
-      "updated_at": "2026-10-31T14:53:22+08:00"
+      "commit": "e8d1148a80d5a281d4247cffe320add3df017928",
+      "updated_at": "2026-11-15T12:35:05+08:00"
     },
     "anthropics/skills": {
-      "commit": "ca45fc496a3436251f191354091d557da31c15b5",
-      "updated_at": "2026-10-31T14:53:24+08:00"
+      "commit": "1780c5e5a552fd4d1c9d6a7b0cab26b0c2bef064",
+      "updated_at": "2026-11-15T12:35:08+08:00"
     },
     "blader/humanizer": {
-      "commit": "0ef9fe5bc3572734fd3ae6c448fe00a30cd5dcf0",
-      "updated_at": "2026-10-31T14:53:25+08:00"
+      "commit": "b48c832f0f809c1b5658edbb838c2521b72f2413",
+      "updated_at": "2026-11-15T12:35:09+08:00"
     },
     "crazynomad/skills": {
       "commit": "2bc470fc08b47b63af8c1721058672ad0678ab78",
       "updated_at": "2026-09-29T22:56:32+08:00"
     },
     "emilkowalski/skills": {
-      "commit": "a81dbca07f2217b7103e510c0f13f8d5b017afc9",
-      "updated_at": "2026-10-31T14:53:26+08:00"
+      "commit": "0f2e23b32bb1265e84cff8d3e75785fec953fb1b",
+      "updated_at": "2026-11-15T12:35:10+08:00"
     },
     "garrytan/gstack": {
-      "commit": "a77fae2837695ffc3e7937bb8f3e9dc5eb337fc4",
-      "updated_at": "2026-10-31T14:53:28+08:00"
+      "commit": "0326b144af36676d599dcf63a9fad9a870d22ed6",
+      "updated_at": "2026-11-15T12:35:13+08:00"
     },
     "humanlayer/skills": {
-      "commit": "653b6411c1f70c275a18e37673b042ff99f67ceb",
-      "updated_at": "2026-10-31T14:53:29+08:00"
+      "commit": "4d69d20f6e9b57b4fcf0d501ccfb1be961f0f329",
+      "updated_at": "2026-11-15T12:35:14+08:00"
     },
     "icebear0828/notebooklm-client": {
       "commit": "796bdaae4b486f47eec43af7cdd9b5e2bca256a5",
@@ -69,12 +69,12 @@
       "updated_at": "2026-09-29T22:56:33+08:00"
     },
     "mattpocock/skills": {
-      "commit": "a496f5513d4a4cf889bc48e189e579f4b0bdf6aa",
-      "updated_at": "2026-10-31T14:53:34+08:00"
+      "commit": "5863806dd4e15c63174bee4e7515a4256792ecfa",
+      "updated_at": "2026-11-15T12:35:17+08:00"
     },
     "morluto/rea": {
-      "commit": "ec107022fac43708dd6b74c25e3d450653a50963",
-      "updated_at": "2026-10-31T14:53:38+08:00"
+      "commit": "2e1e6593f266b859d2f0fc858d51ed2f280b6849",
+      "updated_at": "2026-11-15T12:35:20+08:00"
     },
     "op7418/guizang-ppt-skill": {
       "commit": "93d21bf4a73a851907a6eb00acbf30618236667a",
@@ -93,8 +93,8 @@
       "updated_at": "2026-09-29T22:56:33+08:00"
     },
     "vercel-labs/skills": {
-      "commit": "92a9a34ac3bf88e695e468b90c7bf32f163d32c8",
-      "updated_at": "2026-10-31T14:53:40+08:00"
+      "commit": "b716f9dc2ba36b6aa8f0080615e5a3a6caeac63b",
+      "updated_at": "2026-11-15T12:35:21+08:00"
     }
   },
   "skills": {

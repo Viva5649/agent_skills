@@ -69,7 +69,7 @@
 | `neat-freak` | 知识收尾。把项目文档、CLAUDE.md/AGENTS.md、agent 记忆和当前代码实际行为对齐 | [KKKKhazix/khazix-skills](https://github.com/KKKKhazix/khazix-skills) | ✅ |
 | `codebase-documenter` | 代码库文档撰写。README、架构说明、API 文档、上手指南 | [ailabs-393/ai-labs-claude-skills](https://github.com/ailabs-393/ai-labs-claude-skills) | ❌ |
 | `spec-miner` | 逆向工程。从无文档的遗留代码库里反推规格、依赖图与业务逻辑 | [jeffallan/claude-skills](https://github.com/jeffallan/claude-skills) | ❌ |
-| `reverse-engineer-anything` | 逆向工程。从成品或运行时证据分析原生、托管、Electron、固件与浏览器目标，可反编译代码、比对版本或指导重建 | [morluto/rea](https://github.com/morluto/rea) | ❌ |
+| `reverse-engineer-anything` | 逆向工程。从成品或运行时证据分析原生、托管、Electron、固件、浏览器与 Linux 桌面应用目标，可反编译代码、比对版本或指导重建 | [morluto/rea](https://github.com/morluto/rea) | ❌ |
 | `smell` | 架构坏味道与复杂度热点检测，输出反模式违规的 markdown 报告 | [smallnest/goal-workflow](https://github.com/smallnest/goal-workflow) | ❌ |
 | `refactor` | 按 Martin Fowler 的重构目录改善代码，处理坏味道、提炼函数、简化条件，不改变行为 | [smallnest/goal-workflow](https://github.com/smallnest/goal-workflow) | ❌ |
 | `ce-code-review` | 审查指定 diff 或 PR 的 bug、回归、测试与规范问题，也能把审查结论直接改到本地 | [EveryInc/compound-engineering-plugin](https://github.com/EveryInc/compound-engineering-plugin) | ✅ |
@@ -85,7 +85,7 @@
 | Skill | 用途 | 源仓库 | `third_party/` 收录 |
 |---|---|---|:---:|
 | `agent-reach` | 全网调研入口。13 个平台多后端路由，覆盖小红书、X、B 站、Reddit、V2EX、领英等 | [Panniantong/Agent-Reach](https://github.com/Panniantong/Agent-Reach) | ❌ |
-| `hv-analysis` | 横纵分析法深度研究。纵轴追生命历程，横轴做竞品对比，产出 PDF 报告 | [KKKKhazix/khazix-skills](https://github.com/KKKKhazix/khazix-skills) | ✅ |
+| `hv-analysis` | 横纵分析法深度研究。纵轴追生命历程，横轴做竞品对比，默认产出 PDF 和 Markdown，也可指定 HTML | [KKKKhazix/khazix-skills](https://github.com/KKKKhazix/khazix-skills) | ✅ |
 | `aihot` | 查询 AIHOT 中文 AI 资讯、精选、热点与日报，走匿名只读 API | [KKKKhazix/khazix-skills](https://github.com/KKKKhazix/khazix-skills) | ✅ |
 | `notecraft` | NotebookLM 自动化。建笔记本、加源、生成播客/视频/幻灯片/闪卡 | [icebear0828/notebooklm-client](https://github.com/icebear0828/notebooklm-client) | ❌ |
 | `youtube-downloader` | 基于 yt-dlp 下载 YouTube 及 1000+ 站点视频 | [crazynomad/skills](https://github.com/crazynomad/skills) | ❌ |
