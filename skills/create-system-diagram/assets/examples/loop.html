@@ -37,6 +37,7 @@
     body { margin: 0; padding: 24px 16px 32px; background: var(--page); color: var(--ink); font-family: var(--font-body); }
     .arch-document { max-width: 1440px; margin: 0 auto; }
     h1 { margin: 0 0 14px; font-size: 1.375rem; font-weight: 700; line-height: 1.5; }
+    .diagram-scope { margin: 0 0 14px; color: var(--muted); font-size: 0.8125rem; line-height: 1.8; }
     figure { margin: 0; padding: 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
     .legend { display: flex; flex-direction: column; gap: 8px; margin: 16px 16px 40px; color: var(--muted); font-size: 0.8125rem; line-height: 1.7; }
     .legend-row { display: flex; align-items: center; gap: 12px; }
@@ -58,6 +59,12 @@
     .module-services, .module-index, .module-retrieval { --module-color: var(--orange); --module-bg: var(--orange-bg); --module-chip: var(--orange-chip); }
     .module-review { --module-color: var(--green); --module-bg: var(--green-bg); --module-chip: var(--green-chip); }
     .group-neutral { --module-color: var(--grey); --module-bg: var(--grey-bg); --module-chip: var(--grey-chip); }
+    /* 仅在已声明按视角配色的图中使用；复用色值变量，不表达模块身份。 */
+    .perspective-business { --module-color: var(--orange); --module-bg: var(--orange-bg); --module-chip: var(--orange-chip); }
+    .perspective-engineering { --module-color: var(--purple); --module-bg: var(--purple-bg); --module-chip: var(--purple-chip); }
+    .perspective-algorithm { --module-color: var(--blue); --module-bg: var(--blue-bg); --module-chip: var(--blue-chip); }
+    .architecture .perspective-frame { fill: var(--module-bg); stroke: var(--module-color); stroke-width: 1.5; rx: 10; }
+    .architecture .perspective-title { fill: var(--module-color); font-size: 14px; font-weight: 700; }
     .architecture .metric-value { font-size: 21px; font-weight: 700; }
     .architecture .metric-target { fill: var(--orange); font-weight: 700; }
     .architecture .module-name { fill: var(--module-color); }
@@ -106,10 +113,14 @@
 </head>
 <body>
   <main class="arch-document">
+    <!-- 先应用通用规则，再选架构图、流程图或数据流图；只启用内容触发的专项。
+         图类型决定节点身份。按所选类型替换节点与关系；examples 提供各类型骨架。
+         观察范围、数据口径和关系须按任务替换；不因模板含有专项样式就新增对应内容。 -->
     <h1>带回路的局部流程（通用示例）</h1>
+    <p class="diagram-scope">流程图 · 一次导出任务；展示批次推进与退出，启用资源与存储规则。所有示例内容均为虚构。</p>
     <figure>
       <div class="diagram-scroll" tabindex="0" role="region" aria-label="系统图，可横向滚动">
-        <svg xmlns="http://www.w3.org/2000/svg" class="architecture" viewBox="0 0 1400 410" role="img" aria-labelledby="sample-title" aria-describedby="sample-description"><title id="sample-title">带回路的局部流程（通用示例）</title><desc id="sample-description">入口用红色、执行模块及产物用蓝色、检查模块用绿色。配色用于追踪本例协作对象；回路预留独立通道，末端竖直接入执行组件。示例明确允许返回修正，不能据此推断真实项目也会自动重试。</desc>
+        <svg xmlns="http://www.w3.org/2000/svg" class="architecture" viewBox="0 0 1400 410" role="img" aria-labelledby="sample-title" aria-describedby="sample-description"><title id="sample-title">带回路的局部流程（通用示例）</title><desc id="sample-description">图类型：流程图；涉及累计状态，启用资源与存储规则。块表示功能操作，正文注明执行者。回路覆盖处理与判断，明确推进批次和退出条件；输入是有限资料集。所有组件、条件与行为均为虚构。</desc>
 <defs>
             <marker id="sample-arrow-flow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead k-flow" d="M0,0 L10,5 L0,10 z"/></marker>
             <marker id="sample-arrow-alt" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead k-alt" d="M0,0 L10,5 L0,10 z"/></marker>
@@ -118,25 +129,24 @@
             <marker id="sample-arrow-cfg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead k-cfg" d="M0,0 L10,5 L0,10 z"/></marker>
             <marker id="sample-arrow-fail" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead k-fail" d="M0,0 L10,5 L0,10 z"/></marker>
           </defs>
-<g class="group-neutral"><rect class="annotation" x="40" y="60" width="1320" height="320"/><text class="section-title" x="60" y="88" >任务处理与质量检查</text></g>
-<path id="forward-0" class="edge k-flow" d="M320,184 L400,184" marker-end="url(#sample-arrow-flow)"/><text class="edge-label k-flow" x="360" y="170" data-edge-label="forward-0" text-anchor="middle">提交</text>
-<path id="forward-1" class="edge k-flow" d="M660,184 L740,184" marker-end="url(#sample-arrow-flow)"/><text class="edge-label k-flow" x="700" y="170" data-edge-label="forward-1" text-anchor="middle">检查</text>
-<path id="forward-2" class="edge k-flow" d="M1000,184 L1080,184" marker-end="url(#sample-arrow-flow)"/><text class="edge-label k-flow" x="1040" y="170" data-edge-label="forward-2" text-anchor="middle">通过</text>
-<path id="retry" class="edge k-alt" d="M870,238 L870,350 L530,350 L530,238" marker-end="url(#sample-arrow-alt)"/><text class="edge-label k-alt edge-operation" x="700" y="316" data-edge-label="retry" text-anchor="middle">检查未通过：返回修正</text><text class="edge-label k-alt" x="700" y="336" data-edge-label="retry" text-anchor="middle">在同一任务内继续处理</text>
-<g id="request" class="module-entry"><rect class="card card-tinted" x="60" y="130" width="260" height="108"/><text class="node-title module-name" x="78" y="161" >任务入口</text><text class="body-text" x="78" y="186" >接收任务与约束</text></g>
-<g id="execute" class="module-execution"><rect class="card card-tinted" x="400" y="130" width="260" height="108"/><text class="node-title module-name" x="418" y="161" >任务执行</text><text class="body-text" x="418" y="186" >生成或修正同一份产物</text></g>
-<g id="gate" class="module-review"><rect class="card card-tinted" x="740" y="130" width="260" height="108"/><text class="node-title module-name" x="758" y="161" >结果检查</text><text class="body-text" x="758" y="186" >检查通过才允许交付</text></g>
-<g id="deliver" class="module-execution"><rect class="card card-tinted" x="1080" y="130" width="260" height="108"/><text class="node-title" x="1098" y="161" >交付产物</text><text class="body-text" x="1098" y="186" >保存通过检查的结果</text></g>
+<g class="group-neutral"><rect class="annotation" x="40" y="60" width="1320" height="320"/><text class="section-title" x="60" y="88" >一次导出任务：接收请求至交付完整报告</text></g>
+<path id="forward-0" class="edge k-flow" d="M320,184 L400,184" marker-end="url(#sample-arrow-flow)"/><text class="edge-label k-flow" x="360" y="170" data-edge-label="forward-0" text-anchor="middle">开始处理</text>
+<path id="forward-1" class="edge k-flow" d="M660,184 L740,184" marker-end="url(#sample-arrow-flow)"/><text class="edge-label k-flow" x="700" y="170" data-edge-label="forward-1" text-anchor="middle">本批完成</text>
+<path id="forward-2" class="edge k-flow" d="M1000,184 L1080,184" marker-end="url(#sample-arrow-flow)"/><text class="edge-label k-flow" x="1040" y="170" data-edge-label="forward-2" text-anchor="middle">全部完成</text>
+<path id="next-batch" class="edge k-alt" d="M870,238 L870,350 L530,350 L530,238" marker-end="url(#sample-arrow-alt)"/><text class="edge-label k-alt edge-operation" x="700" y="316" data-edge-label="next-batch" text-anchor="middle">还有资料：批次 i +1</text><text class="edge-label k-alt" x="700" y="336" data-edge-label="next-batch" text-anchor="middle">继续处理下一批，保留累计报告</text>
+<g id="request" class="module-entry"><rect class="card card-tinted" x="60" y="130" width="260" height="108"/><text class="node-title" x="78" y="161" >接收导出任务</text><text class="body-text" x="78" y="186" >入口组件确认资料范围</text><text class="body-text" x="78" y="206" >批次 i 从 1 开始</text></g>
+<g id="execute" class="module-execution"><rect class="card card-tinted" x="400" y="130" width="260" height="108"/><text class="node-title" x="418" y="161" >处理第 i 批资料</text><text class="body-text" x="418" y="186" >报告服务生成本批结果</text><text class="body-text" x="418" y="206" >累计到同一份报告</text></g>
+<g id="gate" class="module-execution"><rect class="card card-tinted" x="740" y="130" width="260" height="108"/><text class="node-title" x="758" y="161" >判断是否还有资料</text><text class="body-text" x="758" y="186" >报告服务检查剩余批次</text><text class="body-text" x="758" y="206" >最后一批完成后退出</text></g>
+<g id="deliver" class="module-execution"><rect class="card card-tinted" x="1080" y="130" width="260" height="108"/><text class="node-title" x="1098" y="161" >交付完整报告</text><text class="body-text" x="1098" y="186" >报告服务保存结果文件</text><text class="body-text" x="1098" y="206" >向调用方返回下载地址</text></g>
 </svg>
       </div>
-      <figcaption>来源：内置通用示例，不描述真实项目。入口用红色、执行模块及产物用蓝色、检查模块用绿色。配色用于追踪本例协作对象；回路预留独立通道，末端竖直接入执行组件。示例明确允许返回修正，不能据此推断真实项目也会自动重试。</figcaption>
+      <figcaption>来源：内置通用示例，不描述真实项目。图类型：流程图；涉及累计状态，启用资源与存储规则。块表示功能操作，正文注明执行者。回路覆盖处理与判断，明确推进批次和退出条件；输入是有限资料集。所有组件、条件与行为均为虚构。</figcaption>
     </figure>
     <div class="legend" role="group" aria-label="图例">
-<div class="legend-row module-entry"><span class="legend-symbol"><span class="legend-swatch"></span></span><span>任务入口</span></div>
-<div class="legend-row module-execution"><span class="legend-symbol"><span class="legend-swatch"></span></span><span>执行模块及产物</span></div>
-<div class="legend-row module-review"><span class="legend-symbol"><span class="legend-swatch"></span></span><span>检查模块</span></div>
-<div class="legend-row k-flow"><svg class="legend-symbol" width="52" height="18" viewBox="0 0 52 18" aria-hidden="true"><path class="legend-line" d="M0,9 H44"/><path class="legend-arrow" d="M44,5 L52,9 L44,13 Z"/></svg><span>正常处理与通过分支</span></div>
-<div class="legend-row k-alt"><svg class="legend-symbol" width="52" height="18" viewBox="0 0 52 18" aria-hidden="true"><path class="legend-line" d="M0,9 H44"/><path class="legend-arrow" d="M44,5 L52,9 L44,13 Z"/></svg><span>检查未通过时返回修正</span></div>
+<div class="legend-row module-entry"><span class="legend-symbol"><span class="legend-swatch"></span></span><span>入口组件</span></div>
+<div class="legend-row module-execution"><span class="legend-symbol"><span class="legend-swatch"></span></span><span>报告服务及产物</span></div>
+<div class="legend-row k-flow"><svg class="legend-symbol" width="52" height="18" viewBox="0 0 52 18" aria-hidden="true"><path class="legend-line" d="M0,9 H44"/><path class="legend-arrow" d="M44,5 L52,9 L44,13 Z"/></svg><span>执行顺序与全部完成分支</span></div>
+<div class="legend-row k-alt"><svg class="legend-symbol" width="52" height="18" viewBox="0 0 52 18" aria-hidden="true"><path class="legend-line" d="M0,9 H44"/><path class="legend-arrow" d="M44,5 L52,9 L44,13 Z"/></svg><span>仍有资料时推进到下一批</span></div>
 </div>
   </main>
 </body>

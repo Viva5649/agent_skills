@@ -44,8 +44,9 @@ def frame(box, title, module="group-neutral", style="frame"):
     x, y, w, h = box
     if module == "group-neutral":
         style = "annotation"
+    title_style = "section-title" if module == "group-neutral" else "perspective-title" if style == "perspective-frame" else "frame-title"
     return (f'<g class="{module}"><rect class="{style}" x="{x}" y="{y}" width="{w}" height="{h}"/>'
-            + text(x + 20, y + 28, title, "section-title" if module == "group-neutral" else "frame-title") + '</g>')
+            + text(x + 20, y + 28, title, title_style) + '</g>')
 
 
 def edge(name, start, end, kind="flow", label=(), via=(), label_side="right"):
@@ -125,20 +126,104 @@ def parallel():
 def loop():
     nodes = [(name, (60 + i * 340, 130, 260, 108), module, title, body)
              for i, (name, module, title, body) in enumerate([
-                 ("request", "module-entry", "任务入口", ["接收任务与约束"]),
-                 ("execute", "module-execution", "任务执行", ["生成或修正同一份产物"]),
-                 ("gate", "module-review", "结果检查", ["检查通过才允许交付"]),
-                 ("deliver", "module-execution", "交付产物", ["保存通过检查的结果"])])]
+                 ("request", "module-entry", "接收导出任务", ["入口组件确认资料范围", "批次 i 从 1 开始"]),
+                 ("execute", "module-execution", "处理第 i 批资料", ["报告服务生成本批结果", "累计到同一份报告"]),
+                 ("gate", "module-execution", "判断是否还有资料", ["报告服务检查剩余批次", "最后一批完成后退出"]),
+                 ("deliver", "module-execution", "交付完整报告", ["报告服务保存结果文件", "向调用方返回下载地址"])])]
     links = [edge(f"forward-{i}", port(src[1], "right"), port(dst[1], "left"), label=(label,))
-             for i, (src, dst, label) in enumerate(zip(nodes, nodes[1:], ["提交", "检查", "通过"]))]
+             for i, (src, dst, label) in enumerate(zip(nodes, nodes[1:], ["开始处理", "本批完成", "全部完成"]))]
     start, end = port(nodes[2][1], "bottom"), port(nodes[1][1], "bottom")
-    links.append(edge("retry", start, end, "alt", ("检查未通过：返回修正", "在同一任务内继续处理"),
+    links.append(edge("next-batch", start, end, "alt", ("还有资料：批次 i +1", "继续处理下一批，保留累计报告"),
                       via=((start[0], 350), (end[0], 350))))
     return ("带回路的局部流程（通用示例）", 410,
-            [frame((40, 60, 1320, 320), "任务处理与质量检查")], nodes, links,
-            legend([("flow", "正常处理与通过分支"), ("alt", "检查未通过时返回修正")],
-                   [("module-entry", "任务入口"), ("module-execution", "执行模块及产物"), ("module-review", "检查模块")]),
-            "入口用红色、执行模块及产物用蓝色、检查模块用绿色。配色用于追踪本例协作对象；回路预留独立通道，末端竖直接入执行组件。示例明确允许返回修正，不能据此推断真实项目也会自动重试。")
+            [frame((40, 60, 1320, 320), "一次导出任务：接收请求至交付完整报告")], nodes, links,
+            legend([("flow", "执行顺序与全部完成分支"), ("alt", "仍有资料时推进到下一批")],
+                   [("module-entry", "入口组件"), ("module-execution", "报告服务及产物")]),
+            "图类型：流程图；涉及累计状态，启用资源与存储规则。块表示功能操作，正文注明执行者。"
+            "回路覆盖处理与判断，明确推进批次和退出条件；输入是有限资料集。所有组件、条件与行为均为虚构。")
+
+
+def multi_view():
+    columns = [
+        ("perspective-business", "业务视角 · 完整任务", [
+            ("business-submit", "B1 · 提交导出任务", ["调用方确定资料范围", "对应工程 E1"]),
+            ("business-report", "B2 · 生成报告", ["报告服务汇总全部资料", "对应工程 E2"]),
+            ("business-result", "B3 · 取得下载地址", ["调用方使用已交付文件", "对应工程 E3"])]),
+        ("perspective-engineering", "工程视角 · 完整处理", [
+            ("engineering-validate", "E1 · 校验请求", ["入口组件确认参数与资料范围", "对应业务 B1"]),
+            ("engineering-batches", "E2 · 处理全部批次", ["报告服务依次处理 3 批资料", "每批执行算法 A1、A2、A3"]),
+            ("engineering-deliver", "E3 · 写入并交付文件", ["报告服务写入结果并返回地址", "对应业务 B3"])]),
+        ("perspective-algorithm", "算法视角 · E2 的每批处理", [
+            ("algorithm-filter", "A1 · 筛选有效记录", ["报告服务过滤本批无效记录", "输入：当前批次"]),
+            ("algorithm-calculate", "A2 · 计算统计项", ["报告服务计算各分组统计值", "输入：本批有效记录"]),
+            ("algorithm-merge", "A3 · 合并本批结果", ["报告服务更新累计报告", "本批结束；还有批次时推进到下一批"])])]
+    backgrounds, nodes, links = [], [], []
+    for col, (color, title, items) in enumerate(columns):
+        x = 40 + col * 460
+        backgrounds.append(frame((x, 40, 400, 566), title, color, "perspective-frame"))
+        lane = []
+        for row, (name, title, lines) in enumerate(items):
+            node = (name, (x + 20, 114 + row * 170, 360, 110), color, title, lines)
+            nodes.append(node)
+            lane.append(node)
+        for i, (src, dst) in enumerate(zip(lane, lane[1:])):
+            links.append(edge(f"view-{col}-step-{i}", port(src[1], "bottom"), port(dst[1], "top"),
+                              "plain", ("继续处理",)))
+    backgrounds.extend([
+        text(60, 92, "范围：一次请求至取得下载地址", "body-text"),
+        text(520, 92, "范围：E1 → E2 → E3", "body-text"),
+        text(980, 92, "对应关系：E2 展开为 A1、A2、A3", "body-text"),
+        frame((40, 644, 1320, 262), "同一次请求的耗时组成（模拟数据）"),
+        text(60, 699, "范围：请求接收到地址交付；固定 3 批资料；总计 120 ms。", "body-text")])
+    links.append(edge("algorithm-next-batch", (1340, 509), (1340, 169), "alt",
+                      via=((1375, 509), (1375, 169)))
+                 + text(1340, 444, "还有批次：处理下一批", "edge-label k-alt",
+                        'data-edge-label="algorithm-next-batch" text-anchor="end"'))
+    for x, width, label in [(60, 320, "E1 · 30 ms · 25%"), (380, 640, "E2 · 累计 60 ms · 50%"), (1020, 320, "E3 · 30 ms · 25%")]:
+        backgrounds.append(f'<g class="group-neutral"><rect class="chip" x="{x}" y="720" width="{width}" height="42"/>'
+                           + text(x + width / 2, 746, label, "body-text", 'text-anchor="middle"') + '</g>')
+    backgrounds.extend([
+        text(60, 798, "三段顺序执行且无重叠：30 + 60 + 30 = 120 ms；占比均以本次请求 120 ms 为分母。", "body-text"),
+        text(60, 830, "E2 包含 3 批处理，平均 20 ms / 批；其中计算 45 ms、复制 15 ms，已包含在 E2 的 60 ms 内。", "body-text"),
+        text(60, 868, "来源：为演示统计关系构造的模拟数据；不提供各算法操作的独立计时。")])
+    return ("多视角流程与性能口径（通用示例）", 936, backgrounds, nodes, links,
+            legend([("plain", "当前视角内的执行顺序"), ("alt", "下一批继续同一算法，最后一批结束后退出 E2")],
+                   [("perspective-business", "业务视角"), ("perspective-engineering", "工程视角"), ("perspective-algorithm", "算法视角，展开 E2")]),
+            "图类型：流程图；启用多视角对应、性能指标、资源与存储规则。颜色表示视角，执行者写在块内。"
+            "B、E、A 是各视角内的操作标识，跨视角对应通过文字声明；E2 对应三个算法操作，横向位置不表示一一对应或调用。"
+            "所有名称、行为及数据均为虚构。")
+
+
+def continuous_dataflow():
+    backgrounds = [frame(box, title) for box, title in [
+        ((40, 40, 290, 730), "输入文件 · 持久化存储"),
+        ((360, 40, 670, 730), "报告服务 · 进程内存"),
+        ((1060, 40, 300, 730), "输出文件 · 持久化存储")]]
+    nodes = [
+        ("input-file", (60, 138, 250, 110), "group-neutral", "资料文件", ["有限资料集，按批读取", "存储位置：文件"]),
+        ("input-buffer", (400, 138, 560, 110), "module-services", "输入 buffer", ["报告服务持有当前批次", "处理后由下一批记录替换"]),
+        ("accumulator-first", (400, 360, 280, 130), "module-services", "累计统计 buffer", ["首批结束：写入第一批统计结果", "后续批次继续使用同一分配"]),
+        ("statistics-view", (760, 360, 240, 130), "module-services", "只读视图 · 按需使用", ["引用同一累计统计 buffer", "视图不新增数据副本", "位于报告服务进程内"]),
+        ("accumulator-later", (400, 610, 560, 130), "module-services", "累计统计 buffer · 后续批次", ["与上方是同一对象", "报告服务读取旧值并写回新值", "最后一批结束后用于输出"]),
+        ("output-file", (1080, 610, 260, 130), "group-neutral", "报告文件", ["报告服务在全部批次完成后写入", "存储位置：文件"])]
+    box = {n[0]: n[1] for n in nodes}
+    links = [
+        edge("read-batch", port(box["input-file"], "right"), port(box["input-buffer"], "left"), "plain", ("读取本批",)),
+        edge("write-first", (540, box["input-buffer"][1] + box["input-buffer"][3]), port(box["accumulator-first"], "top"), "plain", ("汇总并写入首批结果",)),
+        edge("retain-state", port(box["accumulator-first"], "bottom"), (540, box["accumulator-later"][1]), "alt", ("还有批次时保留同一分配", "后续批次读取并更新")),
+        edge("view-alias", port(box["statistics-view"], "left"), port(box["accumulator-first"], "right"), "cfg", ("共享引用",)),
+        edge("write-file", port(box["accumulator-later"], "right"), port(box["output-file"], "left"), "plain", ("复制写入",))]
+    backgrounds.extend([
+        text(60, 96, "读取来源固定，批次依次推进", "body-text"),
+        text(380, 96, "按首批、后续批次向下展开；同一分配的视图位于同一存储区域", "body-text"),
+        text(1080, 96, "全部批次完成后写入", "body-text"),
+        text(40, 816, "范围：一次报告生成（至少 2 批资料）的读写；图中重复的累计统计 buffer 表示同一对象在不同阶段的状态。", "body-text"),
+        text(40, 848, "模块配色：橙色表示报告服务拥有的内存对象；中性框仅组织存储位置与阅读顺序。", "body-text")])
+    return ("连续数据流与跨阶段状态（通用示例）", 880, backgrounds, nodes, links,
+            legend([("plain", "按标签读取、计算写入或复制写入"), ("alt", "后续批次继续使用同一分配"), ("cfg", "视图引用已有分配")],
+                   [("module-services", "报告服务持有的内存对象"), ("group-neutral", "文件与中性存储分区")]),
+            "图类型：数据流图；启用资源与存储规则。固定位置追踪读取、首次写入、跨阶段保留与最终输出。"
+            "只读视图的引用箭头指向实际分配，复制箭头指向数据去向。所有对象与操作均为虚构，不含性能数据。")
 
 
 def scenario():
@@ -257,7 +342,8 @@ def palette():
             "按实际显示尺寸检查浅底、内部组件与职责分区，并分别复看浅色、深色和灰度效果。")
 
 
-LAYOUTS = {"layered": layered, "parallel": parallel, "loop": loop, "scenario": scenario, "nested": nested, "palette": palette}
+LAYOUTS = {"layered": layered, "parallel": parallel, "loop": loop, "scenario": scenario, "nested": nested,
+           "multi-view": multi_view, "continuous-dataflow": continuous_dataflow, "palette": palette}
 
 
 def render(layout):
@@ -267,12 +353,21 @@ def render(layout):
     # 独立配色组件使用浅底，继承配色的内部组件保留统一卡片背景。
     content = "\n".join([*backgrounds, *links,
                          *(card(n, tinted=layout in {"parallel", "loop"},
-                                module_title=n[0] in {"analysis", "review", "request", "execute", "gate"}) for n in nodes)])
+                                module_title=layout == "parallel" and n[0] in {"analysis", "review"}) for n in nodes)])
     svg = (f'<svg xmlns="http://www.w3.org/2000/svg" class="architecture" viewBox="0 0 1400 {height}" role="img" aria-labelledby="sample-title" aria-describedby="sample-description">'
            f'<title id="sample-title">{escape(title)}</title><desc id="sample-description">{escape(caption)}</desc>\n{defs}\n{content}\n</svg>')
     output = re.sub(r"<svg\b.*?</svg>", lambda _: svg, template, count=1, flags=re.S)
     output = re.sub(r"<title>.*?</title>", lambda _: f"<title>{escape(title)}</title>", output, count=1)
     output = re.sub(r"<h1>.*?</h1>", lambda _: f"<h1>{escape(title)}</h1>", output, count=1)
+    scope = {"layered": "架构图 · 三层模块的职责与依赖；按模块配色。",
+             "parallel": "架构图 · 两条工作流的参与者与产物归属；上下排列不表示执行顺序。",
+             "loop": "流程图 · 一次导出任务；展示批次推进与退出，启用资源与存储规则。",
+             "scenario": "架构图 · 资料查询与更新的组件协作；启用性能指标、配置与实现差异规则。",
+             "nested": "架构图 · 外层模块、子模块与职责分区；按模块配色。",
+             "multi-view": "流程图 · 一次报告导出；启用多视角对应、性能指标、资源与存储规则，颜色表示视角。",
+             "continuous-dataflow": "数据流图 · 至少 2 批资料的报告生成；启用资源与存储规则，按对象所属模块配色。",
+             "palette": "色板校准 · 相同面积、内容与结构；不表达真实组件关系。"}[layout]
+    output = re.sub(r'<p class="diagram-scope">.*?</p>', lambda _: f'<p class="diagram-scope">{escape(scope)}所有示例内容均为虚构。</p>', output, count=1)
     output = re.sub(r'<div class="legend".*?(?=\s*</main>)', lambda _: key, output, count=1, flags=re.S)
     return re.sub(r"<figcaption>.*?</figcaption>", lambda _: f"<figcaption>来源：内置通用示例，不描述真实项目。{escape(caption)}</figcaption>", output, count=1)
 

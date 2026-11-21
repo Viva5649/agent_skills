@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>连续数据流与跨阶段状态（通用示例）</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --page: #f3f5f6; --panel: #ffffff; --ink: #17212b; --muted: #5b6874;
+      --line: #c9d1d8; --line-strong: #7d8b98; --neutral-chip: #eef1f3;
+      --blue: #1d5fb8; --blue-bg: #f0f5fc; --blue-chip: #dce8f8;
+      --purple: #7048b0; --purple-bg: #f5f1fb; --purple-chip: #e6ddf5;
+      --green: #2f7d4a; --green-bg: #f1f8f3; --green-chip: #dcefe2;
+      --gold: #8a6a0a; --gold-bg: #fff4d6; --gold-chip: #f4e8b3;
+      --red: #b0405e; --red-bg: #fcf1f4; --red-chip: #f6dbe3;
+      --teal: #0f766e; --teal-bg: #edf7f5; --teal-chip: #d2eae5;
+      --orange: #c2410c; --orange-bg: #fff3eb; --orange-chip: #ffdfc8;
+      --grey: #5b6570; --grey-bg: #eceff2; --grey-chip: #dce2e7;
+      --font-body: "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+      --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    }
+    :root[data-theme="dark"] {
+      color-scheme: dark;
+      --page: #11161b; --panel: #182028; --ink: #e4e9ee; --muted: #97a4b0;
+      --line: #2d3a46; --line-strong: #6b7c8b; --neutral-chip: #1f2931;
+      --blue: #7fb0f0; --blue-bg: #152131; --blue-chip: #1d3350;
+      --purple: #b69af0; --purple-bg: #1f1a2d; --purple-chip: #332850;
+      --green: #72c48f; --green-bg: #16241c; --green-chip: #1f3a29;
+      --gold: #d9bd59; --gold-bg: #28220f; --gold-chip: #433916;
+      --red: #f08aa5; --red-bg: #2a161c; --red-chip: #4a2430;
+      --teal: #5ecfc2; --teal-bg: #152824; --teal-chip: #20443e;
+      --orange: #fb923c; --orange-bg: #2b1c12; --orange-chip: #4a2b18;
+      --grey: #a7b1bc; --grey-bg: #1d2329; --grey-chip: #293641;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 24px 16px 32px; background: var(--page); color: var(--ink); font-family: var(--font-body); }
+    .arch-document { max-width: 1440px; margin: 0 auto; }
+    h1 { margin: 0 0 14px; font-size: 1.375rem; font-weight: 700; line-height: 1.5; }
+    .diagram-scope { margin: 0 0 14px; color: var(--muted); font-size: 0.8125rem; line-height: 1.8; }
+    figure { margin: 0; padding: 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
+    .legend { display: flex; flex-direction: column; gap: 8px; margin: 16px 16px 40px; color: var(--muted); font-size: 0.8125rem; line-height: 1.7; }
+    .legend-row { display: flex; align-items: center; gap: 12px; }
+    .legend-symbol { display: flex; align-items: center; justify-content: center; width: 52px; height: 18px; flex: 0 0 52px; }
+    .legend-swatch { width: 32px; height: 18px; border: 1.5px solid var(--module-color); border-radius: 4px; background: var(--module-bg); }
+    .legend-duty .legend-swatch { border: 0; background: var(--module-chip); }
+    .legend-line { fill: none; stroke: var(--edge); stroke-width: var(--edge-width); stroke-dasharray: var(--edge-dash, none); }
+    .legend-arrow { fill: var(--edge); }
+    .diagram-scroll { overflow-x: auto; }
+    :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+    .architecture { display: block; width: 100%; min-width: 1400px; height: auto; }
+    figcaption { margin-top: 14px; color: var(--muted); font-size: 0.8125rem; line-height: 1.8; overflow-wrap: anywhere; }
+    .architecture text { fill: var(--ink); font-family: var(--font-body); font-size: 12px; }
+    /* 仅为通用示例定义模块映射；实际绘图按本组图的模块重建。 */
+    .module-entry, .module-application { --module-color: var(--red); --module-bg: var(--red-bg); --module-chip: var(--red-chip); }
+    .module-orchestration, .module-analysis { --module-color: var(--purple); --module-bg: var(--purple-bg); --module-chip: var(--purple-chip); }
+    .module-execution { --module-color: var(--blue); --module-bg: var(--blue-bg); --module-chip: var(--blue-chip); }
+    .module-adapter { --module-color: var(--gold); --module-bg: var(--gold-bg); --module-chip: var(--gold-chip); }
+    .module-services, .module-index, .module-retrieval { --module-color: var(--orange); --module-bg: var(--orange-bg); --module-chip: var(--orange-chip); }
+    .module-review { --module-color: var(--green); --module-bg: var(--green-bg); --module-chip: var(--green-chip); }
+    .group-neutral { --module-color: var(--grey); --module-bg: var(--grey-bg); --module-chip: var(--grey-chip); }
+    /* 仅在已声明按视角配色的图中使用；复用色值变量，不表达模块身份。 */
+    .perspective-business { --module-color: var(--orange); --module-bg: var(--orange-bg); --module-chip: var(--orange-chip); }
+    .perspective-engineering { --module-color: var(--purple); --module-bg: var(--purple-bg); --module-chip: var(--purple-chip); }
+    .perspective-algorithm { --module-color: var(--blue); --module-bg: var(--blue-bg); --module-chip: var(--blue-chip); }
+    .architecture .perspective-frame { fill: var(--module-bg); stroke: var(--module-color); stroke-width: 1.5; rx: 10; }
+    .architecture .perspective-title { fill: var(--module-color); font-size: 14px; font-weight: 700; }
+    .architecture .metric-value { font-size: 21px; font-weight: 700; }
+    .architecture .metric-target { fill: var(--orange); font-weight: 700; }
+    .architecture .module-name { fill: var(--module-color); }
+    .architecture .body-text { fill: var(--ink); font-size: 12px; }
+    .architecture .section-title { fill: var(--ink); font-size: 14px; font-weight: 700; }
+    .architecture .outer-title { fill: var(--module-color); font-size: 24px; font-weight: 700; }
+    .architecture .module-title { fill: var(--module-color); font-size: 21px; font-weight: 700; }
+    .architecture .module-type { fill: var(--muted); font-size: 13px; }
+    .architecture .module-note { fill: var(--muted); font-size: 14px; }
+    .architecture .duty-title { font-size: 19px; font-weight: 700; }
+    .architecture .duty-body { font-size: 15px; }
+    .architecture .duty-accent { fill: none; stroke: var(--module-color); stroke-width: 3; }
+
+    .architecture .boundary { fill: none; stroke: var(--line-strong); stroke-width: 1.5; stroke-dasharray: 7 5; }
+    .architecture .frame { fill: var(--module-bg); stroke: var(--module-color); stroke-width: 1.5; rx: 10; }
+    .architecture .card, .architecture .mini { fill: var(--panel); stroke: var(--module-color, var(--line)); stroke-width: 2; vector-effect: non-scaling-stroke; rx: 8; }
+    .architecture .frame-inherited { fill: var(--panel); }
+    .architecture .duty { fill: var(--module-chip); stroke: none; rx: 6; }
+    .architecture .annotation { fill: var(--panel); stroke: var(--line); stroke-width: 1; rx: 8; }
+    .architecture .card-tinted { fill: var(--module-bg); }
+    .architecture .chip, .architecture .pill { fill: var(--module-chip, var(--neutral-chip)); stroke: var(--module-color, var(--line-strong)); stroke-width: 1; rx: 5; }
+    .architecture .band { fill: var(--module-bg); stroke: var(--module-color); stroke-width: 1.5; rx: 10; }
+    .architecture .step { fill: var(--ink); stroke: none; }
+    .architecture .step-label { fill: var(--page); font-family: var(--font-mono); font-size: 10.5px; font-weight: 700; }
+    .architecture .node-title { font-size: 15px; font-weight: 700; }
+    .architecture .frame-title { fill: var(--module-color); font-size: 14px; font-weight: 700; }
+    .architecture .mini-title { font-size: 12.5px; font-weight: 700; }
+    .architecture .boundary-title { font-size: 14px; font-weight: 700; }
+    .architecture .band-title { fill: var(--module-color); font-size: 13.5px; font-weight: 700; }
+    .architecture .note { fill: var(--muted); font-size: 12px; }
+    .architecture .mono { font-family: var(--font-mono); font-size: 12px; }
+    .architecture .chip-label { font-size: 11.5px; }
+    .k-flow { --edge: var(--blue); --edge-width: 2; }
+    .k-alt { --edge: var(--gold); --edge-width: 2; --edge-dash: 7 4; }
+    .k-event { --edge: var(--teal); --edge-width: 1.8; --edge-dash: 2 4; }
+    .k-plain { --edge: var(--line-strong); --edge-width: 1.6; }
+    .k-cfg { --edge: var(--line-strong); --edge-width: 1.6; --edge-dash: 6 4; }
+    .k-association { --edge: var(--line-strong); --edge-width: 1.4; --edge-dash: 3 4; }
+    .k-fail { --edge: var(--red); --edge-width: 2; }
+    .architecture .edge { fill: none; stroke: var(--edge, var(--line-strong)); stroke-width: var(--edge-width, 1.6); stroke-dasharray: var(--edge-dash, none); }
+    .architecture .arrowhead { fill: var(--edge, var(--line-strong)); stroke: none; }
+    .architecture .edge-label { fill: var(--muted); font-size: 11.5px; }
+    .architecture .edge-label.k-flow, .architecture .edge-label.k-alt, .architecture .edge-label.k-event, .architecture .edge-label.k-fail { fill: var(--edge); }
+    .architecture .edge-operation { font-size: 12.5px; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <main class="arch-document">
+    <!-- 先应用通用规则，再选架构图、流程图或数据流图；只启用内容触发的专项。
+         图类型决定节点身份。按所选类型替换节点与关系；examples 提供各类型骨架。
+         观察范围、数据口径和关系须按任务替换；不因模板含有专项样式就新增对应内容。 -->
+    <h1>连续数据流与跨阶段状态（通用示例）</h1>
+    <p class="diagram-scope">数据流图 · 至少 2 批资料的报告生成；启用资源与存储规则，按对象所属模块配色。所有示例内容均为虚构。</p>
+    <figure>
+      <div class="diagram-scroll" tabindex="0" role="region" aria-label="系统图，可横向滚动">
+        <svg xmlns="http://www.w3.org/2000/svg" class="architecture" viewBox="0 0 1400 880" role="img" aria-labelledby="sample-title" aria-describedby="sample-description"><title id="sample-title">连续数据流与跨阶段状态（通用示例）</title><desc id="sample-description">图类型：数据流图；启用资源与存储规则。固定位置追踪读取、首次写入、跨阶段保留与最终输出。只读视图的引用箭头指向实际分配，复制箭头指向数据去向。所有对象与操作均为虚构，不含性能数据。</desc>
+<defs>
+            <marker id="sample-arrow-flow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead k-flow" d="M0,0 L10,5 L0,10 z"/></marker>
+            <marker id="sample-arrow-alt" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead k-alt" d="M0,0 L10,5 L0,10 z"/></marker>
+            <marker id="sample-arrow-event" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead k-event" d="M0,0 L10,5 L0,10 z"/></marker>
+            <marker id="sample-arrow-plain" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead k-plain" d="M0,0 L10,5 L0,10 z"/></marker>
+            <marker id="sample-arrow-cfg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead k-cfg" d="M0,0 L10,5 L0,10 z"/></marker>
+            <marker id="sample-arrow-fail" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead k-fail" d="M0,0 L10,5 L0,10 z"/></marker>
+          </defs>
+<g class="group-neutral"><rect class="annotation" x="40" y="40" width="290" height="730"/><text class="section-title" x="60" y="68" >输入文件 · 持久化存储</text></g>
+<g class="group-neutral"><rect class="annotation" x="360" y="40" width="670" height="730"/><text class="section-title" x="380" y="68" >报告服务 · 进程内存</text></g>
+<g class="group-neutral"><rect class="annotation" x="1060" y="40" width="300" height="730"/><text class="section-title" x="1080" y="68" >输出文件 · 持久化存储</text></g>
+<text class="body-text" x="60" y="96" >读取来源固定，批次依次推进</text>
+<text class="body-text" x="380" y="96" >按首批、后续批次向下展开；同一分配的视图位于同一存储区域</text>
+<text class="body-text" x="1080" y="96" >全部批次完成后写入</text>
+<text class="body-text" x="40" y="816" >范围：一次报告生成（至少 2 批资料）的读写；图中重复的累计统计 buffer 表示同一对象在不同阶段的状态。</text>
+<text class="body-text" x="40" y="848" >模块配色：橙色表示报告服务拥有的内存对象；中性框仅组织存储位置与阅读顺序。</text>
+<path id="read-batch" class="edge k-plain" d="M310,193 L400,193" marker-end="url(#sample-arrow-plain)"/><text class="edge-label k-plain" x="355" y="179" data-edge-label="read-batch" text-anchor="middle">读取本批</text>
+<path id="write-first" class="edge k-plain" d="M540,248 L540,360" marker-end="url(#sample-arrow-plain)"/><text class="edge-label k-plain" x="556" y="304" data-edge-label="write-first" text-anchor="start">汇总并写入首批结果</text>
+<path id="retain-state" class="edge k-alt" d="M540,490 L540,610" marker-end="url(#sample-arrow-alt)"/><text class="edge-label k-alt edge-operation" x="556" y="540" data-edge-label="retain-state" text-anchor="start">还有批次时保留同一分配</text><text class="edge-label k-alt" x="556" y="560" data-edge-label="retain-state" text-anchor="start">后续批次读取并更新</text>
+<path id="view-alias" class="edge k-cfg" d="M760,425 L680,425" marker-end="url(#sample-arrow-cfg)"/><text class="edge-label k-cfg" x="720" y="411" data-edge-label="view-alias" text-anchor="middle">共享引用</text>
+<path id="write-file" class="edge k-plain" d="M960,675 L1080,675" marker-end="url(#sample-arrow-plain)"/><text class="edge-label k-plain" x="1020" y="661" data-edge-label="write-file" text-anchor="middle">复制写入</text>
+<g id="input-file" class="group-neutral"><rect class="card" x="60" y="138" width="250" height="110"/><text class="node-title" x="78" y="169" >资料文件</text><text class="body-text" x="78" y="194" >有限资料集，按批读取</text><text class="body-text" x="78" y="214" >存储位置：文件</text></g>
+<g id="input-buffer" class="module-services"><rect class="card" x="400" y="138" width="560" height="110"/><text class="node-title" x="418" y="169" >输入 buffer</text><text class="body-text" x="418" y="194" >报告服务持有当前批次</text><text class="body-text" x="418" y="214" >处理后由下一批记录替换</text></g>
+<g id="accumulator-first" class="module-services"><rect class="card" x="400" y="360" width="280" height="130"/><text class="node-title" x="418" y="391" >累计统计 buffer</text><text class="body-text" x="418" y="416" >首批结束：写入第一批统计结果</text><text class="body-text" x="418" y="436" >后续批次继续使用同一分配</text></g>
+<g id="statistics-view" class="module-services"><rect class="card" x="760" y="360" width="240" height="130"/><text class="node-title" x="778" y="391" >只读视图 · 按需使用</text><text class="body-text" x="778" y="416" >引用同一累计统计 buffer</text><text class="body-text" x="778" y="436" >视图不新增数据副本</text><text class="body-text" x="778" y="456" >位于报告服务进程内</text></g>
+<g id="accumulator-later" class="module-services"><rect class="card" x="400" y="610" width="560" height="130"/><text class="node-title" x="418" y="641" >累计统计 buffer · 后续批次</text><text class="body-text" x="418" y="666" >与上方是同一对象</text><text class="body-text" x="418" y="686" >报告服务读取旧值并写回新值</text><text class="body-text" x="418" y="706" >最后一批结束后用于输出</text></g>
+<g id="output-file" class="group-neutral"><rect class="card" x="1080" y="610" width="260" height="130"/><text class="node-title" x="1098" y="641" >报告文件</text><text class="body-text" x="1098" y="666" >报告服务在全部批次完成后写入</text><text class="body-text" x="1098" y="686" >存储位置：文件</text></g>
+</svg>
+      </div>
+      <figcaption>来源：内置通用示例，不描述真实项目。图类型：数据流图；启用资源与存储规则。固定位置追踪读取、首次写入、跨阶段保留与最终输出。只读视图的引用箭头指向实际分配，复制箭头指向数据去向。所有对象与操作均为虚构，不含性能数据。</figcaption>
+    </figure>
+    <div class="legend" role="group" aria-label="图例">
+<div class="legend-row module-services"><span class="legend-symbol"><span class="legend-swatch"></span></span><span>报告服务持有的内存对象</span></div>
+<div class="legend-row group-neutral"><span class="legend-symbol"><span class="legend-swatch"></span></span><span>文件与中性存储分区</span></div>
+<div class="legend-row k-plain"><svg class="legend-symbol" width="52" height="18" viewBox="0 0 52 18" aria-hidden="true"><path class="legend-line" d="M0,9 H44"/><path class="legend-arrow" d="M44,5 L52,9 L44,13 Z"/></svg><span>按标签读取、计算写入或复制写入</span></div>
+<div class="legend-row k-alt"><svg class="legend-symbol" width="52" height="18" viewBox="0 0 52 18" aria-hidden="true"><path class="legend-line" d="M0,9 H44"/><path class="legend-arrow" d="M44,5 L52,9 L44,13 Z"/></svg><span>后续批次继续使用同一分配</span></div>
+<div class="legend-row k-cfg"><svg class="legend-symbol" width="52" height="18" viewBox="0 0 52 18" aria-hidden="true"><path class="legend-line" d="M0,9 H44"/><path class="legend-arrow" d="M44,5 L52,9 L44,13 Z"/></svg><span>视图引用已有分配</span></div>
+</div>
+  </main>
+</body>
+</html>

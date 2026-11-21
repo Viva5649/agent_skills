@@ -37,6 +37,7 @@
     body { margin: 0; padding: 24px 16px 32px; background: var(--page); color: var(--ink); font-family: var(--font-body); }
     .arch-document { max-width: 1440px; margin: 0 auto; }
     h1 { margin: 0 0 14px; font-size: 1.375rem; font-weight: 700; line-height: 1.5; }
+    .diagram-scope { margin: 0 0 14px; color: var(--muted); font-size: 0.8125rem; line-height: 1.8; }
     figure { margin: 0; padding: 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
     .legend { display: flex; flex-direction: column; gap: 8px; margin: 16px 16px 40px; color: var(--muted); font-size: 0.8125rem; line-height: 1.7; }
     .legend-row { display: flex; align-items: center; gap: 12px; }
@@ -58,6 +59,12 @@
     .module-services, .module-index, .module-retrieval { --module-color: var(--orange); --module-bg: var(--orange-bg); --module-chip: var(--orange-chip); }
     .module-review { --module-color: var(--green); --module-bg: var(--green-bg); --module-chip: var(--green-chip); }
     .group-neutral { --module-color: var(--grey); --module-bg: var(--grey-bg); --module-chip: var(--grey-chip); }
+    /* 仅在已声明按视角配色的图中使用；复用色值变量，不表达模块身份。 */
+    .perspective-business { --module-color: var(--orange); --module-bg: var(--orange-bg); --module-chip: var(--orange-chip); }
+    .perspective-engineering { --module-color: var(--purple); --module-bg: var(--purple-bg); --module-chip: var(--purple-chip); }
+    .perspective-algorithm { --module-color: var(--blue); --module-bg: var(--blue-bg); --module-chip: var(--blue-chip); }
+    .architecture .perspective-frame { fill: var(--module-bg); stroke: var(--module-color); stroke-width: 1.5; rx: 10; }
+    .architecture .perspective-title { fill: var(--module-color); font-size: 14px; font-weight: 700; }
     .architecture .metric-value { font-size: 21px; font-weight: 700; }
     .architecture .metric-target { fill: var(--orange); font-weight: 700; }
     .architecture .module-name { fill: var(--module-color); }
@@ -106,7 +113,11 @@
 </head>
 <body>
   <main class="arch-document">
+    <!-- 先应用通用规则，再选架构图、流程图或数据流图；只启用内容触发的专项。
+         图类型决定节点身份。按所选类型替换节点与关系；examples 提供各类型骨架。
+         观察范围、数据口径和关系须按任务替换；不因模板含有专项样式就新增对应内容。 -->
     <h1>并列工作流（通用示例）</h1>
+    <p class="diagram-scope">架构图 · 两条工作流的参与者与产物归属；上下排列不表示执行顺序。所有示例内容均为虚构。</p>
     <figure>
       <div class="diagram-scroll" tabindex="0" role="region" aria-label="系统图，可横向滚动">
         <svg xmlns="http://www.w3.org/2000/svg" class="architecture" viewBox="0 0 1400 520" role="img" aria-labelledby="sample-title" aria-describedby="sample-description"><title id="sample-title">并列工作流（通用示例）</title><desc id="sample-description">两条工作流分别展示参与者与产物归属；上下排列不表示先后执行。中性外框表达工作流分组。分析模块用紫色，核查模块用绿色，产物沿用所属模块颜色；输入材料使用中性色。</desc>

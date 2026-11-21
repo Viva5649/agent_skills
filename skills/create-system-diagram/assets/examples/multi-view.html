@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>多视角流程与性能口径（通用示例）</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --page: #f3f5f6; --panel: #ffffff; --ink: #17212b; --muted: #5b6874;
+      --line: #c9d1d8; --line-strong: #7d8b98; --neutral-chip: #eef1f3;
+      --blue: #1d5fb8; --blue-bg: #f0f5fc; --blue-chip: #dce8f8;
+      --purple: #7048b0; --purple-bg: #f5f1fb; --purple-chip: #e6ddf5;
+      --green: #2f7d4a; --green-bg: #f1f8f3; --green-chip: #dcefe2;
+      --gold: #8a6a0a; --gold-bg: #fff4d6; --gold-chip: #f4e8b3;
+      --red: #b0405e; --red-bg: #fcf1f4; --red-chip: #f6dbe3;
+      --teal: #0f766e; --teal-bg: #edf7f5; --teal-chip: #d2eae5;
+      --orange: #c2410c; --orange-bg: #fff3eb; --orange-chip: #ffdfc8;
+      --grey: #5b6570; --grey-bg: #eceff2; --grey-chip: #dce2e7;
+      --font-body: "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+      --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    }
+    :root[data-theme="dark"] {
+      color-scheme: dark;
+      --page: #11161b; --panel: #182028; --ink: #e4e9ee; --muted: #97a4b0;
+      --line: #2d3a46; --line-strong: #6b7c8b; --neutral-chip: #1f2931;
+      --blue: #7fb0f0; --blue-bg: #152131; --blue-chip: #1d3350;
+      --purple: #b69af0; --purple-bg: #1f1a2d; --purple-chip: #332850;
+      --green: #72c48f; --green-bg: #16241c; --green-chip: #1f3a29;
+      --gold: #d9bd59; --gold-bg: #28220f; --gold-chip: #433916;
+      --red: #f08aa5; --red-bg: #2a161c; --red-chip: #4a2430;
+      --teal: #5ecfc2; --teal-bg: #152824; --teal-chip: #20443e;
+      --orange: #fb923c; --orange-bg: #2b1c12; --orange-chip: #4a2b18;
+      --grey: #a7b1bc; --grey-bg: #1d2329; --grey-chip: #293641;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 24px 16px 32px; background: var(--page); color: var(--ink); font-family: var(--font-body); }
+    .arch-document { max-width: 1440px; margin: 0 auto; }
+    h1 { margin: 0 0 14px; font-size: 1.375rem; font-weight: 700; line-height: 1.5; }
+    .diagram-scope { margin: 0 0 14px; color: var(--muted); font-size: 0.8125rem; line-height: 1.8; }
+    figure { margin: 0; padding: 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
+    .legend { display: flex; flex-direction: column; gap: 8px; margin: 16px 16px 40px; color: var(--muted); font-size: 0.8125rem; line-height: 1.7; }
+    .legend-row { display: flex; align-items: center; gap: 12px; }
+    .legend-symbol { display: flex; align-items: center; justify-content: center; width: 52px; height: 18px; flex: 0 0 52px; }
+    .legend-swatch { width: 32px; height: 18px; border: 1.5px solid var(--module-color); border-radius: 4px; background: var(--module-bg); }
+    .legend-duty .legend-swatch { border: 0; background: var(--module-chip); }
+    .legend-line { fill: none; stroke: var(--edge); stroke-width: var(--edge-width); stroke-dasharray: var(--edge-dash, none); }
+    .legend-arrow { fill: var(--edge); }
+    .diagram-scroll { overflow-x: auto; }
+    :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+    .architecture { display: block; width: 100%; min-width: 1400px; height: auto; }
+    figcaption { margin-top: 14px; color: var(--muted); font-size: 0.8125rem; line-height: 1.8; overflow-wrap: anywhere; }
+    .architecture text { fill: var(--ink); font-family: var(--font-body); font-size: 12px; }
+    /* 仅为通用示例定义模块映射；实际绘图按本组图的模块重建。 */
+    .module-entry, .module-application { --module-color: var(--red); --module-bg: var(--red-bg); --module-chip: var(--red-chip); }
+    .module-orchestration, .module-analysis { --module-color: var(--purple); --module-bg: var(--purple-bg); --module-chip: var(--purple-chip); }
+    .module-execution { --module-color: var(--blue); --module-bg: var(--blue-bg); --module-chip: var(--blue-chip); }
+    .module-adapter { --module-color: var(--gold); --module-bg: var(--gold-bg); --module-chip: var(--gold-chip); }
+    .module-services, .module-index, .module-retrieval { --module-color: var(--orange); --module-bg: var(--orange-bg); --module-chip: var(--orange-chip); }
+    .module-review { --module-color: var(--green); --module-bg: var(--green-bg); --module-chip: var(--green-chip); }
+    .group-neutral { --module-color: var(--grey); --module-bg: var(--grey-bg); --module-chip: var(--grey-chip); }
+    /* 仅在已声明按视角配色的图中使用；复用色值变量，不表达模块身份。 */
+    .perspective-business { --module-color: var(--orange); --module-bg: var(--orange-bg); --module-chip: var(--orange-chip); }
+    .perspective-engineering { --module-color: var(--purple); --module-bg: var(--purple-bg); --module-chip: var(--purple-chip); }
+    .perspective-algorithm { --module-color: var(--blue); --module-bg: var(--blue-bg); --module-chip: var(--blue-chip); }
+    .architecture .perspective-frame { fill: var(--module-bg); stroke: var(--module-color); stroke-width: 1.5; rx: 10; }
+    .architecture .perspective-title { fill: var(--module-color); font-size: 14px; font-weight: 700; }
+    .architecture .metric-value { font-size: 21px; font-weight: 700; }
+    .architecture .metric-target { fill: var(--orange); font-weight: 700; }
+    .architecture .module-name { fill: var(--module-color); }
+    .architecture .body-text { fill: var(--ink); font-size: 12px; }
+    .architecture .section-title { fill: var(--ink); font-size: 14px; font-weight: 700; }
+    .architecture .outer-title { fill: var(--module-color); font-size: 24px; font-weight: 700; }
+    .architecture .module-title { fill: var(--module-color); font-size: 21px; font-weight: 700; }
+    .architecture .module-type { fill: var(--muted); font-size: 13px; }
+    .architecture .module-note { fill: var(--muted); font-size: 14px; }
+    .architecture .duty-title { font-size: 19px; font-weight: 700; }
+    .architecture .duty-body { font-size: 15px; }
+    .architecture .duty-accent { fill: none; stroke: var(--module-color); stroke-width: 3; }
+
+    .architecture .boundary { fill: none; stroke: var(--line-strong); stroke-width: 1.5; stroke-dasharray: 7 5; }
+    .architecture .frame { fill: var(--module-bg); stroke: var(--module-color); stroke-width: 1.5; rx: 10; }
+    .architecture .card, .architecture .mini { fill: var(--panel); stroke: var(--module-color, var(--line)); stroke-width: 2; vector-effect: non-scaling-stroke; rx: 8; }
+    .architecture .frame-inherited { fill: var(--panel); }
+    .architecture .duty { fill: var(--module-chip); stroke: none; rx: 6; }
+    .architecture .annotation { fill: var(--panel); stroke: var(--line); stroke-width: 1; rx: 8; }
+    .architecture .card-tinted { fill: var(--module-bg); }
+    .architecture .chip, .architecture .pill { fill: var(--module-chip, var(--neutral-chip)); stroke: var(--module-color, var(--line-strong)); stroke-width: 1; rx: 5; }
+    .architecture .band { fill: var(--module-bg); stroke: var(--module-color); stroke-width: 1.5; rx: 10; }
+    .architecture .step { fill: var(--ink); stroke: none; }
+    .architecture .step-label { fill: var(--page); font-family: var(--font-mono); font-size: 10.5px; font-weight: 700; }
+    .architecture .node-title { font-size: 15px; font-weight: 700; }
+    .architecture .frame-title { fill: var(--module-color); font-size: 14px; font-weight: 700; }
+    .architecture .mini-title { font-size: 12.5px; font-weight: 700; }
+    .architecture .boundary-title { font-size: 14px; font-weight: 700; }
+    .architecture .band-title { fill: var(--module-color); font-size: 13.5px; font-weight: 700; }
+    .architecture .note { fill: var(--muted); font-size: 12px; }
+    .architecture .mono { font-family: var(--font-mono); font-size: 12px; }
+    .architecture .chip-label { font-size: 11.5px; }
+    .k-flow { --edge: var(--blue); --edge-width: 2; }
+    .k-alt { --edge: var(--gold); --edge-width: 2; --edge-dash: 7 4; }
+    .k-event { --edge: var(--teal); --edge-width: 1.8; --edge-dash: 2 4; }
+    .k-plain { --edge: var(--line-strong); --edge-width: 1.6; }
+    .k-cfg { --edge: var(--line-strong); --edge-width: 1.6; --edge-dash: 6 4; }
+    .k-association { --edge: var(--line-strong); --edge-width: 1.4; --edge-dash: 3 4; }
+    .k-fail { --edge: var(--red); --edge-width: 2; }
+    .architecture .edge { fill: none; stroke: var(--edge, var(--line-strong)); stroke-width: var(--edge-width, 1.6); stroke-dasharray: var(--edge-dash, none); }
+    .architecture .arrowhead { fill: var(--edge, var(--line-strong)); stroke: none; }
+    .architecture .edge-label { fill: var(--muted); font-size: 11.5px; }
+    .architecture .edge-label.k-flow, .architecture .edge-label.k-alt, .architecture .edge-label.k-event, .architecture .edge-label.k-fail { fill: var(--edge); }
+    .architecture .edge-operation { font-size: 12.5px; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <main class="arch-document">
+    <!-- 先应用通用规则，再选架构图、流程图或数据流图；只启用内容触发的专项。
+         图类型决定节点身份。按所选类型替换节点与关系；examples 提供各类型骨架。
+         观察范围、数据口径和关系须按任务替换；不因模板含有专项样式就新增对应内容。 -->
+    <h1>多视角流程与性能口径（通用示例）</h1>
+    <p class="diagram-scope">流程图 · 一次报告导出；启用多视角对应、性能指标、资源与存储规则，颜色表示视角。所有示例内容均为虚构。</p>
+    <figure>
+      <div class="diagram-scroll" tabindex="0" role="region" aria-label="系统图，可横向滚动">
+        <svg xmlns="http://www.w3.org/2000/svg" class="architecture" viewBox="0 0 1400 936" role="img" aria-labelledby="sample-title" aria-describedby="sample-description"><title id="sample-title">多视角流程与性能口径（通用示例）</title><desc id="sample-description">图类型：流程图；启用多视角对应、性能指标、资源与存储规则。颜色表示视角，执行者写在块内。B、E、A 是各视角内的操作标识，跨视角对应通过文字声明；E2 对应三个算法操作，横向位置不表示一一对应或调用。所有名称、行为及数据均为虚构。</desc>
+<defs>
+            <marker id="sample-arrow-flow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead k-flow" d="M0,0 L10,5 L0,10 z"/></marker>
+            <marker id="sample-arrow-alt" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead k-alt" d="M0,0 L10,5 L0,10 z"/></marker>
+            <marker id="sample-arrow-event" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead k-event" d="M0,0 L10,5 L0,10 z"/></marker>
+            <marker id="sample-arrow-plain" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead k-plain" d="M0,0 L10,5 L0,10 z"/></marker>
+            <marker id="sample-arrow-cfg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead k-cfg" d="M0,0 L10,5 L0,10 z"/></marker>
+            <marker id="sample-arrow-fail" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead k-fail" d="M0,0 L10,5 L0,10 z"/></marker>
+          </defs>
+<g class="perspective-business"><rect class="perspective-frame" x="40" y="40" width="400" height="566"/><text class="perspective-title" x="60" y="68" >业务视角 · 完整任务</text></g>
+<g class="perspective-engineering"><rect class="perspective-frame" x="500" y="40" width="400" height="566"/><text class="perspective-title" x="520" y="68" >工程视角 · 完整处理</text></g>
+<g class="perspective-algorithm"><rect class="perspective-frame" x="960" y="40" width="400" height="566"/><text class="perspective-title" x="980" y="68" >算法视角 · E2 的每批处理</text></g>
+<text class="body-text" x="60" y="92" >范围：一次请求至取得下载地址</text>
+<text class="body-text" x="520" y="92" >范围：E1 → E2 → E3</text>
+<text class="body-text" x="980" y="92" >对应关系：E2 展开为 A1、A2、A3</text>
+<g class="group-neutral"><rect class="annotation" x="40" y="644" width="1320" height="262"/><text class="section-title" x="60" y="672" >同一次请求的耗时组成（模拟数据）</text></g>
+<text class="body-text" x="60" y="699" >范围：请求接收到地址交付；固定 3 批资料；总计 120 ms。</text>
+<g class="group-neutral"><rect class="chip" x="60" y="720" width="320" height="42"/><text class="body-text" x="220" y="746" text-anchor="middle">E1 · 30 ms · 25%</text></g>
+<g class="group-neutral"><rect class="chip" x="380" y="720" width="640" height="42"/><text class="body-text" x="700" y="746" text-anchor="middle">E2 · 累计 60 ms · 50%</text></g>
+<g class="group-neutral"><rect class="chip" x="1020" y="720" width="320" height="42"/><text class="body-text" x="1180" y="746" text-anchor="middle">E3 · 30 ms · 25%</text></g>
+<text class="body-text" x="60" y="798" >三段顺序执行且无重叠：30 + 60 + 30 = 120 ms；占比均以本次请求 120 ms 为分母。</text>
+<text class="body-text" x="60" y="830" >E2 包含 3 批处理，平均 20 ms / 批；其中计算 45 ms、复制 15 ms，已包含在 E2 的 60 ms 内。</text>
+<text class="note" x="60" y="868" >来源：为演示统计关系构造的模拟数据；不提供各算法操作的独立计时。</text>
+<path id="view-0-step-0" class="edge k-plain" d="M240,224 L240,284" marker-end="url(#sample-arrow-plain)"/><text class="edge-label k-plain" x="256" y="254" data-edge-label="view-0-step-0" text-anchor="start">继续处理</text>
+<path id="view-0-step-1" class="edge k-plain" d="M240,394 L240,454" marker-end="url(#sample-arrow-plain)"/><text class="edge-label k-plain" x="256" y="424" data-edge-label="view-0-step-1" text-anchor="start">继续处理</text>
+<path id="view-1-step-0" class="edge k-plain" d="M700,224 L700,284" marker-end="url(#sample-arrow-plain)"/><text class="edge-label k-plain" x="716" y="254" data-edge-label="view-1-step-0" text-anchor="start">继续处理</text>
+<path id="view-1-step-1" class="edge k-plain" d="M700,394 L700,454" marker-end="url(#sample-arrow-plain)"/><text class="edge-label k-plain" x="716" y="424" data-edge-label="view-1-step-1" text-anchor="start">继续处理</text>
+<path id="view-2-step-0" class="edge k-plain" d="M1160,224 L1160,284" marker-end="url(#sample-arrow-plain)"/><text class="edge-label k-plain" x="1176" y="254" data-edge-label="view-2-step-0" text-anchor="start">继续处理</text>
+<path id="view-2-step-1" class="edge k-plain" d="M1160,394 L1160,454" marker-end="url(#sample-arrow-plain)"/><text class="edge-label k-plain" x="1176" y="424" data-edge-label="view-2-step-1" text-anchor="start">继续处理</text>
+<path id="algorithm-next-batch" class="edge k-alt" d="M1340,509 L1375,509 L1375,169 L1340,169" marker-end="url(#sample-arrow-alt)"/><text class="edge-label k-alt" x="1340" y="444" data-edge-label="algorithm-next-batch" text-anchor="end">还有批次：处理下一批</text>
+<g id="business-submit" class="perspective-business"><rect class="card" x="60" y="114" width="360" height="110"/><text class="node-title" x="78" y="145" >B1 · 提交导出任务</text><text class="body-text" x="78" y="170" >调用方确定资料范围</text><text class="body-text" x="78" y="190" >对应工程 E1</text></g>
+<g id="business-report" class="perspective-business"><rect class="card" x="60" y="284" width="360" height="110"/><text class="node-title" x="78" y="315" >B2 · 生成报告</text><text class="body-text" x="78" y="340" >报告服务汇总全部资料</text><text class="body-text" x="78" y="360" >对应工程 E2</text></g>
+<g id="business-result" class="perspective-business"><rect class="card" x="60" y="454" width="360" height="110"/><text class="node-title" x="78" y="485" >B3 · 取得下载地址</text><text class="body-text" x="78" y="510" >调用方使用已交付文件</text><text class="body-text" x="78" y="530" >对应工程 E3</text></g>
+<g id="engineering-validate" class="perspective-engineering"><rect class="card" x="520" y="114" width="360" height="110"/><text class="node-title" x="538" y="145" >E1 · 校验请求</text><text class="body-text" x="538" y="170" >入口组件确认参数与资料范围</text><text class="body-text" x="538" y="190" >对应业务 B1</text></g>
+<g id="engineering-batches" class="perspective-engineering"><rect class="card" x="520" y="284" width="360" height="110"/><text class="node-title" x="538" y="315" >E2 · 处理全部批次</text><text class="body-text" x="538" y="340" >报告服务依次处理 3 批资料</text><text class="body-text" x="538" y="360" >每批执行算法 A1、A2、A3</text></g>
+<g id="engineering-deliver" class="perspective-engineering"><rect class="card" x="520" y="454" width="360" height="110"/><text class="node-title" x="538" y="485" >E3 · 写入并交付文件</text><text class="body-text" x="538" y="510" >报告服务写入结果并返回地址</text><text class="body-text" x="538" y="530" >对应业务 B3</text></g>
+<g id="algorithm-filter" class="perspective-algorithm"><rect class="card" x="980" y="114" width="360" height="110"/><text class="node-title" x="998" y="145" >A1 · 筛选有效记录</text><text class="body-text" x="998" y="170" >报告服务过滤本批无效记录</text><text class="body-text" x="998" y="190" >输入：当前批次</text></g>
+<g id="algorithm-calculate" class="perspective-algorithm"><rect class="card" x="980" y="284" width="360" height="110"/><text class="node-title" x="998" y="315" >A2 · 计算统计项</text><text class="body-text" x="998" y="340" >报告服务计算各分组统计值</text><text class="body-text" x="998" y="360" >输入：本批有效记录</text></g>
+<g id="algorithm-merge" class="perspective-algorithm"><rect class="card" x="980" y="454" width="360" height="110"/><text class="node-title" x="998" y="485" >A3 · 合并本批结果</text><text class="body-text" x="998" y="510" >报告服务更新累计报告</text><text class="body-text" x="998" y="530" >本批结束；还有批次时推进到下一批</text></g>
+</svg>
+      </div>
+      <figcaption>来源：内置通用示例，不描述真实项目。图类型：流程图；启用多视角对应、性能指标、资源与存储规则。颜色表示视角，执行者写在块内。B、E、A 是各视角内的操作标识，跨视角对应通过文字声明；E2 对应三个算法操作，横向位置不表示一一对应或调用。所有名称、行为及数据均为虚构。</figcaption>
+    </figure>
+    <div class="legend" role="group" aria-label="图例">
+<div class="legend-row perspective-business"><span class="legend-symbol"><span class="legend-swatch"></span></span><span>业务视角</span></div>
+<div class="legend-row perspective-engineering"><span class="legend-symbol"><span class="legend-swatch"></span></span><span>工程视角</span></div>
+<div class="legend-row perspective-algorithm"><span class="legend-symbol"><span class="legend-swatch"></span></span><span>算法视角，展开 E2</span></div>
+<div class="legend-row k-plain"><svg class="legend-symbol" width="52" height="18" viewBox="0 0 52 18" aria-hidden="true"><path class="legend-line" d="M0,9 H44"/><path class="legend-arrow" d="M44,5 L52,9 L44,13 Z"/></svg><span>当前视角内的执行顺序</span></div>
+<div class="legend-row k-alt"><svg class="legend-symbol" width="52" height="18" viewBox="0 0 52 18" aria-hidden="true"><path class="legend-line" d="M0,9 H44"/><path class="legend-arrow" d="M44,5 L52,9 L44,13 Z"/></svg><span>下一批继续同一算法，最后一批结束后退出 E2</span></div>
+</div>
+  </main>
+</body>
+</html>
