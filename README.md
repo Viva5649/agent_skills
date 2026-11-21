@@ -19,7 +19,7 @@
 | `clarify-life-direction` | 人生方向澄清。回溯经历、澄清愿景、定义反愿景、倒推路径，把「不知道自己想要什么」变成可执行方向 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
 | `clarify-thought` | 命题分解与决策澄清。维特根斯坦 + 苏格拉底 + 波兰尼三层架构，把模糊想法拆成精准指令或清晰决策 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills)（原作者 riiiku） | ✅ |
 | `create-blueprint` | 生成工程蓝图风格技术图表，支持箭头、连线、关系标注，用于架构图与流程图 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ❌ |
-| `create-system-diagram` | 创建、更新和检查 HTML/SVG 系统图，覆盖架构分层、模块职责、局部流程与数据流，使用固定配色和布局规范 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
+| `create-system-diagram` | 创建、更新和检查 HTML/SVG 架构图、流程图与数据流图，先选图类型，再按内容启用多视角、性能、资源、配置差异与交互规则，默认交付静态 HTML | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
 | `creator-signal-digest` | 创作者信号雷达周报。扫描中文圈/英语圈 AI 创作者账号，筛选 AI 实操与副业信号 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ❌ |
 | `deep-research-with-verification` | 带独立事实核查的深度研究。完整复用 `hv-analysis` 的研究流程，初稿后追加独立核查与修复，以 Markdown 交付 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
 | `execute-tickets` | 按依赖顺序执行已准备好的实现 ticket，逐张实现、验证、评审，支持多仓库和中断后续跑 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | ✅ |
@@ -78,14 +78,14 @@
 | `audit-docs-landscape` | 仓库级文档全景审计 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | 本仓库 |
 | `write-implementation-tickets` | 把规格拆成可独立执行的实现 ticket | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | 本仓库 |
 | `execute-tickets` | 按依赖顺序执行实现 ticket | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | 本仓库 |
-| `create-system-diagram` | 创建、更新和检查 HTML/SVG 系统图，覆盖架构分层、模块关系与数据流 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | 本仓库 |
+| `create-system-diagram` | 创建、更新和检查 HTML/SVG 架构图、流程图与数据流图，先选图类型再按内容启用多视角、性能与配置差异等规则 | [Viva5649/agent_skills](https://github.com/Viva5649/agent_skills) | 本仓库 |
 
 ### 信息获取 / 研究
 
 | Skill | 用途 | 源仓库 | `third_party/` 收录 |
 |---|---|---|:---:|
 | `agent-reach` | 全网调研入口。13 个平台多后端路由，覆盖小红书、X、B 站、Reddit、V2EX、领英等 | [Panniantong/Agent-Reach](https://github.com/Panniantong/Agent-Reach) | ❌ |
-| `hv-analysis` | 横纵分析法深度研究。纵轴追生命历程，横轴做竞品对比，默认产出 PDF 和 Markdown，也可指定 HTML | [KKKKhazix/khazix-skills](https://github.com/KKKKhazix/khazix-skills) | ✅ |
+| `hv-analysis` | 横纵分析法深度研究。纵轴追从诞生到当下的因果历程，横轴做竞品对比并交叉出洞察，必须联网取证，默认交付万字级 PDF 和 Markdown，也可按需输出 HTML | [KKKKhazix/khazix-skills](https://github.com/KKKKhazix/khazix-skills) | ✅ |
 | `aihot` | 查询 AIHOT 中文 AI 资讯、精选、热点与日报，走匿名只读 API | [KKKKhazix/khazix-skills](https://github.com/KKKKhazix/khazix-skills) | ✅ |
 | `notecraft` | NotebookLM 自动化。建笔记本、加源、生成播客/视频/幻灯片/闪卡 | [icebear0828/notebooklm-client](https://github.com/icebear0828/notebooklm-client) | ❌ |
 | `youtube-downloader` | 基于 yt-dlp 下载 YouTube 及 1000+ 站点视频 | [crazynomad/skills](https://github.com/crazynomad/skills) | ❌ |
@@ -137,7 +137,7 @@
 | `gstack` | gstack skill 套件的路由入口 | [garrytan/gstack](https://github.com/garrytan/gstack) | ✅ |
 | `gstack-office-hours` | YC Office Hours 两种模式，帮你想清楚一个东西值不值得做 | [garrytan/gstack](https://github.com/garrytan/gstack) | ✅ |
 | `gstack-plan-ceo-review` | CEO / 创始人视角的方案评审，推动放大格局与重新审视范围 | [garrytan/gstack](https://github.com/garrytan/gstack) | ✅ |
-| `gstack-plan-eng-review` | 工程经理视角的方案评审，审架构与实施计划 | [garrytan/gstack](https://github.com/garrytan/gstack) | ✅ |
+| `gstack-plan-eng-review` | 工程经理视角的方案评审，在功能动工前锁定架构、数据流、图表、边界情况、测试覆盖与性能 | [garrytan/gstack](https://github.com/garrytan/gstack) | ✅ |
 
 > 上游共 61 个 skill，这里只装了需要的几个，装法见「六」的 gstack 小节。
 

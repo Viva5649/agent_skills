@@ -1,56 +1,56 @@
 {
   "repos": {
     "EveryInc/compound-engineering-plugin": {
-      "commit": "ee46dde75a40e297bd8eac4055a410a771d3ac1d",
-      "updated_at": "2026-11-15T12:34:57+08:00"
+      "commit": "58d1a83d9207c96c9fb4934589b8b5967849dfdb",
+      "updated_at": "2026-11-21T12:27:27+08:00"
     },
     "Fenng/Tech-Doc-Style-Chinese": {
       "commit": "b119d01c9bb7cd132b3c62fafdff34227c4410d1",
       "updated_at": "2026-10-07T11:34:27+08:00"
     },
     "JimLiu/baoyu-skills": {
-      "commit": "ca703c2d7c2c4399a1dc0cf82224f8551e05a96d",
-      "updated_at": "2026-11-15T12:34:59+08:00"
+      "commit": "bf1ff076e25f8da4a339eb1c8cf03361fea5ea4c",
+      "updated_at": "2026-11-21T12:27:28+08:00"
     },
     "KKKKhazix/khazix-skills": {
-      "commit": "71cd50ffe1f1f4d400b54be967dc6b59379aff8f",
-      "updated_at": "2026-11-15T12:35:00+08:00"
+      "commit": "76fc0f8e8245b40a809d8eed89b27f04cbcf81bb",
+      "updated_at": "2026-11-21T12:27:29+08:00"
     },
     "Viva5649/agent_skills": {
-      "commit": "4e241e5072d2115b5cdaefd3bbcd7068ed555999",
-      "updated_at": "2026-11-15T12:11:21+08:00"
+      "commit": "523d9f045cc4556cf58a080a1e74dd8da7ed4667",
+      "updated_at": "2026-11-21T12:27:32+08:00"
     },
     "ailabs-393/ai-labs-claude-skills": {
       "commit": "1a12bc7aadcc7b211f77a7455db454b77a71f827",
       "updated_at": "2026-09-29T22:56:32+08:00"
     },
     "alchaincyf/huashu-art-motion": {
-      "commit": "1468196505a51728686db118d52561aa27a25124",
-      "updated_at": "2026-11-15T12:35:03+08:00"
+      "commit": "a97c45018d46e950d56d61981138e08f4e092909",
+      "updated_at": "2026-11-21T12:27:32+08:00"
     },
     "alchaincyf/huashu-design": {
-      "commit": "e8d1148a80d5a281d4247cffe320add3df017928",
-      "updated_at": "2026-11-15T12:35:05+08:00"
+      "commit": "e1d3a598068e1189396c8fb71a9688ffe2e58e85",
+      "updated_at": "2026-11-21T12:27:34+08:00"
     },
     "anthropics/skills": {
-      "commit": "1780c5e5a552fd4d1c9d6a7b0cab26b0c2bef064",
-      "updated_at": "2026-11-15T12:35:08+08:00"
+      "commit": "e4bb5d960d87126ff3b3a8af1a104b7db67560ba",
+      "updated_at": "2026-11-21T12:27:36+08:00"
     },
     "blader/humanizer": {
-      "commit": "b48c832f0f809c1b5658edbb838c2521b72f2413",
-      "updated_at": "2026-11-15T12:35:09+08:00"
+      "commit": "a32f24407364c74c812b43c15926d638bee1e072",
+      "updated_at": "2026-11-21T12:27:37+08:00"
     },
     "crazynomad/skills": {
       "commit": "2bc470fc08b47b63af8c1721058672ad0678ab78",
       "updated_at": "2026-09-29T22:56:32+08:00"
     },
     "emilkowalski/skills": {
-      "commit": "0f2e23b32bb1265e84cff8d3e75785fec953fb1b",
-      "updated_at": "2026-11-15T12:35:10+08:00"
+      "commit": "64eb3deb9a5fbfa041faf783e0bc3fd635872e9c",
+      "updated_at": "2026-11-21T12:27:38+08:00"
     },
     "garrytan/gstack": {
-      "commit": "0326b144af36676d599dcf63a9fad9a870d22ed6",
-      "updated_at": "2026-11-15T12:35:13+08:00"
+      "commit": "41729a023ecf4c8c41d95ad69c666f2fd619c8fb",
+      "updated_at": "2026-11-21T12:27:39+08:00"
     },
     "humanlayer/skills": {
       "commit": "4d69d20f6e9b57b4fcf0d501ccfb1be961f0f329",
@@ -61,28 +61,28 @@
       "updated_at": "2026-10-31T14:53:30+08:00"
     },
     "jeffallan/claude-skills": {
-      "commit": "078a25cc5bfd8011459be7b91d004e900c1d02d3",
-      "updated_at": "2026-10-31T14:53:31+08:00"
+      "commit": "4b94d98605baf742b751bb82832ace5caf942271",
+      "updated_at": "2026-11-21T12:27:40+08:00"
     },
     "joeseesun/qiaomu-goal-meta-skill": {
       "commit": "f29e0189f2ea03392c50b4f1c7230886bd838a13",
       "updated_at": "2026-09-29T22:56:33+08:00"
     },
     "mattpocock/skills": {
-      "commit": "5863806dd4e15c63174bee4e7515a4256792ecfa",
-      "updated_at": "2026-11-15T12:35:17+08:00"
+      "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823",
+      "updated_at": "2026-11-21T12:27:42+08:00"
     },
     "morluto/rea": {
-      "commit": "2e1e6593f266b859d2f0fc858d51ed2f280b6849",
-      "updated_at": "2026-11-15T12:35:20+08:00"
+      "commit": "b5db3218a20036169df0be8242dc8db2f37327e0",
+      "updated_at": "2026-11-21T12:27:45+08:00"
     },
     "op7418/guizang-ppt-skill": {
       "commit": "93d21bf4a73a851907a6eb00acbf30618236667a",
       "updated_at": "2026-10-31T14:53:39+08:00"
     },
     "qingyuna/answer-me-with-html": {
-      "commit": "edccab07c012e2141585f8ddb18a62e01664fa2b",
-      "updated_at": "2026-11-13T22:22:14+08:00"
+      "commit": "997479b6f34c8a5141c61b03f144e821c8f99f2d",
+      "updated_at": "2026-11-21T12:27:46+08:00"
     },
     "smallnest/goal-workflow": {
       "commit": "b06ab3c1c147dcf7ef8dd62a8927cd506d098135",
@@ -93,8 +93,8 @@
       "updated_at": "2026-09-29T22:56:33+08:00"
     },
     "vercel-labs/skills": {
-      "commit": "b716f9dc2ba36b6aa8f0080615e5a3a6caeac63b",
-      "updated_at": "2026-11-15T12:35:21+08:00"
+      "commit": "57217cf86ba38148a57af9e90d14a4c049558330",
+      "updated_at": "2026-11-21T12:27:47+08:00"
     }
   },
   "skills": {
