@@ -5,7 +5,7 @@
 本文档记录本机（macOS）当前的 skill 全貌，分三层：仓库自建、全局安装、项目级。全局安装的 skill 由 [`skillctl`](#六用-skillctl-管理全局-skill) 按仓库根目录的 `skills.json` 安装，来源仓库以它为准。
 
 - 自建 skill：17 个（`skills/`）
-- 全局安装：73 个（`~/.agents/skills/`，`~/.claude/skills/` 下是指向它的软链接）
+- 全局安装：72 个（`~/.agents/skills/`，`~/.claude/skills/` 下是指向它的软链接）
 - 项目级：6 个（`personal_ai_infrastructure/.claude/skills/`）
 - 外部聚合：7 个仓库，共 200 个 skill（`third_party/`）
 
@@ -41,7 +41,7 @@
 
 ## 二、全局安装 skill（`~/.agents/skills/` 与 `~/.claude/skills/`）
 
-对所有项目生效，Claude Code 和 Codex 看到的是同一份。除 `agent-reach` 和 `ego-browser` 外，都由 skillctl 安装，见「六」。
+对所有项目生效，Claude Code 和 Codex 看到的是同一份。除 `ego-browser` 外，都由 skillctl 安装，见「六」。
 
 「`third_party/` 收录」列说明这个 skill 的**上游仓库**在本仓库里能不能直接翻到源码：
 
@@ -84,7 +84,6 @@
 
 | Skill | 用途 | 源仓库 | `third_party/` 收录 |
 |---|---|---|:---:|
-| `agent-reach` | 全网调研入口。13 个平台多后端路由，覆盖小红书、X、B 站、Reddit、V2EX、领英等 | [Panniantong/Agent-Reach](https://github.com/Panniantong/Agent-Reach) | ❌ |
 | `hv-analysis` | 横纵分析法深度研究。纵轴追从诞生到当下的因果历程，横轴做竞品对比并交叉出洞察，必须联网取证，默认交付万字级 PDF 和 Markdown，也可按需输出 HTML | [KKKKhazix/khazix-skills](https://github.com/KKKKhazix/khazix-skills) | ✅ |
 | `aihot` | 查询 AIHOT 中文 AI 资讯、精选、热点与日报，走匿名只读 API | [KKKKhazix/khazix-skills](https://github.com/KKKKhazix/khazix-skills) | ✅ |
 | `notecraft` | NotebookLM 自动化。建笔记本、加源、生成播客/视频/幻灯片/闪卡 | [icebear0828/notebooklm-client](https://github.com/icebear0828/notebooklm-client) | ❌ |
@@ -212,7 +211,6 @@
 |---|---|
 | [ego lite](https://lite.ego.app/)（应用内置，无公开仓库） | `ego-browser` |
 | [vercel-labs/skills](https://github.com/vercel-labs/skills) | `find-skills` |
-| [Panniantong/Agent-Reach](https://github.com/Panniantong/Agent-Reach) | `agent-reach` |
 | [icebear0828/notebooklm-client](https://github.com/icebear0828/notebooklm-client) | `notecraft` |
 | [crazynomad/skills](https://github.com/crazynomad/skills) | `youtube-downloader` |
 | [blader/humanizer](https://github.com/blader/humanizer) | `humanizer` |
@@ -249,7 +247,6 @@ git submodule update --remote --merge
 |---|---|
 | `creator-signal-digest`、`explain-concept` | 有意只留在仓库内，不做全局安装 |
 | `ego-browser` | 由 ego lite 应用安装，两个全局目录下都是指向 `~/.local/share/ego/ego-skills` 的软链接，实体在应用包内，随应用升级，不归 skillctl 管，也无法收进 `third_party/` |
-| `agent-reach` | 由 Agent-Reach 自己的命令行工具安装，skill 版本要和工具版本对应，不归 skillctl 管 |
 | 全局与 `third_party/` 内容重复 | 预期行为，非问题。`third_party/` 的定位是集中管理与查阅上游仓库，全局 skill 由 skillctl 从上游仓库独立安装，两者各司其职 |
 
 ### README 同步校验
@@ -262,7 +259,7 @@ git submodule update --remote --merge
 
 校验六项：三层的 skill 名单、头部计数、`third_party/` 各仓库的 skill 数、全局 skill 的源仓库、自建层的「全局已装」列、全局层的「`third_party/` 收录」列与「尚未聚合的上游仓库」表。
 
-全局层以 `skills.json` 里在装的条目为准，再加上脚本里登记的非托管 skill（`agent-reach`、`ego-browser`），不扫描本机目录，所以在哪台电脑上校验结果都一样。本机实际装的和清单是否一致，由 `skillctl check` 负责。项目级默认读 `~/Desktop/personal_ai_infrastructure`，可用 `PAI_ROOT` 覆盖，目录不存在时跳过并打印提示。
+全局层以 `skills.json` 里在装的条目为准，再加上脚本里登记的非托管 skill（`ego-browser`），不扫描本机目录，所以在哪台电脑上校验结果都一样。本机实际装的和清单是否一致，由 `skillctl check` 负责。项目级默认读 `~/Desktop/personal_ai_infrastructure`，可用 `PAI_ROOT` 覆盖，目录不存在时跳过并打印提示。
 
 脚本只读，不校验也不生成用途描述和分类分组，发现漂移时逐条打印并以退出码 1 结束。
 

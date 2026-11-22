@@ -28,7 +28,7 @@ GITMODULES = REPO / ".gitmodules"
 MANIFEST = REPO / "skills.json"
 
 # 由其他工具安装、不归 skillctl 管的全局 skill，及其上游
-UNMANAGED = {"agent-reach": "panniantong/agent-reach", "ego-browser": None}
+UNMANAGED = {"ego-browser": None}
 PAI_ROOT = Path(os.environ.get("PAI_ROOT") or Path.home() / "Desktop" / "personal_ai_infrastructure")
 PAI_DIR = PAI_ROOT / ".claude" / "skills"
 
